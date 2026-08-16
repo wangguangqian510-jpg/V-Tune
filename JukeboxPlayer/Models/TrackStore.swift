@@ -100,7 +100,13 @@ final class TrackStore: ObservableObject {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try fileManager.copyItem(at: url, to: dest)
 
-        addImportedRecord(filename: dest.lastPathComponent)
+        // 读真实 ID3 / MP4 标签，拿歌手、专辑、标题；读不到则用文件名兜底。
+        let tags = readAudioTags(from: dest)
+        let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
+        let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+        let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+        let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album)
     }
 
     /// 添加一个远程音频 URL。
@@ -189,14 +195,13 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String) {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String) {
         let id = UUID()
-        let title = (filename as NSString).deletingPathExtension
         let record = TrackRecord(
             id: id,
             title: title,
-            artist: "本地音频",
-            album: "",
+            artist: artist,
+            album: album,
             source: .imported,
             urlString: filename,
             coverSeed: filename

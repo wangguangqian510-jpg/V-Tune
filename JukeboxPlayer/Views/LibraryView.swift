@@ -3,6 +3,8 @@ import UniformTypeIdentifiers
 
 enum LibTab: String, CaseIterable, Identifiable {
     case songs = "歌曲"
+    case artists = "歌手"
+    case albums = "专辑"
     case playlists = "歌单"
     case favorites = "我喜欢"
     var id: String { rawValue }
@@ -33,17 +35,12 @@ struct LibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("分类", selection: $tab) {
-                ForEach(LibTab.allCases) { t in
-                    Text(t.rawValue).tag(t)
-                }
-            }
-            .pickerStyle(.segmented)
-            .padding(.horizontal)
-            .padding(.vertical, 8)
+            tabBar
 
             switch tab {
             case .songs:     songList
+            case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
+            case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
             case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
             case .favorites: favoritesList
             }
@@ -51,7 +48,7 @@ struct LibraryView: View {
         .navigationTitle("Jukebox 播放器")
         .navigationBarTitleDisplayMode(.large)
         .toolbar { toolbarItems }
-        .searchable(text: $searchText, prompt: "搜索歌曲、歌手")
+        .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav],
@@ -74,6 +71,32 @@ struct LibraryView: View {
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
         }
+    }
+
+    // MARK: 顶部胶囊 Tab 条
+
+    private var tabBar: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 20) {
+                ForEach(LibTab.allCases) { t in
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.18)) { tab = t }
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text(t.rawValue)
+                                .font(.system(size: 15, weight: tab == t ? .semibold : .regular))
+                                .foregroundStyle(tab == t ? Color.primary : .secondary)
+                            Capsule()
+                                .fill(tab == t ? Color.accentColor : Color.clear)
+                                .frame(width: 20, height: 3)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal)
+        }
+        .padding(.vertical, 8)
     }
 
     // MARK: 歌曲列表
