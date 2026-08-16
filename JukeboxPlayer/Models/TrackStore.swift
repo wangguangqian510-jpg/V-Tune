@@ -13,6 +13,18 @@ struct TrackRecord: Codable {
     let coverSeed: String
 }
 
+/// 歌单 JSON 导入时的可预期错误。
+enum ImportError: LocalizedError {
+    case invalidFormat
+    case noTracks
+    var errorDescription: String? {
+        switch self {
+        case .invalidFormat: return "JSON 格式无法识别（需要包含曲目数组，如 tracks / list / songs）"
+        case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s) 的 url 字段）"
+        }
+    }
+}
+
 /// 管理示例曲 + 用户导入的本地/远程音频 + 歌单 + 收藏。
 /// 本地音频复制到 App Documents 目录，元数据用 JSON 存 UserDefaults。
 @MainActor
@@ -126,6 +138,74 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
+    }
+
+    /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
+    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。返回成功导入的曲目数。
+    /// 抛错仅发生在「整体格式无法识别」或「一条都没导进来」时。
+    func importPlaylist(from data: Data) throws -> Int {
+        let parsed = try JSONSerialization.jsonObject(with: data)
+
+        let items: [[String: Any]]
+        if let dict = parsed as? [String: Any] {
+            // 常见曲目数组键名都试一遍
+            items = dict.compactMap { key, value in
+                (["tracks", "list", "songs", "data", "items", "musics"].contains(key) ? value : nil)
+            }
+            .first(where: { $0 is [[String: Any]] }) as? [[String: Any]] ?? []
+        } else if let arr = parsed as? [[String: Any]] {
+            items = arr
+        } else {
+            throw ImportError.invalidFormat
+        }
+
+        let imported = importItems(items)
+        if imported == 0 {
+            throw ImportError.noTracks
+        }
+        return imported
+    }
+
+    private func importItems(_ items: [[String: Any]]) -> Int {
+        var imported = 0
+        for item in items {
+            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]),
+                  let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
+            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"])
+                ?? url.deletingPathExtension().lastPathComponent
+            let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName"]) ?? "未知歌手"
+            let album = firstString(item, keys: ["album", "albumName", "albumname"]) ?? ""
+
+            let id = UUID()
+            let record = TrackRecord(
+                id: id,
+                title: title,
+                artist: artist,
+                album: album,
+                source: .remote,
+                urlString: url.absoluteString,
+                coverSeed: url.absoluteString
+            )
+            records[id] = record
+            imported += 1
+        }
+        if imported > 0 {
+            saveRecords()
+            refresh()
+            catalogVersion += 1
+        }
+        return imported
+    }
+
+    /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。
+    private func firstString(_ dict: [String: Any], keys: [String]) -> String? {
+        for key in keys {
+            guard let value = dict[key] else { continue }
+            if let s = value as? String, !s.isEmpty { return s }
+            if let nested = value as? [String: Any], let s = nested["name"] as? String, !s.isEmpty { return s }
+            if let arr = value as? [String], let first = arr.first, !first.isEmpty { return first }
+        }
+        return nil
     }
 
     /// 删除一条本地或远程曲目（同时清理收藏与歌单引用）

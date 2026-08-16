@@ -18,6 +18,7 @@ struct LibraryView: View {
     @State private var searchText = ""
     @State private var showingImporter = false
     @State private var showingURLAlert = false
+    @State private var showingPlaylistImport = false
     @State private var showingErrorAlert = false
     @State private var urlString = ""
     @State private var importError: String?
@@ -70,6 +71,9 @@ struct LibraryView: View {
         }
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
+        }
+        .sheet(isPresented: $showingPlaylistImport) {
+            ImportPlaylistSheet().environmentObject(store)
         }
     }
 
@@ -181,6 +185,11 @@ struct LibraryView: View {
                     showingURLAlert = true
                 } label: {
                     Label("粘贴音频链接", systemImage: "link")
+                }
+                Button {
+                    showingPlaylistImport = true
+                } label: {
+                    Label("导入歌单 JSON", systemImage: "square.and.arrow.down.on.square")
                 }
             } label: {
                 Image(systemName: "plus")
