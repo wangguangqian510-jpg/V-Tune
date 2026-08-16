@@ -4,9 +4,9 @@ import UIKit
 
 /// 本地音频文件的 ID3 / MP4 元数据（同步读取，仅用于导入时解析）。
 struct AudioFileTags {
-    let title: String?
-    let artist: String?
-    let album: String?
+    var title: String?
+    var artist: String?
+    var album: String?
 }
 
 /// 同步读取音频标签：AVFoundation 的元数据加载是异步的，这里用信号量
