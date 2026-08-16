@@ -22,7 +22,7 @@ struct TrackRow: View {
                 Text(track.title)
                     .font(.headline)
                     .lineLimit(1)
-                    .foregroundStyle(isCurrent ? .accent : .primary)
+                    .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
                 Text(track.artist)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
@@ -55,6 +55,6 @@ struct PlayingBars: View {
             }
         }
         .onAppear { animate = true }
-        .onChange(of: isAnimating) { animate = isAnimating }
+        .onChange(of: isAnimating) { newValue in animate = newValue }
     }
 }
