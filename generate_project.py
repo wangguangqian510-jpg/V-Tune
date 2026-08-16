@@ -196,7 +196,7 @@ tgt_debug_settings = """\
 
 tgt_release_settings = tgt_debug_settings + """
 \t\t\t\tSWIFT_COMPILATION_MODE = wholemodule;
-\t\t\t\tVALIDATE_PRODUCT = YES"""
+\t\t\t\tVALIDATE_PRODUCT = YES;"""
 
 pbx = f"""// !$*UTF8*$!
 {{

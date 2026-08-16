@@ -265,7 +265,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				SWIFT_COMPILATION_MODE = wholemodule;
-				VALIDATE_PRODUCT = YES
+				VALIDATE_PRODUCT = YES;
 			};
 			name = Release;
 		};
