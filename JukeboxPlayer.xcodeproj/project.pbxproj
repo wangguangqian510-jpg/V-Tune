@@ -1,0 +1,292 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		000000000000000000000013 /* JukeboxPlayerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000001 /* JukeboxPlayerApp.swift */; };
+		000000000000000000000014 /* PlayerEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000002 /* PlayerEngine.swift */; };
+		000000000000000000000015 /* Track.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000003 /* Track.swift */; };
+		000000000000000000000016 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000004 /* ContentView.swift */; };
+		000000000000000000000017 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000005 /* LibraryView.swift */; };
+		000000000000000000000018 /* TrackRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000006 /* TrackRow.swift */; };
+		000000000000000000000019 /* NowPlayingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000007 /* NowPlayingBar.swift */; };
+		00000000000000000000001A /* NowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000008 /* NowPlayingView.swift */; };
+		00000000000000000000001B /* Jukebox.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000009 /* Jukebox.swift */; };
+		00000000000000000000001C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000A /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		000000000000000000000001 /* JukeboxPlayerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "JukeboxPlayerApp.swift"; sourceTree = "<group>"; };
+		000000000000000000000002 /* PlayerEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlayerEngine.swift"; sourceTree = "<group>"; };
+		000000000000000000000003 /* Track.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Track.swift"; sourceTree = "<group>"; };
+		000000000000000000000004 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView.swift"; sourceTree = "<group>"; };
+		000000000000000000000005 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryView.swift"; sourceTree = "<group>"; };
+		000000000000000000000006 /* TrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrackRow.swift"; sourceTree = "<group>"; };
+		000000000000000000000007 /* NowPlayingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NowPlayingBar.swift"; sourceTree = "<group>"; };
+		000000000000000000000008 /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NowPlayingView.swift"; sourceTree = "<group>"; };
+		000000000000000000000009 /* Jukebox.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Jukebox.swift"; sourceTree = "<group>"; };
+		00000000000000000000000A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
+		00000000000000000000000B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		000000000000000000000028 /* JukeboxPlayer.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JukeboxPlayer.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		00000000000000000000001E /* Frameworks */ = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (
+		); runOnlyForDeploymentPostprocessing = 0; };
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		000000000000000000000012 = {isa = PBXGroup; children = (
+			00000000000000000000000C,
+			00000000000000000000000D,
+			00000000000000000000000E,
+			00000000000000000000000F,
+			000000000000000000000010,
+			00000000000000000000000A,
+			000000000000000000000011,
+		); name = JukeboxPlayer; path = JukeboxPlayer; sourceTree = "<group>"; };
+		00000000000000000000000C = {isa = PBXGroup; children = (
+			000000000000000000000001,
+			000000000000000000000002,
+		); name = App; path = App; sourceTree = "<group>"; };
+		00000000000000000000000D = {isa = PBXGroup; children = (
+			000000000000000000000003,
+		); name = Models; path = Models; sourceTree = "<group>"; };
+		00000000000000000000000E = {isa = PBXGroup; children = (
+			000000000000000000000004,
+			000000000000000000000005,
+			000000000000000000000006,
+			000000000000000000000007,
+			000000000000000000000008,
+		); name = Views; path = Views; sourceTree = "<group>"; };
+		00000000000000000000000F = {isa = PBXGroup; children = (
+			000000000000000000000009,
+		); name = Core; path = Core; sourceTree = "<group>"; };
+		000000000000000000000010 = {isa = PBXGroup; children = (
+			00000000000000000000000B,
+		); name = Resources; path = Resources; sourceTree = "<group>"; };
+		000000000000000000000011 = {isa = PBXGroup; children = (
+			000000000000000000000028,
+		); name = Products; sourceTree = "<group>"; };
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		000000000000000000000020 /* JukeboxPlayer */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 000000000000000000000023 /* Build configuration list for PBXNativeTarget "JukeboxPlayer" */;
+			buildPhases = (
+				00000000000000000000001D /* Sources */,
+				00000000000000000000001E /* Frameworks */,
+				00000000000000000000001F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = JukeboxPlayer;
+			productName = JukeboxPlayer;
+			productReference = 000000000000000000000028 /* JukeboxPlayer.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000000000000000000000021 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					000000000000000000000020 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = 000000000000000000000022 /* Build configuration list for PBXProject "JukeboxPlayer" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = ( en, Base, "zh-Hans" );
+			mainGroup = 000000000000000000000012;
+			productRefGroup = 000000000000000000000011 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				000000000000000000000020 /* JukeboxPlayer */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		00000000000000000000001F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			00000000000000000000001C /* Assets.xcassets in Resources */
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		00000000000000000000001D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			000000000000000000000013 /* JukeboxPlayerApp.swift in Sources */,
+			000000000000000000000014 /* PlayerEngine.swift in Sources */,
+			000000000000000000000015 /* Track.swift in Sources */,
+			000000000000000000000016 /* ContentView.swift in Sources */,
+			000000000000000000000017 /* LibraryView.swift in Sources */,
+			000000000000000000000018 /* TrackRow.swift in Sources */,
+			000000000000000000000019 /* NowPlayingBar.swift in Sources */,
+			00000000000000000000001A /* NowPlayingView.swift in Sources */,
+			00000000000000000000001B /* Jukebox.swift in Sources */
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		000000000000000000000024 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = ( "DEBUG=1", "$(inherited)" );
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		000000000000000000000025 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		000000000000000000000026 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "JukeboxPlayer/Resources/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = ( "$(inherited)", "@executable_path/Frameworks" );
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.JukeboxPlayer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		000000000000000000000027 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "JukeboxPlayer/Resources/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = ( "$(inherited)", "@executable_path/Frameworks" );
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.example.JukeboxPlayer;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		000000000000000000000022 /* Build configuration list for PBXProject "JukeboxPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000024 /* Debug */,
+				000000000000000000000025 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		000000000000000000000023 /* Build configuration list for PBXNativeTarget "JukeboxPlayer" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				000000000000000000000026 /* Debug */,
+				000000000000000000000027 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000000000000000000000021 /* Project object */;
+}
