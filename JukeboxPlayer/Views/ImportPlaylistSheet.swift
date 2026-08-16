@@ -53,8 +53,7 @@ struct ImportPlaylistSheet: View {
             }
             .fileImporter(isPresented: $showingFilePicker, allowedContentTypes: [.json, .plainText]) { result in
                 switch result {
-                case .success(let urls):
-                    guard let url = urls.first else { return }
+                case .success(let url):
                     let accessing = url.startAccessingSecurityScopedResource()
                     defer { if accessing { url.stopAccessingSecurityScopedResource() } }
                     do {
