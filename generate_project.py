@@ -193,7 +193,7 @@ tgt_debug_settings = """\
 \t\t\t\tSWIFT_VERSION = 5.0;
 \t\t\t\tTARGETED_DEVICE_FAMILY = "1,2";"""
 
-tgt_release_settings = tgt_debug_settings + """;
+tgt_release_settings = tgt_debug_settings + """
 \t\t\t\tSWIFT_COMPILATION_MODE = wholemodule;
 \t\t\t\tVALIDATE_PRODUCT = YES"""
 
