@@ -39,11 +39,11 @@ jobs:
           echo "${{ secrets.CERT_P12 }}" | base64 --decode > cert.p12
           echo "${{ secrets.PROVISIONING }}" | base64 --decode > app.mobileprovision
 
-      # ③ 编译 zsign（跨平台签名工具，无需 Xcode/codesign）
+      # ③ 安装 zsign（官方预编译 macOS arm64 二进制，免源码编译）
       - name: Build zsign
         run: |
-          git clone --depth 1 https://github.com/zhlynn/zsign.git
-          cd zsign && ./build.sh
+          curl -L -o zsign.tar.gz https://github.com/zhlynn/zsign/releases/download/v1.1.1/zsign-macos-arm64.tar.gz
+          tar xzf zsign.tar.gz
           ZSIGN=$(find "$PWD" -type f -name zsign | head -1)
           echo "zsign binary: $ZSIGN"
           echo "$ZSIGN" >> "$GITHUB_PATH"

@@ -1,0 +1,862 @@
+﻿2026-08-16T14:45:29.9516750Z Current runner version: '2.336.0'
+2026-08-16T14:45:29.9540780Z ##[group]Runner Image Provisioner
+2026-08-16T14:45:29.9542760Z Hosted Compute Agent
+2026-08-16T14:45:29.9544420Z Version: 20260707.563
+2026-08-16T14:45:29.9546400Z Commit: 02667638d2b423fbc733a8e32a88b44996a3ba6e
+2026-08-16T14:45:29.9552530Z Build Date: 2026-07-07T***9:33:50Z
+2026-08-16T14:45:29.9564720Z Worker ID: {af***7c489-06b4-4***56-a9c3-dada203e82d9}
+2026-08-16T14:45:29.9566690Z Azure Region: westus
+2026-08-16T14:45:29.9568330Z ##[endgroup]
+2026-08-16T14:45:29.9570930Z ##[group]Operating System
+2026-08-16T14:45:29.9572610Z macOS
+2026-08-16T14:45:29.9574210Z 26.5.2
+2026-08-16T14:45:29.9575820Z 25F84
+2026-08-16T14:45:29.9577420Z ##[endgroup]
+2026-08-16T14:45:29.9579050Z ##[group]Runner Image
+2026-08-16T14:45:29.9580900Z Image: macos-26-arm64
+2026-08-16T14:45:29.9582650Z Version: 20260728.0273.***
+2026-08-16T14:45:29.9585050Z Included Software: https://github.com/actions/runner-images/blob/macos-26-arm64/20260728.0273/images/macos/macos-26-arm64-Readme.md
+2026-08-16T14:45:29.9587770Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-26-arm64%2F20260728.0273
+2026-08-16T14:45:29.9590370Z ##[endgroup]
+2026-08-16T14:45:29.9593250Z ##[group]GITHUB_TOKEN Permissions
+2026-08-16T14:45:29.9596150Z Contents: read
+2026-08-16T14:45:29.9597770Z Metadata: read
+2026-08-16T14:45:29.9599370Z Packages: read
+2026-08-16T14:45:29.9601150Z ##[endgroup]
+2026-08-16T14:45:29.9604110Z Secret source: Actions
+2026-08-16T14:45:29.9607050Z Prepare workflow directory
+2026-08-16T14:45:30.0003480Z Prepare all required actions
+2026-08-16T14:45:30.0053880Z Getting action download info
+2026-08-16T14:45:30.3616010Z Download action repository 'actions/checkout@v4' (SHA:***d5960a326750d5838078e36cf38b85af677262)
+2026-08-16T14:45:30.8031350Z Download action repository 'actions/upload-artifact@v4' (SHA:ea***65f8d65b6e75b540449e92b4886f43607fa02)
+2026-08-16T14:45:31.1273730Z Complete job name: build
+2026-08-16T14:45:31.2010110Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-***9-deprecation-of-node-20-on-github-actions-runners/
+2026-08-16T14:45:31.2019340Z ##[group]Run actions/checkout@v4
+2026-08-16T14:45:31.2021230Z with:
+2026-08-16T14:45:31.2023180Z   repository: wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:45:31.2027590Z   token: ***
+2026-08-16T14:45:31.2029180Z   ssh-strict: true
+2026-08-16T14:45:31.2037830Z   ssh-user: git
+2026-08-16T14:45:31.2039750Z   persist-credentials: true
+2026-08-16T14:45:31.2041530Z   clean: true
+2026-08-16T14:45:31.2043150Z   sparse-checkout-cone-mode: true
+2026-08-16T14:45:31.2044910Z   fetch-depth: ***
+2026-08-16T14:45:31.2046650Z   fetch-tags: false
+2026-08-16T14:45:31.2048260Z   show-progress: true
+2026-08-16T14:45:31.2049850Z   lfs: false
+2026-08-16T14:45:31.2051510Z   submodules: false
+2026-08-16T14:45:31.2053110Z   set-safe-directory: true
+2026-08-16T14:45:31.2054790Z   allow-unsafe-pr-checkout: false
+2026-08-16T14:45:31.2056990Z env:
+2026-08-16T14:45:31.2058610Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:45:31.2060580Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:45:31.2062460Z ##[endgroup]
+2026-08-16T14:45:31.6888940Z Syncing repository: wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:45:31.6893340Z ##[group]Getting Git version info
+2026-08-16T14:45:31.6895450Z Working directory is '/Users/runner/work/moyuxuan/moyuxuan'
+2026-08-16T14:45:31.6898490Z [command]/opt/homebrew/bin/git version
+2026-08-16T14:45:31.7133080Z git version 2.55.0
+2026-08-16T14:45:31.7141970Z ##[endgroup]
+2026-08-16T14:45:31.7154530Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/22002b04-aa77-4ae3-99ca-e63d362cbaf***/.gitconfig'
+2026-08-16T14:45:31.7163280Z Temporarily overriding HOME='/Users/runner/work/_temp/22002b04-aa77-4ae3-99ca-e63d362cbaf***' before making global git config changes
+2026-08-16T14:45:31.7180590Z Adding repository directory to the temporary git global config as a safe directory
+2026-08-16T14:45:31.7188250Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:31.7297910Z Deleting the contents of '/Users/runner/work/moyuxuan/moyuxuan'
+2026-08-16T14:45:31.7303090Z ##[group]Initializing the repository
+2026-08-16T14:45:31.7305210Z [command]/opt/homebrew/bin/git init /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:31.7544740Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-08-16T14:45:31.7547500Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-08-16T14:45:31.7550430Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-08-16T14:45:31.7552670Z hint: call:
+2026-08-16T14:45:31.7554320Z hint:
+2026-08-16T14:45:31.7556220Z hint: 	git config --global init.defaultBranch <name>
+2026-08-16T14:45:31.7558180Z hint:
+2026-08-16T14:45:31.7560190Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-08-16T14:45:31.7562690Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-08-16T14:45:31.7564860Z hint:
+2026-08-16T14:45:31.7566490Z hint: 	git branch -m <name>
+2026-08-16T14:45:31.7568110Z hint:
+2026-08-16T14:45:31.7569960Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-08-16T14:45:31.7572370Z Initialized empty Git repository in /Users/runner/work/moyuxuan/moyuxuan/.git/
+2026-08-16T14:45:31.7576760Z [command]/opt/homebrew/bin/git remote add origin https://github.com/wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:45:31.7654350Z ##[endgroup]
+2026-08-16T14:45:31.7657200Z ##[group]Disabling automatic garbage collection
+2026-08-16T14:45:31.7661780Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-08-16T14:45:31.7725650Z ##[endgroup]
+2026-08-16T14:45:31.7729060Z ##[group]Setting up auth
+2026-08-16T14:45:31.7732370Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-08-16T14:45:31.7804640Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-08-16T14:45:31.8839790Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-08-16T14:45:31.8904940Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-08-16T14:45:31.9706240Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-08-16T14:45:31.9768710Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-08-16T14:45:32.0970820Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-08-16T14:45:32.0976230Z ##[endgroup]
+2026-08-16T14:45:32.0979260Z ##[group]Fetching the repository
+2026-08-16T14:45:32.1008780Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=*** origin +f52f988508***d0beba***2f0***67540bf62aceee8***25:refs/remotes/origin/main
+2026-08-16T14:45:32.5532690Z From https://github.com/wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:45:32.5535700Z  * [new ref]         f52f988508***d0beba***2f0***67540bf62aceee8***25 -> origin/main
+2026-08-16T14:45:32.5541130Z ##[endgroup]
+2026-08-16T14:45:32.5546000Z ##[group]Determining the checkout info
+2026-08-16T14:45:32.5551350Z ##[endgroup]
+2026-08-16T14:45:32.5553580Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-08-16T14:45:32.5673900Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-08-16T14:45:32.5757200Z ##[group]Checking out the ref
+2026-08-16T14:45:32.5759840Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-08-16T14:45:32.5927920Z Switched to a new branch 'main'
+2026-08-16T14:45:32.5941560Z branch 'main' set up to track 'origin/main'.
+2026-08-16T14:45:32.5955250Z ##[endgroup]
+2026-08-16T14:45:32.6048570Z [command]/opt/homebrew/bin/git log -*** --format=%H
+2026-08-16T14:45:32.6120120Z f52f988508***d0beba***2f0***67540bf62aceee8***25
+2026-08-16T14:45:32.6354450Z ##[group]Run sudo xcode-select -switch /Applications/Xcode.app
+2026-08-16T14:45:32.6356920Z [36;***msudo xcode-select -switch /Applications/Xcode.app[0m
+2026-08-16T14:45:32.6405610Z shell: /bin/bash -e {0}
+2026-08-16T14:45:32.6407590Z env:
+2026-08-16T14:45:32.6409390Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:45:32.6411330Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:45:32.6413100Z ##[endgroup]
+2026-08-16T14:45:32.7818270Z ##[group]Run xcodebuild build \
+2026-08-16T14:45:32.7820390Z [36;***mxcodebuild build \[0m
+2026-08-16T14:45:32.7823060Z [36;***m  -project JukeboxPlayer.xcodeproj \[0m
+2026-08-16T14:45:32.7827580Z [36;***m  -target JukeboxPlayer \[0m
+2026-08-16T14:45:32.7829590Z [36;***m  -configuration Release \[0m
+2026-08-16T14:45:32.7831460Z [36;***m  -sdk iphoneos \[0m
+2026-08-16T14:45:32.7833450Z [36;***m  -destination 'generic/platform=iOS' \[0m
+2026-08-16T14:45:32.7836720Z [36;***m  CODE_SIGN_IDENTITY="" \[0m
+2026-08-16T14:45:32.7839040Z [36;***m  CODE_SIGNING_ALLOWED=NO \[0m
+2026-08-16T14:45:32.7841430Z [36;***m  PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID[0m
+2026-08-16T14:45:32.7891270Z shell: /bin/bash -e {0}
+2026-08-16T14:45:32.7893150Z env:
+2026-08-16T14:45:32.7894950Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:45:32.7897520Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:45:32.7899530Z ##[endgroup]
+2026-08-16T14:45:35.4138060Z Command line invocation:
+2026-08-16T14:45:35.4147570Z     /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/xcodebuild build -project JukeboxPlayer.xcodeproj -target JukeboxPlayer -configuration Release -sdk iphoneos -destination generic/platform=iOS CODE_SIGN_IDENTITY= CODE_SIGNING_ALLOWED=NO PRODUCT_BUNDLE_IDENTIFIER=com.arammo.cycomm
+2026-08-16T14:45:35.4149510Z 
+2026-08-16T14:45:35.4150040Z Build settings from command line:
+2026-08-16T14:45:35.4152250Z     CODE_SIGN_IDENTITY = 
+2026-08-16T14:45:35.4153640Z     CODE_SIGNING_ALLOWED = NO
+2026-08-16T14:45:35.4154870Z     PRODUCT_BUNDLE_IDENTIFIER = com.arammo.cycomm
+2026-08-16T14:45:35.4156060Z     SDKROOT = iphoneos26.5
+2026-08-16T14:45:35.4156730Z 
+2026-08-16T14:45:39.8853280Z --- xcodebuild: WARNING: Ignoring provided run destination because no scheme was passed.
+2026-08-16T14:45:39.8991770Z note: Using codesigning identity override: 
+2026-08-16T14:45:40.4567750Z ComputePackagePrebuildTargetDependencyGraph
+2026-08-16T14:45:40.5047410Z 
+2026-08-16T14:45:40.5074610Z Prepare packages
+2026-08-16T14:45:40.5076910Z 
+2026-08-16T14:45:40.5164530Z CreateBuildRequest
+2026-08-16T14:45:40.5177700Z 
+2026-08-16T14:45:40.5178790Z SendProjectDescription
+2026-08-16T14:45:40.5207270Z 
+2026-08-16T14:45:40.5209210Z CreateBuildOperation
+2026-08-16T14:45:40.5249590Z 
+2026-08-16T14:45:40.5272140Z ComputeTargetDependencyGraph
+2026-08-16T14:45:40.5383900Z note: Building targets in dependency order
+2026-08-16T14:45:40.5387780Z note: Target dependency graph (*** target)
+2026-08-16T14:45:40.5389650Z     Target 'JukeboxPlayer' in project 'JukeboxPlayer' (no dependencies)
+2026-08-16T14:45:40.5390650Z 
+2026-08-16T14:45:40.5391270Z GatherProvisioningInputs
+2026-08-16T14:45:40.5391840Z 
+2026-08-16T14:45:40.5411240Z CreateBuildDescription
+2026-08-16T14:45:40.5605050Z 
+2026-08-16T14:45:40.5615570Z ExecuteExternalTool /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/actool --print-asset-tag-combinations --output-format xml*** /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets
+2026-08-16T14:45:43.8731280Z 
+2026-08-16T14:45:43.8777840Z ExecuteExternalTool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -v -E -dM -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -x c -c /dev/null
+2026-08-16T14:45:43.8795290Z 
+2026-08-16T14:45:43.8797990Z ExecuteExternalTool /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/actool --version --output-format xml***
+2026-08-16T14:45:43.8799200Z 
+2026-08-16T14:45:43.8800320Z ExecuteExternalTool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc --version
+2026-08-16T14:45:44.7975620Z 
+2026-08-16T14:45:44.8085050Z ExecuteExternalTool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/ld -version_details
+2026-08-16T14:45:45.0473480Z 
+2026-08-16T14:45:45.0818840Z Build description signature: a69b550320f0f***4f3f2ac8cb879b0bf7
+2026-08-16T14:45:45.0940460Z Build description path: /Users/runner/work/moyuxuan/moyuxuan/build/XCBuildData/a69b550320f0f***4f3f2ac8cb879b0bf7.xcbuilddata
+2026-08-16T14:45:45.1255280Z CreateBuildDirectory /Users/runner/work/moyuxuan/moyuxuan/build
+2026-08-16T14:45:45.1406080Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:45.1462640Z     builtin-create-build-directory /Users/runner/work/moyuxuan/moyuxuan/build
+2026-08-16T14:45:45.1665580Z 
+2026-08-16T14:45:45.1795020Z ClangStatCache /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/com.apple.DeveloperTools/26.6-***7F***3/Xcode/SDKStatCaches.noindex/iphoneos26.5-23F8***a-688ef53f***462e2c8f657fdc38a8***448fee66e23052a0***57c865c76b268046726.sdkstatcache
+2026-08-16T14:45:45.1914670Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:45.2048560Z     /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -o /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/com.apple.DeveloperTools/26.6-***7F***3/Xcode/SDKStatCaches.noindex/iphoneos26.5-23F8***a-688ef53f***462e2c8f657fdc38a8***448fee66e23052a0***57c865c76b268046726.sdkstatcache
+2026-08-16T14:45:47.7930610Z 
+2026-08-16T14:45:47.8036030Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer-b8f2609ffc4***7dac***0839df7cbc7f695-VFS-iphoneos/all-product-headers.yaml
+2026-08-16T14:45:47.8110300Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:47.8208070Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer-b8f2609ffc4***7dac***0839df7cbc7f695-VFS-iphoneos/all-product-headers.yaml
+2026-08-16T14:45:47.8329220Z 
+2026-08-16T14:45:47.8383680Z CreateBuildDirectory /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules
+2026-08-16T14:45:47.8442960Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:47.8465960Z     builtin-create-build-directory /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules
+2026-08-16T14:45:47.8471750Z 
+2026-08-16T14:45:47.8472900Z CreateBuildDirectory /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos
+2026-08-16T14:45:47.8475550Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:47.8515340Z     builtin-create-build-directory /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos
+2026-08-16T14:45:47.8558100Z 
+2026-08-16T14:45:47.8595910Z CreateBuildDirectory /Users/runner/work/moyuxuan/moyuxuan/build/ExplicitPrecompiledModules
+2026-08-16T14:45:47.8705920Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:47.8708370Z     builtin-create-build-directory /Users/runner/work/moyuxuan/moyuxuan/build/ExplicitPrecompiledModules
+2026-08-16T14:45:47.8810400Z 
+2026-08-16T14:45:47.8824640Z CreateBuildDirectory /Users/runner/work/moyuxuan/moyuxuan/build/EagerLinkingTBDs/Release-iphoneos
+2026-08-16T14:45:47.8912860Z     cd /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer.xcodeproj
+2026-08-16T14:45:47.8963370Z     builtin-create-build-directory /Users/runner/work/moyuxuan/moyuxuan/build/EagerLinkingTBDs/Release-iphoneos
+2026-08-16T14:45:47.9007280Z 
+2026-08-16T14:45:47.9054530Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_const_extract_protocols.json (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9096900Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9161980Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_const_extract_protocols.json
+2026-08-16T14:45:47.9210060Z 
+2026-08-16T14:45:47.9364420Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9431420Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9549730Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList
+2026-08-16T14:45:47.9552730Z 
+2026-08-16T14:45:47.9630800Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftConstValuesFileList (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9658600Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9767950Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftConstValuesFileList
+2026-08-16T14:45:47.9797480Z 
+2026-08-16T14:45:47.9803580Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.LinkFileList (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9807530Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9810320Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.LinkFileList
+2026-08-16T14:45:47.9813570Z 
+2026-08-16T14:45:47.9818570Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-OutputFileMap.json (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9827680Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9832150Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-OutputFileMap.json
+2026-08-16T14:45:47.9836200Z 
+2026-08-16T14:45:47.9839400Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9843460Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9849190Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.hmap
+2026-08-16T14:45:47.9854040Z 
+2026-08-16T14:45:47.9862230Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyStaticMetadataFileList (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9868870Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9879040Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyStaticMetadataFileList
+2026-08-16T14:45:47.9885530Z 
+2026-08-16T14:45:47.9889570Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyMetadataFileList (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9893310Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9896530Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyMetadataFileList
+2026-08-16T14:45:47.9898830Z 
+2026-08-16T14:45:47.9903940Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-project-headers.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9908440Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9917810Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-project-headers.hmap
+2026-08-16T14:45:47.9918830Z 
+2026-08-16T14:45:47.9921420Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-own-target-headers.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9923670Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9925790Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-own-target-headers.hmap
+2026-08-16T14:45:47.9927760Z 
+2026-08-16T14:45:47.9928880Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-generated-files.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9930820Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9932140Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-generated-files.hmap
+2026-08-16T14:45:47.9933760Z 
+2026-08-16T14:45:47.9935150Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-target-headers.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9936720Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9938140Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-target-headers.hmap
+2026-08-16T14:45:47.9940220Z 
+2026-08-16T14:45:47.9941490Z WriteAuxiliaryFile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-non-framework-target-headers.hmap (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9951290Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9952680Z     write-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-non-framework-target-headers.hmap
+2026-08-16T14:45:47.9955510Z 
+2026-08-16T14:45:47.9957350Z MkDir /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9961230Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9963080Z     /bin/mkdir -p /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app
+2026-08-16T14:45:47.9967130Z 
+2026-08-16T14:45:47.9968160Z MkDir /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/unthinned (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9970630Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9972200Z     /bin/mkdir -p /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/unthinned
+2026-08-16T14:45:47.9973740Z 
+2026-08-16T14:45:47.9974890Z MkDir /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/thinned (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9976830Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9978330Z     /bin/mkdir -p /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/thinned
+2026-08-16T14:45:47.9979250Z 
+2026-08-16T14:45:47.9981380Z GenerateAssetSymbols /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:47.9982740Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:47.9998180Z     /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/actool /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets --compile /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app --output-format human-readable-text --notices --warnings --export-dependency-info /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_dependencies --output-partial-info-plist /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --target-device ipad --minimum-deployment-target ***6.0 --platform iphoneos --bundle-identifier com.arammo.cycomm --generate-swift-asset-symbol-extensions NO --generate-swift-asset-symbols /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols.swift --generate-objc-asset-symbols /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols.h --generate-asset-symbol-index /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+2026-08-16T14:45:48.0008710Z /* com.apple.actool.compilation-results */
+2026-08-16T14:45:48.0010230Z /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols-Index.plist
+2026-08-16T14:45:48.0012600Z /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols.h
+2026-08-16T14:45:48.0018990Z /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols.swift
+2026-08-16T14:45:48.0020330Z 
+2026-08-16T14:45:48.0020350Z 
+2026-08-16T14:45:48.0022080Z CompileAssetCatalogVariant thinned /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:48.0027240Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:48.0034400Z     /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/actool /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets --compile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/thinned --output-format human-readable-text --notices --warnings --export-dependency-info /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_dependencies_thinned --output-partial-info-plist /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist_thinned --app-icon AppIcon --accent-color AccentColor --compress-pngs --enable-on-demand-resources YES --development-region en --target-device iphone --target-device ipad --minimum-deployment-target ***6.0 --platform iphoneos
+2026-08-16T14:45:49.4839840Z /* com.apple.actool.compilation-results */
+2026-08-16T14:45:49.4965850Z /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist_thinned
+2026-08-16T14:45:49.5108180Z 
+2026-08-16T14:45:49.5210270Z 
+2026-08-16T14:45:49.5312460Z SwiftDriver JukeboxPlayer normal arm64 com.apple.xcode.tools.swift.compiler (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:49.5416650Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:49.5534150Z     builtin-SwiftDriver -- /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name JukeboxPlayer -O -whole-module-optimization @/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios***6.0 -g -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -F /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64 -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/com.apple.DeveloperTools/26.6-***7F***3/Xcode/SDKStatCaches.noindex/iphoneos26.5-23F8***a-688ef53f***462e2c8f657fdc38a8***448fee66e23052a0***57c865c76b268046726.sdkstatcache -output-file-map /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule -validate-clang-modules-once -clang-build-session-file /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/org.llvm.clang/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-generated-files.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-own-target-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-project-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/include -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-Swift.h -working-directory /Users/runner/work/moyuxuan/moyuxuan -no-emit-module-separately-wmo
+2026-08-16T14:45:49.8380670Z 
+2026-08-16T14:45:49.8486690Z LinkAssetCatalog /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Assets.xcassets (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:49.8649700Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:49.8830240Z     builtin-linkAssetCatalog --thinned /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/thinned --thinned-dependencies /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_dependencies_thinned --thinned-info-plist-content /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist_thinned --unthinned /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_output/unthinned --unthinned-dependencies /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_dependencies_unthinned --unthinned-info-plist-content /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist_unthinned --output /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app --plist-output /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist
+2026-08-16T14:45:49.8992300Z 
+2026-08-16T14:45:49.9156450Z ProcessInfoPlistFile /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Info.plist /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Resources/Info.plist (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:49.9283660Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:49.9388600Z     builtin-infoPlistUtility /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Resources/Info.plist -producttype com.apple.product-type.application -genpkginfo /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/PkgInfo -expandbuildsettings -format binary -platform iphoneos -additionalcontentfile /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/assetcatalog_generated_info.plist -requiredArchitecture arm64 -o /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Info.plist
+2026-08-16T14:45:49.9391300Z 
+2026-08-16T14:45:49.9392180Z SwiftDriver\ Compilation JukeboxPlayer normal arm64 com.apple.xcode.tools.swift.compiler (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:49.9453010Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:49.9469950Z     builtin-Swift-Compilation -- /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name JukeboxPlayer -O -whole-module-optimization @/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios***6.0 -g -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -F /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64 -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/com.apple.DeveloperTools/26.6-***7F***3/Xcode/SDKStatCaches.noindex/iphoneos26.5-23F8***a-688ef53f***462e2c8f657fdc38a8***448fee66e23052a0***57c865c76b268046726.sdkstatcache -output-file-map /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule -validate-clang-modules-once -clang-build-session-file /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/org.llvm.clang/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-generated-files.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-own-target-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-project-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/include -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-Swift.h -working-directory /Users/runner/work/moyuxuan/moyuxuan -no-emit-module-separately-wmo
+2026-08-16T14:45:49.9498320Z 
+2026-08-16T14:45:49.9499690Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ptrcheck-BCC0FMXV3JBMJWO535085KB79.pcm
+2026-08-16T14:45:50.0377680Z 
+2026-08-16T14:45:50.0513980Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_float-BMAV5DYGJ5WG9B2C4Q7WL9CLL.pcm
+2026-08-16T14:45:50.0622930Z 
+2026-08-16T14:45:50.0724410Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_AvailabilityInternal-68ZL34XMATN7G6DV3CHD55RG7.pcm
+2026-08-16T14:45:50.0825970Z 
+2026-08-16T14:45:50.0946750Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdarg-9Z5OWZR6DU4YAOTE***4RH9U***UM.pcm
+2026-08-16T14:45:50.1054350Z 
+2026-08-16T14:45:50.1158080Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stddef-CMTPTV9MRL6JQP5FBYCW3JNVM.pcm
+2026-08-16T14:45:50.1259590Z 
+2026-08-16T14:45:50.1361120Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdbool-3BTAG7N***0C9O0GTKA4JHK9CL2.pcm
+2026-08-16T14:45:50.1686150Z 
+2026-08-16T14:45:50.1793050Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ptrauth-9OKHHTSZRKN58XLFE7XPOPUM9.pcm
+2026-08-16T14:45:50.1894880Z 
+2026-08-16T14:45:50.1996620Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftShims-WHGG40UOV2T64M3063B4XMRE.pcm
+2026-08-16T14:45:50.2301010Z 
+2026-08-16T14:45:50.2406890Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation***-SGLMQBEX9E2MNN62R4GUFWG9.pcm
+2026-08-16T14:45:50.2709020Z 
+2026-08-16T14:45:50.2813070Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/DeveloperToolsSupport-5TJKWK5WUOK6HFVI47JM0MEFG.pcm
+2026-08-16T14:45:50.2914550Z 
+2026-08-16T14:45:50.3016580Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_SwiftConcurrencyShims-XE***VXWVA3O96EUIM5D8XGGSR.pcm
+2026-08-16T14:45:50.3155280Z 
+2026-08-16T14:45:50.3257770Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_limits-***9ARNPBYECYVYE2F***6UMC7HP9.pcm
+2026-08-16T14:45:50.3360030Z 
+2026-08-16T14:45:50.3465290Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation2-8VPQPB5TV60WTJT***EFNNORJX.pcm
+2026-08-16T14:45:50.3802840Z 
+2026-08-16T14:45:50.3961280Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/sys_types-8X92VK0VU2E0Y5WWFM0ZZ4AWS.pcm
+2026-08-16T14:45:50.4639600Z 
+2026-08-16T14:45:50.4741350Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdint-QPS405BZR3FV8NUNXS0V9XLD.pcm
+2026-08-16T14:45:50.4842970Z 
+2026-08-16T14:45:50.4944350Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_tgmath-CZGMSYACOK8NKLN25BBPG7UHQ.pcm
+2026-08-16T14:45:50.5046180Z 
+2026-08-16T14:45:50.5148010Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_intrinsics-***8UO***AAGZOADIVQTH8WJ5X5XV.pcm
+2026-08-16T14:45:50.8072720Z 
+2026-08-16T14:45:50.8204560Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdatomic-8MVJL0AY2H8UMSJ4LZCX6XOSC.pcm
+2026-08-16T14:45:50.8304870Z 
+2026-08-16T14:45:50.8407050Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation3-ALJ***YAN8MI***FBUPBJMGWF2XYE.pcm
+2026-08-16T14:45:50.8508220Z 
+2026-08-16T14:45:50.8609850Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_inttypes-DUJDIC099JWQVPAOGQQDB0PFW.pcm
+2026-08-16T14:45:50.8711420Z 
+2026-08-16T14:45:50.8813060Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Darwin-BHFRN42YFQS4E8NB62SCI7QRS.pcm
+2026-08-16T14:45:51.0577220Z 
+2026-08-16T14:45:51.0701350Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/simd-6ZIC***2JE8ORLF6***GDQSUE0FU5.pcm
+2026-08-16T14:45:51.3814260Z 
+2026-08-16T14:45:51.3915910Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MachO-2IQVHN0X5WW***X2YXQJYQOXXXX.pcm
+2026-08-16T14:45:51.4042140Z 
+2026-08-16T14:45:51.4148790Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ObjectiveC-3SZMLSD74CFOIJE0VWS***JRAI***.pcm
+2026-08-16T14:45:51.4250380Z 
+2026-08-16T14:45:51.4352220Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os_object-DUNKK0PQ7ZP2EDQ***7IHDX4ESC.pcm
+2026-08-16T14:45:51.4451470Z 
+2026-08-16T14:45:51.4553100Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os_workgroup-46YCMDHSD2M3RN3AICYA5H4C5.pcm
+2026-08-16T14:45:51.4655710Z 
+2026-08-16T14:45:51.4780850Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Dispatch-9Y8VTHYLETL9ZDOUYWAB684LA.pcm
+2026-08-16T14:45:51.4882470Z 
+2026-08-16T14:45:51.4984040Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Spatial-37QLBFI4WSKZ9SFUM93K9LSXP.pcm
+2026-08-16T14:45:51.9599270Z 
+2026-08-16T14:45:51.9700690Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/XPC-3N9XL7449LFUMTU4X8NM0BKRQ.pcm
+2026-08-16T14:45:51.9799800Z 
+2026-08-16T14:45:51.9902920Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreFoundation-***PF4VKP7A9VAX4DMEGC7SK8J5.pcm
+2026-08-16T14:45:52.0001050Z 
+2026-08-16T14:45:52.0102290Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/dnssd-4U6VV5DMLAIMCHCQ768N4CIVM.pcm
+2026-08-16T14:45:52.0203950Z 
+2026-08-16T14:45:52.0305850Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os-9KWUPNBN2UNDN4BB***5O5G4L3H.pcm
+2026-08-16T14:45:52.0408460Z 
+2026-08-16T14:45:52.0510080Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CFNetwork-DF23CM2EUJQNK2I0QQLM2Y4FF.pcm
+2026-08-16T14:45:52.0609490Z 
+2026-08-16T14:45:52.0719260Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreAudioTypes-T5FIXYFZJQ4N***23ZY2ALASGT.pcm
+2026-08-16T14:45:52.0820830Z 
+2026-08-16T14:45:52.0922420Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreGraphics-7ZT6TYCADBIPZNMQ3YZ8YVMU5.pcm
+2026-08-16T14:45:52.1023860Z 
+2026-08-16T14:45:52.1125500Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreAudio-7XNEZ***0J32HQMZ***MIP05JTWTB.pcm
+2026-08-16T14:45:52.1227170Z 
+2026-08-16T14:45:52.1333570Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Security-3ZCLE2NGMYT2WELCFFQO***7KLN.pcm
+2026-08-16T14:45:52.1435000Z 
+2026-08-16T14:45:52.1536470Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Foundation-BNW6KGKQ4K7IVOTKKZGRPDJHB.pcm
+2026-08-16T14:45:52.2014640Z 
+2026-08-16T14:45:52.2145300Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreText-6X9YOFNLRSDZMARK7WILU***6IP.pcm
+2026-08-16T14:45:52.2314870Z 
+2026-08-16T14:45:52.2480500Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ImageIO-8XK4YB4XQM4AKPXV3TIRYGWRW.pcm
+2026-08-16T14:45:52.2589510Z 
+2026-08-16T14:45:52.2691320Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UserNotifications-923JBYIHYIVFH3R32QPKWEG7A.pcm
+2026-08-16T14:45:52.3451230Z 
+2026-08-16T14:45:52.3553540Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreMIDI-F2TXBR6WLTZIITNL0HN3XSVRA.pcm
+2026-08-16T14:45:52.3655120Z 
+2026-08-16T14:45:52.3777060Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UniformTypeIdentifiers-2D7***ZHT5O8GBT658GBCCN403B.pcm
+2026-08-16T14:45:52.3778320Z 
+2026-08-16T14:45:52.3881350Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Symbols-A***7GOCK7UOXFDU9SXE9VKDOH.pcm
+2026-08-16T14:45:52.4599570Z 
+2026-08-16T14:45:52.4701050Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreTransferable-O0KT2JOSDI8KCYAD***HWR45***.pcm
+2026-08-16T14:45:52.4702720Z 
+2026-08-16T14:45:52.4825610Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/IOSurface-BAMO5PLLFKCQ35HT9ELQPW848.pcm
+2026-08-16T14:45:52.4927090Z 
+2026-08-16T14:45:52.5028560Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreData-3S0KHJAWAN3C048JEPJBYDQKI.pcm
+2026-08-16T14:45:52.6511450Z 
+2026-08-16T14:45:52.6674560Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/DataDetection-PWPQQYJMVU0WSVPNVXGVS7***L.pcm
+2026-08-16T14:45:52.6799930Z 
+2026-08-16T14:45:52.6918850Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/FileProvider-6GLAMAVTMV98OCAH9XAKOT27L.pcm
+2026-08-16T14:45:52.7020920Z 
+2026-08-16T14:45:52.7126010Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AudioToolbox-B9AXQH***VLLMZ2GN27ZBHYO4Q0.pcm
+2026-08-16T14:45:52.7328210Z 
+2026-08-16T14:45:52.7429830Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Metal-5JZ7HQ0W***4N6ULMUST0JYENDX.pcm
+2026-08-16T14:45:53.0295000Z 
+2026-08-16T14:45:53.0396590Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/OpenGLES-CQTRKDFE0RZCTP6GHXTOW777F.pcm
+2026-08-16T14:45:53.0498000Z 
+2026-08-16T14:45:53.0599640Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Network-48GG85AFMSEDLU9***UW6O6O07R.pcm
+2026-08-16T14:45:53.0704170Z 
+2026-08-16T14:45:53.0874780Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UIUtilities-CNZ6NW2ZJHP9584DOPUAXOEE9.pcm
+2026-08-16T14:45:53.0987260Z 
+2026-08-16T14:45:53.1107370Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/OSLog-RUBDUKN4UAGFNLHDQOQGOXBD.pcm
+2026-08-16T14:45:53.1234740Z 
+2026-08-16T14:45:53.1413370Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Accessibility-68TL492OCLQ7***KLOAJ23E0I80.pcm
+2026-08-16T14:45:53.1560900Z 
+2026-08-16T14:45:53.1677990Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVRouting-75IFPETP33QJ9OCUM***8JBUB5X.pcm
+2026-08-16T14:45:53.1796790Z 
+2026-08-16T14:45:53.1929160Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreVideo-APXT3LD25I4558346ZPPB2HQY.pcm
+2026-08-16T14:45:53.2053710Z 
+2026-08-16T14:45:53.2165230Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/QuartzCore-EGFQYS5ECY***CKUU435WV373NU.pcm
+2026-08-16T14:45:53.2713750Z 
+2026-08-16T14:45:53.2815450Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreImage-CZ***SX8RKY0MOE9YY34I8WMGPW.pcm
+2026-08-16T14:45:53.4080810Z 
+2026-08-16T14:45:53.4218570Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreMedia-8PG5J4ZYXUA62CD5JWGK9TIX3.pcm
+2026-08-16T14:45:53.4401970Z 
+2026-08-16T14:45:53.4590890Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftUICore-F***GUKPB2GOG4R8T8DEKM40EFD.pcm
+2026-08-16T14:45:53.4692790Z 
+2026-08-16T14:45:53.4798370Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UIKit-BVSS2K55PKFCNTORHLUGW***ARS.pcm
+2026-08-16T14:45:54.9699470Z 
+2026-08-16T14:45:54.9706600Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MediaToolbox-5KIGGNUB6ZNZRN8YN02V00JP.pcm
+2026-08-16T14:45:54.9739660Z 
+2026-08-16T14:45:54.9866230Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVFAudio-5THIXCQWI***RR0XZ35D7Y0SZR.pcm
+2026-08-16T14:45:54.9994650Z 
+2026-08-16T14:45:55.0108290Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVFoundation-5XZ***KPK9HBB6BSDBVVDPSLIS7.pcm
+2026-08-16T14:45:55.0232760Z 
+2026-08-16T14:45:55.0365840Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MediaPlayer-63L3FKAG47TWKH2SPTYSN88KW.pcm
+2026-08-16T14:45:55.1446710Z 
+2026-08-16T14:45:55.1501550Z SwiftExplicitDependencyGeneratePcm arm64 /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftUI-8OPY***VWDSJY4WSXJ***S58OVD0.pcm
+2026-08-16T14:45:55.1511110Z 
+2026-08-16T14:45:55.1629270Z SwiftCompile normal arm64 Compiling\ JukeboxPlayerApp.swift,\ PlayerEngine.swift,\ Track.swift,\ ContentView.swift,\ LibraryView.swift,\ TrackRow.swift,\ NowPlayingBar.swift,\ NowPlayingView.swift,\ Jukebox.swift,\ GeneratedAssetSymbols.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/App/JukeboxPlayerApp.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/App/PlayerEngine.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Models/Track.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Views/ContentView.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Views/LibraryView.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Views/TrackRow.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Views/NowPlayingBar.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Views/NowPlayingView.swift /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/GeneratedAssetSymbols.swift /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Darwin.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_DarwinFoundation3.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/System.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_DarwinFoundation2.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/ObjectiveC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Spatial.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreAudio.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/AudioToolbox.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Metal.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/MediaPlayer.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/XPC.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreMIDI.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_Builtin_float.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreVideo.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Observation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Symbols.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreTransferable.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/simd.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/UniformTypeIdentifiers.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Accessibility.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Swift.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreData.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreImage.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreText.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/OSLog.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_Concurrency.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/QuartzCore.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_StringProcessing.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/SwiftUI.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/AVFAudio.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/UIKit.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/DataDetection.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreGraphics.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreFoundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Dispatch.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Foundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/DeveloperToolsSupport.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Synchronization.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/SwiftUICore.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/os.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/CoreMedia.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/AVFoundation.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/_DarwinFoundation***.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/FileProvider.swiftmodule/arm64e-apple-ios.swiftmodule /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos/prebuilt-modules/26.5/Combine.swiftmodule/arm64e-apple-ios.swiftmodule /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UIUtilities-CNZ6NW2ZJHP9584DOPUAXOEE9.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreImage-CZ***SX8RKY0MOE9YY34I8WMGPW.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os_workgroup-46YCMDHSD2M3RN3AICYA5H4C5.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/QuartzCore-EGFQYS5ECY***CKUU435WV373NU.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdarg-9Z5OWZR6DU4YAOTE***4RH9U***UM.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation3-ALJ***YAN8MI***FBUPBJMGWF2XYE.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/simd-6ZIC***2JE8ORLF6***GDQSUE0FU5.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/XPC-3N9XL7449LFUMTU4X8NM0BKRQ.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdbool-3BTAG7N***0C9O0GTKA4JHK9CL2.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UserNotifications-923JBYIHYIVFH3R32QPKWEG7A.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Accessibility-68TL492OCLQ7***KLOAJ23E0I80.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_SwiftConcurrencyShims-XE***VXWVA3O96EUIM5D8XGGSR.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UniformTypeIdentifiers-2D7***ZHT5O8GBT658GBCCN403B.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftUICore-F***GUKPB2GOG4R8T8DEKM40EFD.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVRouting-75IFPETP33QJ9OCUM***8JBUB5X.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/DeveloperToolsSupport-5TJKWK5WUOK6HFVI47JM0MEFG.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreVideo-APXT3LD25I4558346ZPPB2HQY.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdatomic-8MVJL0AY2H8UMSJ4LZCX6XOSC.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MachO-2IQVHN0X5WW***X2YXQJYQOXXXX.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Metal-5JZ7HQ0W***4N6ULMUST0JYENDX.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ImageIO-8XK4YB4XQM4AKPXV3TIRYGWRW.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ptrcheck-BCC0FMXV3JBMJWO535085KB79.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stdint-QPS405BZR3FV8NUNXS0V9XLD.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ptrauth-9OKHHTSZRKN58XLFE7XPOPUM9.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVFAudio-5THIXCQWI***RR0XZ35D7Y0SZR.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreData-3S0KHJAWAN3C048JEPJBYDQKI.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftUI-8OPY***VWDSJY4WSXJ***S58OVD0.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Network-48GG85AFMSEDLU9***UW6O6O07R.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Symbols-A***7GOCK7UOXFDU9SXE9VKDOH.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CFNetwork-DF23CM2EUJQNK2I0QQLM2Y4FF.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MediaPlayer-63L3FKAG47TWKH2SPTYSN88KW.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/OpenGLES-CQTRKDFE0RZCTP6GHXTOW777F.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AVFoundation-5XZ***KPK9HBB6BSDBVVDPSLIS7.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreAudio-7XNEZ***0J32HQMZ***MIP05JTWTB.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/AudioToolbox-B9AXQH***VLLMZ2GN27ZBHYO4Q0.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os_object-DUNKK0PQ7ZP2EDQ***7IHDX4ESC.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/UIKit-BVSS2K55PKFCNTORHLUGW***ARS.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreAudioTypes-T5FIXYFZJQ4N***23ZY2ALASGT.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/os-9KWUPNBN2UNDN4BB***5O5G4L3H.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/IOSurface-BAMO5PLLFKCQ35HT9ELQPW848.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/FileProvider-6GLAMAVTMV98OCAH9XAKOT27L.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_float-BMAV5DYGJ5WG9B2C4Q7WL9CLL.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreMedia-8PG5J4ZYXUA62CD5JWGK9TIX3.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/MediaToolbox-5KIGGNUB6ZNZRN8YN02V00JP.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_tgmath-CZGMSYACOK8NKLN25BBPG7UHQ.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreTransferable-O0KT2JOSDI8KCYAD***HWR45***.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/DataDetection-PWPQQYJMVU0WSVPNVXGVS7***L.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_stddef-CMTPTV9MRL6JQP5FBYCW3JNVM.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation***-SGLMQBEX9E2MNN62R4GUFWG9.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/sys_types-8X92VK0VU2E0Y5WWFM0ZZ4AWS.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreFoundation-***PF4VKP7A9VAX4DMEGC7SK8J5.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreGraphics-7ZT6TYCADBIPZNMQ3YZ8YVMU5.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreMIDI-F2TXBR6WLTZIITNL0HN3XSVRA.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Dispatch-9Y8VTHYLETL9ZDOUYWAB684LA.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/OSLog-RUBDUKN4UAGFNLHDQOQGOXBD.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_DarwinFoundation2-8VPQPB5TV60WTJT***EFNNORJX.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Security-3ZCLE2NGMYT2WELCFFQO***7KLN.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/ObjectiveC-3SZMLSD74CFOIJE0VWS***JRAI***.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_limits-***9ARNPBYECYVYE2F***6UMC7HP9.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/SwiftShims-WHGG40UOV2T64M3063B4XMRE.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Darwin-BHFRN42YFQS4E8NB62SCI7QRS.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_intrinsics-***8UO***AAGZOADIVQTH8WJ5X5XV.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/CoreText-6X9YOFNLRSDZMARK7WILU***6IP.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_AvailabilityInternal-68ZL34XMATN7G6DV3CHD55RG7.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Foundation-BNW6KGKQ4K7IVOTKKZGRPDJHB.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/_Builtin_inttypes-DUJDIC099JWQVPAOGQQDB0PFW.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/dnssd-4U6VV5DMLAIMCHCQ768N4CIVM.pcm /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules/Spatial-37QLBFI4WSKZ9SFUM93K9LSXP.pcm /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-dependencies-***.json (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:55.1920360Z 
+2026-08-16T14:45:55.1939370Z CompileSwift normal arm64 (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:55.1946240Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:55.1964500Z     
+2026-08-16T14:45:58.1559230Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:78:43: warning: 'metadata' was deprecated in iOS ***6.0: Use load(.metadata) instead
+2026-08-16T14:45:58.1560820Z                 let metadata = item.asset.metadata
+2026-08-16T14:45:58.1562010Z                                           ^
+2026-08-16T14:45:58.1564580Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***23:5***: warning: 'duration' was deprecated in iOS ***6.0: Use load(.duration) instead
+2026-08-16T14:45:58.1566390Z             let dur = CMTimeGetSeconds(item.asset.duration)
+2026-08-16T14:45:58.1567960Z                                                   ^
+2026-08-16T14:45:58.1570840Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***34:***5: warning: 'statusOfValue(forKey:error:)' was deprecated in iOS ***6.0: Use status(of:) instead
+2026-08-16T14:45:58.1573940Z         asset.statusOfValue(forKey: "duration", error: &error)
+2026-08-16T14:45:58.1575270Z               ^
+2026-08-16T14:45:58.1577940Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***57:***5: warning: 'loadValuesAsynchronously(forKeys:completionHandler:)' was deprecated in iOS ***6.0: Use load(_:) instead.  For non-deprecated properties that do not have an AVAsyncProperty equivalent, continue to query these properties synchronously
+2026-08-16T14:45:58.1587070Z         asset.loadValuesAsynchronously(forKeys: ["duration"]) {
+2026-08-16T14:45:58.1587910Z               ^
+2026-08-16T14:45:58.1589730Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***64:***5: warning: 'loadValuesAsynchronously(forKeys:completionHandler:)' was deprecated in iOS ***6.0: Use load(_:) instead.  For non-deprecated properties that do not have an AVAsyncProperty equivalent, continue to query these properties synchronously
+2026-08-16T14:45:58.1592020Z         asset.loadValuesAsynchronously(forKeys: ["commonMetadata"]) {
+2026-08-16T14:45:58.1593150Z               ^
+2026-08-16T14:45:58.1594440Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***66:25: warning: 'statusOfValue(forKey:error:)' was deprecated in iOS ***6.0: Use status(of:) instead
+2026-08-16T14:45:58.1596440Z             guard asset.statusOfValue(forKey: "commonMetadata", error: &error) == .loaded else { return }
+2026-08-16T14:45:58.1597470Z                         ^
+2026-08-16T14:45:58.1598890Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***67:34: warning: 'commonMetadata' was deprecated in iOS ***6.0: Use load(.commonMetadata) instead
+2026-08-16T14:45:58.1600530Z             let metadata = asset.commonMetadata
+2026-08-16T14:45:58.1601730Z                                  ^
+2026-08-16T14:45:58.1603120Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***80:26: warning: 'value' was deprecated in iOS ***6.0: Use load(.value) instead
+2026-08-16T14:45:58.1604350Z             title = item.value as? String
+2026-08-16T14:45:58.1605040Z                          ^
+2026-08-16T14:45:58.1606230Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***82:26: warning: 'value' was deprecated in iOS ***6.0: Use load(.value) instead
+2026-08-16T14:45:58.1607610Z             album = item.value as? String
+2026-08-16T14:45:58.1608580Z                          ^
+2026-08-16T14:45:58.1610040Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***84:27: warning: 'value' was deprecated in iOS ***6.0: Use load(.value) instead
+2026-08-16T14:45:58.1611370Z             artist = item.value as? String
+2026-08-16T14:45:58.1612290Z                           ^
+2026-08-16T14:45:58.1613430Z /Users/runner/work/moyuxuan/moyuxuan/JukeboxPlayer/Core/Jukebox.swift:***93:32: warning: 'value' was deprecated in iOS ***6.0: Use load(.value) instead
+2026-08-16T14:45:58.1614960Z         guard let value = item.value else { return }
+2026-08-16T14:45:58.1615780Z                                ^
+2026-08-16T14:45:58.1616330Z 
+2026-08-16T14:45:58.1618010Z SwiftDriverJobDiscovery normal arm64 Compiling JukeboxPlayerApp.swift, PlayerEngine.swift, Track.swift, ContentView.swift, LibraryView.swift, TrackRow.swift, NowPlayingBar.swift, NowPlayingView.swift, Jukebox.swift, GeneratedAssetSymbols.swift (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1620210Z 
+2026-08-16T14:45:58.1621330Z SwiftDriver\ Compilation\ Requirements JukeboxPlayer normal arm64 com.apple.xcode.tools.swift.compiler (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1622790Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1641640Z     builtin-Swift-Compilation-Requirements -- /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc -module-name JukeboxPlayer -O -whole-module-optimization @/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList -enable-bare-slash-regex -enable-experimental-feature DebugDescriptionMacro -sdk /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -target arm64-apple-ios***6.0 -g -Xfrontend -serialize-debugging-options -swift-version 5 -I /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -F /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -emit-localized-strings -emit-localized-strings-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64 -c -num-threads 3 -Xcc -ivfsstatcache -Xcc /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/com.apple.DeveloperTools/26.6-***7F***3/Xcode/SDKStatCaches.noindex/iphoneos26.5-23F8***a-688ef53f***462e2c8f657fdc38a8***448fee66e23052a0***57c865c76b268046726.sdkstatcache -output-file-map /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-OutputFileMap.json -use-frontend-parseable-output -save-temps -no-color-diagnostics -explicit-module-build -module-cache-path /Users/runner/work/moyuxuan/moyuxuan/build/SwiftExplicitPrecompiledModules -serialize-diagnostics -emit-dependencies -emit-module -emit-module-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule -validate-clang-modules-once -clang-build-session-file /var/folders/df/djsxfhc***7x95674wsm_g8s980000gn/C/org.llvm.clang/ModuleCache.noindex/Session.modulevalidation -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/swift-overrides.hmap -emit-const-values -Xfrontend -const-gather-protocols-file -Xfrontend /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_const_extract_protocols.json -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-generated-files.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-own-target-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-all-target-headers.hmap -Xcc -iquote -Xcc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer-project-headers.hmap -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/include -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources-normal/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/arm64 -Xcc -I/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources -emit-objc-header -emit-objc-header-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-Swift.h -working-directory /Users/runner/work/moyuxuan/moyuxuan -no-emit-module-separately-wmo
+2026-08-16T14:45:58.1657930Z 
+2026-08-16T14:45:58.1673770Z SwiftMergeGeneratedHeaders /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/JukeboxPlayer-Swift.h /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-Swift.h (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1678050Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1681630Z     builtin-swiftHeaderTool -arch arm64 /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-Swift.h -o /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/DerivedSources/JukeboxPlayer-Swift.h
+2026-08-16T14:45:58.1733630Z 
+2026-08-16T14:45:58.1738580Z Copy /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.swiftmodule /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1740620Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1743270Z     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.swiftmodule
+2026-08-16T14:45:58.1751160Z 
+2026-08-16T14:45:58.1752740Z Copy /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.swiftdoc /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftdoc (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1754920Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1757420Z     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftdoc /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.swiftdoc
+2026-08-16T14:45:58.1759400Z 
+2026-08-16T14:45:58.1760920Z Copy /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.abi.json /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.abi.json (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1763320Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1765710Z     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.abi.json /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/arm64-apple-ios.abi.json
+2026-08-16T14:45:58.1769510Z 
+2026-08-16T14:45:58.1771120Z Copy /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftsourceinfo (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1773400Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1775600Z     builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks -rename /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftsourceinfo /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.swiftmodule/Project/arm64-apple-ios.swiftsourceinfo
+2026-08-16T14:45:58.1777520Z 
+2026-08-16T14:45:58.1778400Z Ld /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer normal (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:58.1779730Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:58.1787580Z     /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -Xlinker -reproducible -target arm64-apple-ios***6.0 -isysroot /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk -Os -L/Users/runner/work/moyuxuan/moyuxuan/build/EagerLinkingTBDs/Release-iphoneos -L/Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -F/Users/runner/work/moyuxuan/moyuxuan/build/EagerLinkingTBDs/Release-iphoneos -F/Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos -filelist /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.LinkFileList -Xlinker -rpath -Xlinker /usr/lib/swift -Xlinker -rpath -Xlinker @executable_path/Frameworks -Xlinker -dead_strip -Xlinker -object_path_lto -Xlinker /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_lto.o -Xlinker -dependency_info -Xlinker /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_dependency_info.dat -fobjc-link-runtime -L/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/iphoneos -L/usr/lib/swift -Xlinker -add_ast_path -Xlinker /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.swiftmodule @/Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer-linker-args.resp -o /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer
+2026-08-16T14:45:59.0382120Z 
+2026-08-16T14:45:59.0427490Z CopySwiftLibs /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.0436720Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.0447640Z     builtin-swiftStdLibTool --copy --verbose --scan-executable /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer --scan-folder /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Frameworks --scan-folder /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/PlugIns --scan-folder /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/SystemExtensions --scan-folder /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Extensions --platform iphoneos --toolchain /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v***7.6.***09.0.NAUmSj/Metal.xctoolchain --toolchain /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os --back-deploy-swift-span
+2026-08-16T14:45:59.2145370Z Ignoring --strip-bitcode because --sign was not passed
+2026-08-16T14:45:59.2150080Z 
+2026-08-16T14:45:59.2150940Z ExtractAppIntentsMetadata (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.2152370Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.2167000Z     /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsmetadataprocessor --toolchain-dir /var/run/com.apple.security.cryptexd/mnt/com.apple.MobileAsset.MetalToolchain-v***7.6.***09.0.NAUmSj/Metal.xctoolchain --module-name JukeboxPlayer --sdk-root /Applications/Xcode_26.6.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS26.5.sdk --xcode-version ***7F***3 --platform-family iOS --deployment-target ***6.0 --bundle-identifier com.arammo.cycomm --output /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app --target-triple arm64-apple-ios***6.0 --binary-file /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer --dependency-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer_dependency_info.dat --stringsdata-file /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/ExtractedAppShortcutsMetadata.stringsdata --source-file-list /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftFileList --metadata-file-list /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyMetadataFileList --static-metadata-file-list /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyStaticMetadataFileList --swift-const-vals-list /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/Objects-normal/arm64/JukeboxPlayer.SwiftConstValuesFileList --compile-time-extraction --deployment-aware-processing --validate-assistant-intents --no-app-shortcuts-localization
+2026-08-16T14:45:59.2671980Z 2026-08-***6 ***4:45:59.253 appintentsmetadataprocessor[2***006:556***6] Starting appintentsmetadataprocessor export
+2026-08-16T14:45:59.2791150Z 2026-08-***6 ***4:45:59.264 appintentsmetadataprocessor[2***006:556***6] warning: Metadata extraction skipped. No AppIntents.framework dependency found.
+2026-08-16T14:45:59.2913410Z 
+2026-08-16T14:45:59.2998090Z GenerateDSYMFile /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app.dSYM /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3069010Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.3079520Z     /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/JukeboxPlayer -o /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app.dSYM
+2026-08-16T14:45:59.3149990Z 
+2026-08-16T14:45:59.3161650Z AppIntentsSSUTraining (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3170560Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.3175630Z     /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/appintentsnltrainingprocessor --infoplist-path /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Info.plist --temp-dir-path /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/ssu --bundle-id com.arammo.cycomm --product-path /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app --extracted-metadata-path /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Metadata.appintents --metadata-file-list /Users/runner/work/moyuxuan/moyuxuan/build/JukeboxPlayer.build/Release-iphoneos/JukeboxPlayer.build/JukeboxPlayer.DependencyMetadataFileList --source-file /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app/Info.plist --archive-ssu-assets
+2026-08-16T14:45:59.3188290Z 2026-08-***6 ***4:45:59.297 appintentsnltrainingprocessor[2***008:55620] Parsing options for appintentsnltrainingprocessor
+2026-08-16T14:45:59.3211360Z 2026-08-***6 ***4:45:59.298 appintentsnltrainingprocessor[2***008:55620] Starting AppIntents SSU YAML Generation
+2026-08-16T14:45:59.3215320Z 2026-08-***6 ***4:45:59.302 appintentsnltrainingprocessor[2***008:55620] No AppShortcuts found - Skipping.
+2026-08-16T14:45:59.3223200Z 
+2026-08-16T14:45:59.3224630Z RegisterExecutionPolicyException /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3228760Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.3230110Z     builtin-RegisterExecutionPolicyException /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app
+2026-08-16T14:45:59.3249160Z 
+2026-08-16T14:45:59.3250250Z Validate /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3257510Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.3259610Z     builtin-validationUtility /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app -validate-for-store -shallow-bundle -infoplist-subpath Info.plist
+2026-08-16T14:45:59.3261500Z warning: All interface orientations must be supported unless the app requires full screen. (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3263260Z 
+2026-08-16T14:45:59.3264310Z Touch /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app (in target 'JukeboxPlayer' from project 'JukeboxPlayer')
+2026-08-16T14:45:59.3265560Z     cd /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:45:59.3266530Z     /usr/bin/touch -c /Users/runner/work/moyuxuan/moyuxuan/build/Release-iphoneos/JukeboxPlayer.app
+2026-08-16T14:45:59.3531610Z 
+2026-08-16T14:45:59.3814990Z ** BUILD SUCCEEDED **
+2026-08-16T14:45:59.3815870Z 
+2026-08-16T14:45:59.4456500Z ##[group]Run echo "***
+2026-08-16T14:45:59.4458140Z [36;***mecho "***[0m
+2026-08-16T14:45:59.4459080Z [36;***m***[0m
+2026-08-16T14:45:59.4459990Z [36;***m***[0m
+2026-08-16T14:45:59.4460890Z [36;***m***[0m
+2026-08-16T14:45:59.4461780Z [36;***m***[0m
+2026-08-16T14:45:59.4462670Z [36;***m***[0m
+2026-08-16T14:45:59.4463560Z [36;***m***[0m
+2026-08-16T14:45:59.4464460Z [36;***m***[0m
+2026-08-16T14:45:59.4465350Z [36;***m***[0m
+2026-08-16T14:45:59.4466230Z [36;***m***[0m
+2026-08-16T14:45:59.4467140Z [36;***m***[0m
+2026-08-16T14:45:59.4468020Z [36;***m***[0m
+2026-08-16T14:45:59.4468910Z [36;***m***[0m
+2026-08-16T14:45:59.4469810Z [36;***m***[0m
+2026-08-16T14:45:59.4470730Z [36;***m***[0m
+2026-08-16T14:45:59.4471610Z [36;***m***[0m
+2026-08-16T14:45:59.4472490Z [36;***m***[0m
+2026-08-16T14:45:59.4473360Z [36;***m***[0m
+2026-08-16T14:45:59.4480990Z [36;***m***[0m
+2026-08-16T14:45:59.4481920Z [36;***m***[0m
+2026-08-16T14:45:59.4482830Z [36;***m***[0m
+2026-08-16T14:45:59.4483760Z [36;***m***[0m
+2026-08-16T14:45:59.4484630Z [36;***m***[0m
+2026-08-16T14:45:59.4485500Z [36;***m***[0m
+2026-08-16T14:45:59.4486380Z [36;***m***[0m
+2026-08-16T14:45:59.4487270Z [36;***m***[0m
+2026-08-16T14:45:59.4488180Z [36;***m***[0m
+2026-08-16T14:45:59.4489080Z [36;***m***[0m
+2026-08-16T14:45:59.4490000Z [36;***m***[0m
+2026-08-16T14:45:59.4490910Z [36;***m***[0m
+2026-08-16T14:45:59.4491800Z [36;***m***[0m
+2026-08-16T14:45:59.4492680Z [36;***m***[0m
+2026-08-16T14:45:59.4493580Z [36;***m***[0m
+2026-08-16T14:45:59.4494460Z [36;***m***[0m
+2026-08-16T14:45:59.4495360Z [36;***m***[0m
+2026-08-16T14:45:59.4496230Z [36;***m***[0m
+2026-08-16T14:45:59.4497130Z [36;***m***[0m
+2026-08-16T14:45:59.4498070Z [36;***m***[0m
+2026-08-16T14:45:59.4499150Z [36;***m***[0m
+2026-08-16T14:45:59.4500120Z [36;***m***[0m
+2026-08-16T14:45:59.4501060Z [36;***m***[0m
+2026-08-16T14:45:59.4501970Z [36;***m***[0m
+2026-08-16T14:45:59.4503000Z [36;***m***[0m
+2026-08-16T14:45:59.4503990Z [36;***m***[0m
+2026-08-16T14:45:59.4505850Z [36;***m***[0m
+2026-08-16T14:45:59.4506850Z [36;***m***[0m
+2026-08-16T14:45:59.4507720Z [36;***m***[0m
+2026-08-16T14:45:59.4508620Z [36;***m***[0m
+2026-08-16T14:45:59.4509490Z [36;***m***[0m
+2026-08-16T14:45:59.4510370Z [36;***m***[0m
+2026-08-16T14:45:59.4511270Z [36;***m***[0m
+2026-08-16T14:45:59.4512160Z [36;***m***[0m
+2026-08-16T14:45:59.4518780Z [36;***m***[0m
+2026-08-16T14:45:59.4519690Z [36;***m***[0m
+2026-08-16T14:45:59.4520740Z [36;***m***[0m
+2026-08-16T14:45:59.4521680Z [36;***m***[0m
+2026-08-16T14:45:59.4522340Z [36;***m***[0m
+2026-08-16T14:45:59.4523000Z [36;***m" | base64 --decode > cert.p***2[0m
+2026-08-16T14:45:59.4524090Z [36;***mecho "***[0m
+2026-08-16T14:45:59.4525060Z [36;***m***[0m
+2026-08-16T14:45:59.4525980Z [36;***m***[0m
+2026-08-16T14:45:59.4526880Z [36;***m***[0m
+2026-08-16T14:45:59.4527770Z [36;***m***[0m
+2026-08-16T14:45:59.4528660Z [36;***m***[0m
+2026-08-16T14:45:59.4529570Z [36;***m***[0m
+2026-08-16T14:45:59.4530460Z [36;***m***[0m
+2026-08-16T14:45:59.4531360Z [36;***m***[0m
+2026-08-16T14:45:59.4532260Z [36;***m***[0m
+2026-08-16T14:45:59.4533150Z [36;***m***[0m
+2026-08-16T14:45:59.4534050Z [36;***m***[0m
+2026-08-16T14:45:59.4534960Z [36;***m***[0m
+2026-08-16T14:45:59.4535860Z [36;***m***[0m
+2026-08-16T14:45:59.4536760Z [36;***m***[0m
+2026-08-16T14:45:59.4537650Z [36;***m***[0m
+2026-08-16T14:45:59.4538550Z [36;***m***[0m
+2026-08-16T14:45:59.4539450Z [36;***m***[0m
+2026-08-16T14:45:59.4540770Z [36;***m***[0m
+2026-08-16T14:45:59.4541680Z [36;***m***[0m
+2026-08-16T14:45:59.4542580Z [36;***m***[0m
+2026-08-16T14:45:59.4543480Z [36;***m***[0m
+2026-08-16T14:45:59.4544370Z [36;***m***[0m
+2026-08-16T14:45:59.4545390Z [36;***m***[0m
+2026-08-16T14:45:59.4546290Z [36;***m***[0m
+2026-08-16T14:45:59.4547200Z [36;***m***[0m
+2026-08-16T14:45:59.4548100Z [36;***m***[0m
+2026-08-16T14:45:59.4556140Z [36;***m***[0m
+2026-08-16T14:45:59.4557190Z [36;***m***[0m
+2026-08-16T14:45:59.4558740Z [36;***m***[0m
+2026-08-16T14:45:59.4559710Z [36;***m***[0m
+2026-08-16T14:45:59.4560820Z [36;***m***[0m
+2026-08-16T14:45:59.4561760Z [36;***m***[0m
+2026-08-16T14:45:59.4562660Z [36;***m***[0m
+2026-08-16T14:45:59.4563560Z [36;***m***[0m
+2026-08-16T14:45:59.4564480Z [36;***m***[0m
+2026-08-16T14:45:59.4565380Z [36;***m***[0m
+2026-08-16T14:45:59.4566270Z [36;***m***[0m
+2026-08-16T14:45:59.4567170Z [36;***m***[0m
+2026-08-16T14:45:59.4568150Z [36;***m***[0m
+2026-08-16T14:45:59.4569110Z [36;***m***[0m
+2026-08-16T14:45:59.4570030Z [36;***m***[0m
+2026-08-16T14:45:59.4570940Z [36;***m***[0m
+2026-08-16T14:45:59.4571850Z [36;***m***[0m
+2026-08-16T14:45:59.4572780Z [36;***m***[0m
+2026-08-16T14:45:59.4573690Z [36;***m***[0m
+2026-08-16T14:45:59.4574910Z [36;***m***[0m
+2026-08-16T14:45:59.4576210Z [36;***m***[0m
+2026-08-16T14:45:59.4581300Z [36;***m***[0m
+2026-08-16T14:45:59.4587980Z [36;***m***[0m
+2026-08-16T14:45:59.4589230Z [36;***m***[0m
+2026-08-16T14:45:59.4590270Z [36;***m***[0m
+2026-08-16T14:45:59.4591190Z [36;***m***[0m
+2026-08-16T14:45:59.4592900Z [36;***m***[0m
+2026-08-16T14:45:59.4593930Z [36;***m***[0m
+2026-08-16T14:45:59.4594860Z [36;***m***[0m
+2026-08-16T14:45:59.4595840Z [36;***m***[0m
+2026-08-16T14:45:59.4597110Z [36;***m***[0m
+2026-08-16T14:45:59.4598020Z [36;***m***[0m
+2026-08-16T14:45:59.4599750Z [36;***m***[0m
+2026-08-16T14:45:59.4600760Z [36;***m***[0m
+2026-08-16T14:45:59.4609570Z [36;***m***[0m
+2026-08-16T14:45:59.4610570Z [36;***m***[0m
+2026-08-16T14:45:59.4612980Z [36;***m***[0m
+2026-08-16T14:45:59.4614680Z [36;***m***[0m
+2026-08-16T14:45:59.4615670Z [36;***m***[0m
+2026-08-16T14:45:59.4616740Z [36;***m***[0m
+2026-08-16T14:45:59.4619980Z [36;***m***[0m
+2026-08-16T14:45:59.4620990Z [36;***m***[0m
+2026-08-16T14:45:59.4622340Z [36;***m***[0m
+2026-08-16T14:45:59.4623270Z [36;***m***[0m
+2026-08-16T14:45:59.4624330Z [36;***m***[0m
+2026-08-16T14:45:59.4625250Z [36;***m***[0m
+2026-08-16T14:45:59.4626830Z [36;***m***[0m
+2026-08-16T14:45:59.4627830Z [36;***m***[0m
+2026-08-16T14:45:59.4628710Z [36;***m***[0m
+2026-08-16T14:45:59.4629620Z [36;***m***[0m
+2026-08-16T14:45:59.4630600Z [36;***m***[0m
+2026-08-16T14:45:59.4632270Z [36;***m***[0m
+2026-08-16T14:45:59.4633690Z [36;***m***[0m
+2026-08-16T14:45:59.4636010Z [36;***m***[0m
+2026-08-16T14:45:59.4636960Z [36;***m***[0m
+2026-08-16T14:45:59.4638920Z [36;***m***[0m
+2026-08-16T14:45:59.4639860Z [36;***m***[0m
+2026-08-16T14:45:59.4641220Z [36;***m***[0m
+2026-08-16T14:45:59.4642170Z [36;***m***[0m
+2026-08-16T14:45:59.4643490Z [36;***m***[0m
+2026-08-16T14:45:59.4644520Z [36;***m***[0m
+2026-08-16T14:45:59.4645470Z [36;***m***[0m
+2026-08-16T14:45:59.4646470Z [36;***m***[0m
+2026-08-16T14:45:59.4647800Z [36;***m***[0m
+2026-08-16T14:45:59.4648780Z [36;***m***[0m
+2026-08-16T14:45:59.4649750Z [36;***m***[0m
+2026-08-16T14:45:59.4650690Z [36;***m***[0m
+2026-08-16T14:45:59.4651690Z [36;***m***[0m
+2026-08-16T14:45:59.4660040Z [36;***m***[0m
+2026-08-16T14:45:59.4661120Z [36;***m***[0m
+2026-08-16T14:45:59.4662490Z [36;***m***[0m
+2026-08-16T14:45:59.4663400Z [36;***m***[0m
+2026-08-16T14:45:59.4664520Z [36;***m***[0m
+2026-08-16T14:45:59.4665860Z [36;***m***[0m
+2026-08-16T14:45:59.4667560Z [36;***m***[0m
+2026-08-16T14:45:59.4668620Z [36;***m***[0m
+2026-08-16T14:45:59.4669970Z [36;***m***[0m
+2026-08-16T14:45:59.4670950Z [36;***m***[0m
+2026-08-16T14:45:59.4671890Z [36;***m***[0m
+2026-08-16T14:45:59.4672790Z [36;***m***[0m
+2026-08-16T14:45:59.4674130Z [36;***m***[0m
+2026-08-16T14:45:59.4675200Z [36;***m***[0m
+2026-08-16T14:45:59.4676290Z [36;***m***[0m
+2026-08-16T14:45:59.4677360Z [36;***m***[0m
+2026-08-16T14:45:59.4679060Z [36;***m***[0m
+2026-08-16T14:45:59.4680100Z [36;***m***[0m
+2026-08-16T14:45:59.4681010Z [36;***m***[0m
+2026-08-16T14:45:59.4682690Z [36;***m***[0m
+2026-08-16T14:45:59.4683770Z [36;***m***[0m
+2026-08-16T14:45:59.4684760Z [36;***m***[0m
+2026-08-16T14:45:59.4685770Z [36;***m***[0m
+2026-08-16T14:45:59.4687920Z [36;***m***[0m
+2026-08-16T14:45:59.4689030Z [36;***m***[0m
+2026-08-16T14:45:59.4690090Z [36;***m***[0m
+2026-08-16T14:45:59.4691090Z [36;***m***[0m
+2026-08-16T14:45:59.4691980Z [36;***m***[0m
+2026-08-16T14:45:59.4693010Z [36;***m***[0m
+2026-08-16T14:45:59.4694030Z [36;***m***[0m
+2026-08-16T14:45:59.4695380Z [36;***m***[0m
+2026-08-16T14:45:59.4696320Z [36;***m***[0m
+2026-08-16T14:45:59.4697300Z [36;***m***[0m
+2026-08-16T14:45:59.4698340Z [36;***m***[0m
+2026-08-16T14:45:59.4712340Z [36;***m***[0m
+2026-08-16T14:45:59.4713330Z [36;***m***[0m
+2026-08-16T14:45:59.4714310Z [36;***m***[0m
+2026-08-16T14:45:59.4716610Z [36;***m***[0m
+2026-08-16T14:45:59.4717600Z [36;***m***[0m
+2026-08-16T14:45:59.4718500Z [36;***m***[0m
+2026-08-16T14:45:59.4719710Z [36;***m***[0m
+2026-08-16T14:45:59.4721000Z [36;***m***[0m
+2026-08-16T14:45:59.4721970Z [36;***m***[0m
+2026-08-16T14:45:59.4723100Z [36;***m***[0m
+2026-08-16T14:45:59.4726220Z [36;***m***[0m
+2026-08-16T14:45:59.4731290Z [36;***m***[0m
+2026-08-16T14:45:59.4733890Z [36;***m***[0m
+2026-08-16T14:45:59.4735540Z [36;***m***[0m
+2026-08-16T14:45:59.4736860Z [36;***m***[0m
+2026-08-16T14:45:59.4738230Z [36;***m***[0m
+2026-08-16T14:45:59.4739370Z [36;***m***[0m
+2026-08-16T14:45:59.4742870Z [36;***m***[0m
+2026-08-16T14:45:59.4748300Z [36;***m***[0m
+2026-08-16T14:45:59.4750510Z [36;***m***[0m
+2026-08-16T14:45:59.4751730Z [36;***m***[0m
+2026-08-16T14:45:59.4753220Z [36;***m***[0m
+2026-08-16T14:45:59.4756270Z [36;***m***[0m
+2026-08-16T14:45:59.4760180Z [36;***m***[0m
+2026-08-16T14:45:59.4764780Z [36;***m***[0m
+2026-08-16T14:45:59.4768090Z [36;***m***[0m
+2026-08-16T14:45:59.4771240Z [36;***m***[0m
+2026-08-16T14:45:59.4774420Z [36;***m***[0m
+2026-08-16T14:45:59.4777740Z [36;***m***[0m
+2026-08-16T14:45:59.4781330Z [36;***m***[0m
+2026-08-16T14:45:59.4783380Z [36;***m***[0m
+2026-08-16T14:45:59.4784520Z [36;***m***[0m
+2026-08-16T14:45:59.4785610Z [36;***m***[0m
+2026-08-16T14:45:59.4789310Z [36;***m***[0m
+2026-08-16T14:45:59.4817600Z [36;***m***[0m
+2026-08-16T14:45:59.4824170Z [36;***m***[0m
+2026-08-16T14:45:59.4832590Z [36;***m***[0m
+2026-08-16T14:45:59.4833820Z [36;***m***[0m
+2026-08-16T14:45:59.4834970Z [36;***m***[0m
+2026-08-16T14:45:59.4838870Z [36;***m***[0m
+2026-08-16T14:45:59.4840050Z [36;***m***[0m
+2026-08-16T14:45:59.4841220Z [36;***m***[0m
+2026-08-16T14:45:59.4842380Z [36;***m***[0m
+2026-08-16T14:45:59.4843540Z [36;***m***[0m
+2026-08-16T14:45:59.4844640Z [36;***m***[0m
+2026-08-16T14:45:59.4847070Z [36;***m***[0m
+2026-08-16T14:45:59.4851510Z [36;***m***[0m
+2026-08-16T14:45:59.4853560Z [36;***m***[0m
+2026-08-16T14:45:59.4855530Z [36;***m***[0m
+2026-08-16T14:45:59.4858420Z [36;***m***[0m
+2026-08-16T14:45:59.4862770Z [36;***m***[0m
+2026-08-16T14:45:59.4866270Z [36;***m***[0m
+2026-08-16T14:45:59.4869650Z [36;***m***[0m
+2026-08-16T14:45:59.4872940Z [36;***m***[0m
+2026-08-16T14:45:59.4877200Z [36;***m***[0m
+2026-08-16T14:45:59.4880540Z [36;***m***[0m
+2026-08-16T14:45:59.4884610Z [36;***m***[0m
+2026-08-16T14:45:59.4888080Z [36;***m***[0m
+2026-08-16T14:45:59.4889160Z [36;***m***[0m
+2026-08-16T14:45:59.4893050Z [36;***m***[0m
+2026-08-16T14:45:59.4896810Z [36;***m***[0m
+2026-08-16T14:45:59.4899510Z [36;***m***[0m
+2026-08-16T14:45:59.4903980Z [36;***m***[0m
+2026-08-16T14:45:59.4909250Z [36;***m***[0m
+2026-08-16T14:45:59.4916030Z [36;***m***[0m
+2026-08-16T14:45:59.4924680Z [36;***m***[0m
+2026-08-16T14:45:59.4928420Z [36;***m***[0m
+2026-08-16T14:45:59.4935600Z [36;***m***[0m
+2026-08-16T14:45:59.4950450Z [36;***m***[0m
+2026-08-16T14:45:59.4951510Z [36;***m***[0m
+2026-08-16T14:45:59.4952570Z [36;***m***[0m
+2026-08-16T14:45:59.4953980Z [36;***m***[0m
+2026-08-16T14:45:59.4960150Z [36;***m***[0m
+2026-08-16T14:45:59.4963460Z [36;***m***[0m
+2026-08-16T14:45:59.4966510Z [36;***m***[0m
+2026-08-16T14:45:59.4969970Z [36;***m***[0m
+2026-08-16T14:45:59.4971200Z [36;***m***[0m
+2026-08-16T14:45:59.4972350Z [36;***m***[0m
+2026-08-16T14:45:59.4979190Z [36;***m***[0m
+2026-08-16T14:45:59.4983560Z [36;***m***[0m
+2026-08-16T14:45:59.4987410Z [36;***m***[0m
+2026-08-16T14:45:59.4990860Z [36;***m***[0m
+2026-08-16T14:45:59.4997900Z [36;***m***[0m
+2026-08-16T14:45:59.5002700Z [36;***m***[0m
+2026-08-16T14:45:59.5007600Z [36;***m***[0m
+2026-08-16T14:45:59.5012940Z [36;***m***[0m
+2026-08-16T14:45:59.5020160Z [36;***m***[0m
+2026-08-16T14:45:59.5025510Z [36;***m***[0m
+2026-08-16T14:45:59.5028290Z [36;***m***[0m
+2026-08-16T14:45:59.5031900Z [36;***m***[0m
+2026-08-16T14:45:59.5036060Z [36;***m***[0m
+2026-08-16T14:45:59.5038410Z [36;***m***[0m
+2026-08-16T14:45:59.5047430Z [36;***m***[0m
+2026-08-16T14:45:59.5058750Z [36;***m***[0m
+2026-08-16T14:45:59.5072910Z [36;***m" | base64 --decode > app.mobileprovision[0m
+2026-08-16T14:45:59.6676490Z shell: /bin/bash -e {0}
+2026-08-16T14:45:59.6677200Z env:
+2026-08-16T14:45:59.6677970Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:45:59.6678710Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:45:59.6679370Z ##[endgroup]
+2026-08-16T14:45:59.7535320Z ##[group]Run git clone --depth *** https://github.com/zhlynn/zsign.git
+2026-08-16T14:45:59.7536530Z [36;***mgit clone --depth *** https://github.com/zhlynn/zsign.git[0m
+2026-08-16T14:45:59.7537470Z [36;***mcd zsign && ./build.sh[0m
+2026-08-16T14:45:59.7538300Z [36;***mZSIGN=$(find "$PWD" -type f -name zsign | head -***)[0m
+2026-08-16T14:45:59.7539240Z [36;***mecho "zsign binary: $ZSIGN"[0m
+2026-08-16T14:45:59.7539980Z [36;***mecho "$ZSIGN" >> "$GITHUB_PATH"[0m
+2026-08-16T14:45:59.7586040Z shell: /bin/bash -e {0}
+2026-08-16T14:45:59.7587720Z env:
+2026-08-16T14:45:59.7588730Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:45:59.7589650Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:45:59.7590490Z ##[endgroup]
+2026-08-16T14:45:59.8808550Z Cloning into 'zsign'...
+2026-08-16T14:46:01.9098170Z /Users/runner/work/_temp/0c909285-3457-49a***-977***-***48e760f3***73.sh: line 2: ./build.sh: No such file or directory
+2026-08-16T14:46:01.9114310Z ##[error]Process completed with exit code ***.
+2026-08-16T14:46:01.9364560Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-***9-deprecation-of-node-20-on-github-actions-runners/
+2026-08-16T14:46:01.9367750Z Post job cleanup.
+2026-08-16T14:46:02.5141850Z [command]/opt/homebrew/bin/git version
+2026-08-16T14:46:02.5143950Z git version 2.55.0
+2026-08-16T14:46:02.5759350Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/02d9f234-cfdd-49f6-9059-5***ed32f04436/.gitconfig'
+2026-08-16T14:46:02.5863190Z Temporarily overriding HOME='/Users/runner/work/_temp/02d9f234-cfdd-49f6-9059-5***ed32f04436' before making global git config changes
+2026-08-16T14:46:02.5972340Z Adding repository directory to the temporary git global config as a safe directory
+2026-08-16T14:46:02.6078800Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:46:02.6398130Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-08-16T14:46:02.6706670Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-08-16T14:46:02.7518250Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-08-16T14:46:02.7621650Z http.https://github.com/.extraheader
+2026-08-16T14:46:02.7930630Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-08-16T14:46:02.8241890Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-08-16T14:46:02.9697770Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-08-16T14:46:02.9700760Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-08-16T14:46:03.1675390Z Cleaning up orphan processes
+2026-08-16T14:46:03.7811100Z Terminate orphan process: pid (20587) (ibtoold)
+2026-08-16T14:46:03.8201910Z Terminate orphan process: pid (2028***) (ibtoold)
+2026-08-16T14:46:04.0998450Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4. For more information see: https://github.blog/changelog/2025-09-***9-deprecation-of-node-20-on-github-actions-runners/
