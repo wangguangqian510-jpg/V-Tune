@@ -4,34 +4,71 @@ struct TrackRow: View {
     let track: Track
     let isCurrent: Bool
     let isPlaying: Bool
+    /// 点击整行时的回调（播放）。nil 表示不可点击。
+    var onTap: (() -> Void)? = nil
+    /// 点击「添加到歌单」时回调。nil 表示不显示该菜单。
+    var onAddToPlaylist: ((Track) -> Void)? = nil
+
+    @EnvironmentObject private var store: TrackStore
 
     var body: some View {
         HStack(spacing: 14) {
-            RoundedRectangle(cornerRadius: 10)
-                .fill(LinearGradient(colors: track.cover,
-                                     startPoint: .topLeading,
-                                     endPoint: .bottomTrailing))
-                .frame(width: 56, height: 56)
-                .overlay {
-                    if isCurrent {
-                        PlayingBars(isAnimating: isPlaying)
-                    }
+            HStack(spacing: 14) {
+                coverSquare
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(track.title)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
+                    Text(track.artist)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(track.title)
-                    .font(.headline)
-                    .lineLimit(1)
-                    .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
-                Text(track.artist)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
             }
+            .contentShape(Rectangle())
+            .onTapGesture { onTap?() }
 
             Spacer(minLength: 0)
+
+            Button {
+                withAnimation(.easeInOut(duration: 0.18)) { store.toggleFavorite(track) }
+            } label: {
+                Image(systemName: track.isFavorite ? "heart.fill" : "heart")
+                    .foregroundStyle(track.isFavorite ? .pink : .secondary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+
+            if onAddToPlaylist != nil {
+                Menu {
+                    Button {
+                        onAddToPlaylist?(track)
+                    } label: {
+                        Label("添加到歌单", systemImage: "plus.circle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+            }
         }
         .padding(.vertical, 4)
+    }
+
+    private var coverSquare: some View {
+        RoundedRectangle(cornerRadius: 10)
+            .fill(LinearGradient(colors: track.cover,
+                                 startPoint: .topLeading,
+                                 endPoint: .bottomTrailing))
+            .frame(width: 56, height: 56)
+            .overlay {
+                if isCurrent {
+                    PlayingBars(isAnimating: isPlaying)
+                }
+            }
     }
 }
 

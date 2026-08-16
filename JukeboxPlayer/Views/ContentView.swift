@@ -14,6 +14,7 @@ struct ContentView: View {
             if engine.hasTrack {
                 NowPlayingBar()
                     .environmentObject(engine)
+                    .environmentObject(store)
                     .transition(.move(edge: .bottom))
             }
         }

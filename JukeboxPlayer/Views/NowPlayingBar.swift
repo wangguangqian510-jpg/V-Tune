@@ -3,6 +3,7 @@ import SwiftUI
 /// 列表底部的迷你播放条，点击展开全屏播放页。
 struct NowPlayingBar: View {
     @EnvironmentObject private var engine: PlayerEngine
+    @EnvironmentObject private var store: TrackStore
     @State private var expanded = false
 
     var body: some View {
@@ -44,7 +45,9 @@ struct NowPlayingBar: View {
         .contentShape(Rectangle())
         .onTapGesture { expanded = true }
         .fullScreenCover(isPresented: $expanded) {
-            NowPlayingView().environmentObject(engine)
+            NowPlayingView()
+                .environmentObject(engine)
+                .environmentObject(store)
         }
     }
 }

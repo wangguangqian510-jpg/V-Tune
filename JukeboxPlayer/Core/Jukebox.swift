@@ -199,6 +199,16 @@ private extension JukeboxItem.Meta {
     }
 }
 
+// MARK: - Playback mode
+
+/// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
+public enum PlaybackMode: Int, Codable {
+    case order = 0   // 顺序播放
+    case loop = 1    // 列表循环
+    case single = 2  // 单曲循环
+    case shuffle = 3 // 随机播放
+}
+
 // MARK: - Jukebox
 
 open class Jukebox: NSObject, JukeboxItemDelegate {
@@ -222,6 +232,8 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
     }
 
     // MARK: Properties
+
+    public var playbackMode: PlaybackMode = .order
 
     private var player: AVPlayer?
     private var progressObserver: Any?
@@ -344,12 +356,20 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
 
     public func playNext() {
         guard playerOperational else { return }
-        play(atIndex: playIndex + 1)
+        if let idx = nextIndex(from: playIndex) {
+            play(atIndex: idx)
+        } else {
+            stop()
+        }
     }
 
     public func playPrevious() {
         guard playerOperational else { return }
-        play(atIndex: playIndex - 1)
+        if let idx = prevIndex(from: playIndex) {
+            play(atIndex: idx)
+        } else {
+            stop()
+        }
     }
 
     public func replayCurrentItem() {
@@ -492,6 +512,38 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
         }
     }
 
+    // MARK: Playback mode index math
+
+    private func nextIndex(from index: Int) -> Int? {
+        let count = queuedItems.count
+        guard count > 0 else { return nil }
+        switch playbackMode {
+        case .order:    return index + 1 < count ? index + 1 : nil
+        case .loop:     return (index + 1) % count
+        case .single:   return (index + 1) % count
+        case .shuffle:
+            if count == 1 { return index }
+            var r = index
+            while r == index { r = Int.random(in: 0..<count) }
+            return r
+        }
+    }
+
+    private func prevIndex(from index: Int) -> Int? {
+        let count = queuedItems.count
+        guard count > 0 else { return nil }
+        switch playbackMode {
+        case .order:    return index - 1 >= 0 ? index - 1 : nil
+        case .loop:     return (index - 1 + count) % count
+        case .single:   return (index - 1 + count) % count
+        case .shuffle:
+            if count == 1 { return index }
+            var r = index
+            while r == index { r = Int.random(in: 0..<count) }
+            return r
+        }
+    }
+
     // MARK: Progress tracking
 
     private func startProgressTimer() {
@@ -564,10 +616,14 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
     }
 
     @objc private func playerItemDidPlayToEnd(_ notification: Notification) {
-        if playIndex >= queuedItems.count - 1 {
-            stop()
+        if playbackMode == .single {
+            replayCurrentItem()
+            return
+        }
+        if let idx = nextIndex(from: playIndex) {
+            play(atIndex: idx)
         } else {
-            play(atIndex: playIndex + 1)
+            stop()
         }
     }
 

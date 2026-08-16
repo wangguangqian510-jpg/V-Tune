@@ -90,7 +90,10 @@ struct NowPlayingView: View {
 
     // MARK: Controls
     private var controls: some View {
-        HStack(spacing: 36) {
+        HStack(spacing: 28) {
+            Button { engine.cyclePlaybackMode() } label: {
+                Image(systemName: modeIcon).font(.title3).foregroundStyle(.white)
+            }
             Button { engine.previous() } label: {
                 Image(systemName: "backward.fill").font(.title).foregroundStyle(.white)
             }
@@ -101,6 +104,15 @@ struct NowPlayingView: View {
             Button { engine.next() } label: {
                 Image(systemName: "forward.fill").font(.title).foregroundStyle(.white)
             }
+        }
+    }
+
+    private var modeIcon: String {
+        switch engine.playbackMode {
+        case .order:   return "list.number"
+        case .loop:    return "repeat"
+        case .single:  return "repeat.1"
+        case .shuffle: return "shuffle"
         }
     }
 
@@ -115,8 +127,17 @@ struct NowPlayingView: View {
 
     // MARK: Queue
     private var queueToggle: some View {
-        Text("共 \(engine.tracks.count) 首 · 第 \(engine.currentIndex + 1) 首")
+        Text("\(modeName) · 共 \(engine.tracks.count) 首 · 第 \(engine.currentIndex + 1) 首")
             .font(.footnote).foregroundStyle(.white.opacity(0.6))
+    }
+
+    private var modeName: String {
+        switch engine.playbackMode {
+        case .order:   return "顺序"
+        case .loop:    return "列表循环"
+        case .single:  return "单曲循环"
+        case .shuffle: return "随机"
+        }
     }
 
     private var queueSheet: some View {
@@ -134,15 +155,16 @@ struct NowPlayingView: View {
                 ScrollView {
                     LazyVStack(spacing: 4) {
                         ForEach(Array(engine.tracks.enumerated()), id: \.element.id) { index, track in
-                            HStack {
-                                Text(track.title).foregroundStyle(index == engine.currentIndex ? .white : .white.opacity(0.7))
-                                Spacer()
-                                if index == engine.currentIndex { Image(systemName: "speaker.wave.2.fill").foregroundStyle(.white) }
-                            }
-                            .padding(.vertical, 10)
+                            TrackRow(
+                                track: track,
+                                isCurrent: index == engine.currentIndex,
+                                isPlaying: engine.isPlaying,
+                                onTap: {
+                                    engine.play(index: index)
+                                    showQueue = false
+                                }
+                            )
                             .padding(.horizontal)
-                            .contentShape(Rectangle())
-                            .onTapGesture { engine.play(index: index); showQueue = false }
                         }
                     }
                 }

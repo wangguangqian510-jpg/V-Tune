@@ -17,8 +17,9 @@ struct Track: Identifiable, Hashable {
     let url: URL
     let cover: [Color]
     let source: TrackSource
+    let isFavorite: Bool
 
-    init(id: UUID = UUID(), title: String, artist: String, album: String = "", url: URL, cover: [Color], source: TrackSource) {
+    init(id: UUID = UUID(), title: String, artist: String, album: String = "", url: URL, cover: [Color], source: TrackSource, isFavorite: Bool = false) {
         self.id = id
         self.title = title
         self.artist = artist
@@ -26,6 +27,7 @@ struct Track: Identifiable, Hashable {
         self.url = url
         self.cover = cover
         self.source = source
+        self.isFavorite = isFavorite
     }
 
     /// 是否来自本地文件系统

@@ -1,0 +1,62 @@
+import SwiftUI
+
+struct PlaylistListView: View {
+    @EnvironmentObject private var store: TrackStore
+    @EnvironmentObject private var engine: PlayerEngine
+    @Binding var trackToAdd: Track?
+
+    @State private var showingNewAlert = false
+    @State private var newName = ""
+
+    var body: some View {
+        List {
+            ForEach(store.playlists) { playlist in
+                NavigationLink {
+                    PlaylistDetailView(playlist: playlist, trackToAdd: $trackToAdd)
+                } label: {
+                    HStack(spacing: 14) {
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(LinearGradient(colors: coverColors(for: playlist.coverSeed),
+                                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+                            .frame(width: 56, height: 56)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(playlist.name).font(.headline)
+                            Text("\(playlist.trackIDs.count) 首").font(.subheadline).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 4)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                    Button(role: .destructive) { store.deletePlaylist(playlist.id) } label: {
+                        Label("删除", systemImage: "trash")
+                    }
+                }
+            }
+        }
+        .listStyle(.plain)
+        .overlay {
+            if store.playlists.isEmpty {
+                VStack(spacing: 8) {
+                    Image(systemName: "music.note.list").font(.system(size: 40)).foregroundStyle(.secondary)
+                    Text("还没有歌单").font(.headline)
+                    Text("点右上角 + 新建歌单").font(.subheadline).foregroundStyle(.secondary)
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button { showingNewAlert = true } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+        .alert("新建歌单", isPresented: $showingNewAlert) {
+            TextField("歌单名称", text: $newName)
+            Button("取消", role: .cancel) { newName = "" }
+            Button("创建") {
+                store.createPlaylist(name: newName.isEmpty ? "我的歌单" : newName)
+                newName = ""
+            }
+        }
+    }
+}

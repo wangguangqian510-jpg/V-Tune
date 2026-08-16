@@ -23,6 +23,11 @@ final class PlayerEngine: ObservableObject {
         didSet { jukebox?.volume = volume }
     }
 
+    /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
+    @Published var playbackMode: PlaybackMode = .order {
+        didSet { jukebox?.playbackMode = playbackMode }
+    }
+
     private var jukebox: Jukebox?
 
     init() {
@@ -35,6 +40,7 @@ final class PlayerEngine: ObservableObject {
         self.tracks = tracks
         let items = tracks.map { JukeboxItem(url: $0.url, localTitle: $0.title) }
         jukebox = Jukebox(delegate: self, items: items)
+        jukebox?.playbackMode = playbackMode
         currentIndex = 0
         updateNowPlaying()
     }
@@ -57,6 +63,13 @@ final class PlayerEngine: ObservableObject {
         guard let jukebox = jukebox else { return }
         if jukebox.state == .playing { jukebox.pause() }
         else { jukebox.play() }
+    }
+
+    /// 循环切换播放模式：顺序 → 列表循环 → 单曲循环 → 随机
+    func cyclePlaybackMode() {
+        let order: [PlaybackMode] = [.order, .loop, .single, .shuffle]
+        guard let i = order.firstIndex(of: playbackMode) else { playbackMode = .order; return }
+        playbackMode = order[(i + 1) % order.count]
     }
 
     func next() { jukebox?.playNext() }

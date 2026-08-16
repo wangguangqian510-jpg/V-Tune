@@ -1,69 +1,68 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
+enum LibTab: String, CaseIterable, Identifiable {
+    case songs = "歌曲"
+    case playlists = "歌单"
+    case favorites = "我喜欢"
+    var id: String { rawValue }
+}
+
 struct LibraryView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var store: TrackStore
 
+    @State private var tab: LibTab = .songs
+    @State private var searchText = ""
     @State private var showingImporter = false
     @State private var showingURLAlert = false
     @State private var showingErrorAlert = false
     @State private var urlString = ""
     @State private var importError: String?
+    @State private var trackToAdd: Track?
+
+    private var filtered: [Track] {
+        let base = store.tracks
+        if searchText.isEmpty { return base }
+        return base.filter {
+            $0.title.localizedCaseInsensitiveContains(searchText) ||
+            $0.artist.localizedCaseInsensitiveContains(searchText) ||
+            $0.album.localizedCaseInsensitiveContains(searchText)
+        }
+    }
 
     var body: some View {
-        List {
-            ForEach(Array(engine.tracks.enumerated()), id: \.element.id) { index, track in
-                TrackRow(track: track, isCurrent: index == engine.currentIndex, isPlaying: engine.isPlaying)
-                    .contentShape(Rectangle())
-                    .deleteDisabled(!track.isRemovable)
-                    .onTapGesture { engine.play(index: index) }
-            }
-            .onDelete(perform: delete)
-        }
-        .listStyle(.plain)
-        .overlay {
-            if engine.tracks.isEmpty {
-                ProgressView("加载中…")
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Menu {
-                    Button {
-                        showingImporter = true
-                    } label: {
-                        Label("从 Files 导入", systemImage: "folder")
-                    }
-
-                    Button {
-                        showingURLAlert = true
-                    } label: {
-                        Label("粘贴音频链接", systemImage: "link")
-                    }
-                } label: {
-                    Image(systemName: "plus")
+        VStack(spacing: 0) {
+            Picker("分类", selection: $tab) {
+                ForEach(LibTab.allCases) { t in
+                    Text(t.rawValue).tag(t)
                 }
             }
+            .pickerStyle(.segmented)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+
+            switch tab {
+            case .songs:     songList
+            case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
+            case .favorites: favoritesList
+            }
         }
+        .navigationTitle("Jukebox 播放器")
+        .navigationBarTitleDisplayMode(.large)
+        .toolbar { toolbarItems }
+        .searchable(text: $searchText, prompt: "搜索歌曲、歌手")
         .fileImporter(
             isPresented: $showingImporter,
             allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav],
             allowsMultipleSelection: true
-        ) { result in
-            handleFileImport(result)
-        }
+        ) { result in handleFileImport(result) }
         .alert("添加网络音频", isPresented: $showingURLAlert) {
             TextField("https://example.com/music.mp3", text: $urlString)
                 .keyboardType(.URL)
                 .textInputAutocapitalization(.never)
-            Button("取消", role: .cancel) {
-                urlString = ""
-            }
-            Button("添加") {
-                store.importRemoteURL(urlString)
-                urlString = ""
-            }
+            Button("取消", role: .cancel) { urlString = "" }
+            Button("添加") { store.importRemoteURL(urlString); urlString = "" }
         } message: {
             Text("输入可直链播放的音频 URL")
         }
@@ -71,6 +70,98 @@ struct LibraryView: View {
             Button("确定", role: .cancel) {}
         } message: {
             Text(importError ?? "")
+        }
+        .sheet(item: $trackToAdd) { track in
+            AddToPlaylistSheet(track: track)
+        }
+    }
+
+    // MARK: 歌曲列表
+
+    private var songList: some View {
+        List {
+            ForEach(filtered) { track in
+                TrackRow(
+                    track: track,
+                    isCurrent: isCurrent(track),
+                    isPlaying: engine.isPlaying,
+                    onTap: { play(track, from: filtered) },
+                    onAddToPlaylist: { trackToAdd = $0 }
+                )
+                .deleteDisabled(!track.isRemovable)
+            }
+            .onDelete(perform: delete)
+        }
+        .listStyle(.plain)
+        .overlay { if filtered.isEmpty { emptyHint("没有匹配的歌曲") } }
+    }
+
+    // MARK: 我喜欢的列表
+
+    private var favoritesList: some View {
+        List {
+            ForEach(store.favoriteTracks) { track in
+                TrackRow(
+                    track: track,
+                    isCurrent: isCurrent(track),
+                    isPlaying: engine.isPlaying,
+                    onTap: { play(track, from: store.favoriteTracks) },
+                    onAddToPlaylist: { trackToAdd = $0 }
+                )
+            }
+        }
+        .listStyle(.plain)
+        .overlay {
+            if store.favoriteTracks.isEmpty {
+                emptyHint("还没有收藏\n在歌曲右侧点 ♡ 即可收藏")
+            }
+        }
+    }
+
+    // MARK: 工具
+
+    private func isCurrent(_ track: Track) -> Bool {
+        engine.tracks[safe: engine.currentIndex]?.id == track.id
+    }
+
+    private func play(_ track: Track, from list: [Track]) {
+        guard let idx = list.firstIndex(where: { $0.id == track.id }) else { return }
+        engine.load(list)
+        engine.play(index: idx)
+    }
+
+    private func delete(at offsets: IndexSet) {
+        for index in offsets {
+            let track = filtered[index]
+            guard track.isRemovable else { continue }
+            store.delete(track: track)
+        }
+    }
+
+    private func emptyHint(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.center)
+            .padding()
+    }
+
+    private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarTrailing) {
+            Menu {
+                Button {
+                    showingImporter = true
+                } label: {
+                    Label("从 Files 导入", systemImage: "folder")
+                }
+                Button {
+                    showingURLAlert = true
+                } label: {
+                    Label("粘贴音频链接", systemImage: "link")
+                }
+            } label: {
+                Image(systemName: "plus")
+            }
         }
     }
 
@@ -92,14 +183,6 @@ struct LibraryView: View {
         case .failure(let error):
             importError = error.localizedDescription
             showingErrorAlert = true
-        }
-    }
-
-    private func delete(at offsets: IndexSet) {
-        for index in offsets {
-            let track = engine.tracks[index]
-            guard track.isRemovable else { continue }
-            store.delete(track: track)
         }
     }
 }
