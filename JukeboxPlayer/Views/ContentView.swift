@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ContentView: View {
     @EnvironmentObject private var engine: PlayerEngine
+    @EnvironmentObject private var store: TrackStore
 
     var body: some View {
         NavigationStack {
@@ -14,6 +15,11 @@ struct ContentView: View {
                 NowPlayingBar()
                     .environmentObject(engine)
                     .transition(.move(edge: .bottom))
+            }
+        }
+        .onOpenURL { url in
+            Task { @MainActor in
+                try? store.importFile(from: url)
             }
         }
     }

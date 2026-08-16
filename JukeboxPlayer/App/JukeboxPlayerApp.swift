@@ -3,14 +3,18 @@ import SwiftUI
 @main
 struct JukeboxPlayerApp: App {
     @StateObject private var engine = PlayerEngine()
+    @StateObject private var store = TrackStore()
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environmentObject(engine)
+                .environmentObject(store)
                 .onAppear {
-                    // 加载示例播放列表。换成你自己的曲目即可。
-                    engine.load(Track.samples)
+                    engine.load(store.tracks)
+                }
+                .onChange(of: store.tracks) { newTracks in
+                    engine.load(newTracks)
                 }
         }
     }
