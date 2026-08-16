@@ -28,7 +28,7 @@ jobs:
             -target JukeboxPlayer \
             -configuration Release \
             -sdk iphoneos \
-            -derivedDataPath build \
+            -destination 'generic/platform=iOS' \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
             PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID
@@ -51,7 +51,8 @@ jobs:
       # ④ 用你的证书签名并打包成 ipa（-b 强制指定与描述文件匹配的 Bundle ID）
       - name: Sign & package ipa
         run: |
-          APP=build/Build/Products/Release-iphoneos/JukeboxPlayer.app
+          APP=$(find build -name "JukeboxPlayer.app" -type d | head -1)
+          echo "Building ipa from: $APP"
           zsign -f \
             -k cert.p12 \
             -p "${{ secrets.CERT_PASSWORD }}" \
