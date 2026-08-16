@@ -49,20 +49,31 @@ jobs:
           chmod +x "$ZSIGN"
           echo "$(dirname "$ZSIGN")" >> "$GITHUB_PATH"
 
-      # ④ 用你的证书签名并打包成 ipa（-b 强制指定与描述文件匹配的 Bundle ID）
-      - name: Sign & package ipa
+      # ④ 用你的证书签名 .app（zsign 直接签目录本身，不依赖它易碎的 IPA 打包器）
+      - name: Sign .app in place
         run: |
           APP=$(find build -name "JukeboxPlayer.app" -type d | head -1)
-          echo "Building ipa from: $APP"
+          echo "Signing app: $APP"
           zsign -f \
             -k cert.p12 \
             -p "${{ secrets.CERT_PASSWORD }}" \
             -m app.mobileprovision \
             -b "$BUNDLE_ID" \
-            -o JukeboxPlayer.ipa \
             "$APP"
 
-      # ⑤ 上传成品
+      # ⑤ 自己打包成 IPA（标准 Payload/ 结构，避免 zsign “Can't find payload directory” 的 255 退出）
+      - name: Package ipa
+        run: |
+          APP=$(find build -name "JukeboxPlayer.app" -type d | head -1)
+          rm -rf Payload JukeboxPlayer.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r -y JukeboxPlayer.ipa Payload
+          rm -rf Payload
+          ls -la JukeboxPlayer.ipa
+          echo "ipa size: $(stat -f%z JukeboxPlayer.ipa) bytes"
+
+      # ⑥ 上传成品
       - name: Upload signed ipa
         uses: actions/upload-artifact@v4
         with:
