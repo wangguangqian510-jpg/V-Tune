@@ -1,0 +1,18 @@
+﻿2026-08-16T14:49:35.0060550Z ##[group]Run APP=$(find build -name "JukeboxPlayer.app" -type d | head -***)
+2026-08-16T14:49:35.0062090Z [36;***mAPP=$(find build -name "JukeboxPlayer.app" -type d | head -***)[0m
+2026-08-16T14:49:35.0063110Z [36;***mecho "Building ipa from: $APP"[0m
+2026-08-16T14:49:35.0063930Z [36;***mzsign -f \[0m
+2026-08-16T14:49:35.0064690Z [36;***m  -k cert.p***2 \[0m
+2026-08-16T14:49:35.0065420Z [36;***m  -p "***" \[0m
+2026-08-16T14:49:35.0066200Z [36;***m  -m app.mobileprovision \[0m
+2026-08-16T14:49:35.0075810Z [36;***m  -b "$BUNDLE_ID" \[0m
+2026-08-16T14:49:35.0076580Z [36;***m  -o JukeboxPlayer.ipa \[0m
+2026-08-16T14:49:35.0077270Z [36;***m  "$APP"[0m
+2026-08-16T14:49:35.0144190Z shell: /bin/bash -e {0}
+2026-08-16T14:49:35.0146320Z env:
+2026-08-16T14:49:35.0148600Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:49:35.0151410Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:49:35.0152560Z ##[endgroup]
+2026-08-16T14:49:35.0721750Z Building ipa from: build/Release-iphoneos/JukeboxPlayer.app
+2026-08-16T14:49:35.0938580Z /Users/runner/work/_temp/38daf36f-9a25-47d3-996f-4847bef0***0dd.sh: line 3: zsign: command not found
+2026-08-16T14:49:35.0952670Z ##[error]Process completed with exit code ***27.

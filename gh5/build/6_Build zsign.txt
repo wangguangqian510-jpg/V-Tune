@@ -1,0 +1,19 @@
+﻿2026-08-16T14:49:34.3933120Z ##[group]Run curl -L -o zsign.tar.gz https://github.com/zhlynn/zsign/releases/download/v***.***.***/zsign-macos-arm64.tar.gz
+2026-08-16T14:49:34.3935050Z [36;***mcurl -L -o zsign.tar.gz https://github.com/zhlynn/zsign/releases/download/v***.***.***/zsign-macos-arm64.tar.gz[0m
+2026-08-16T14:49:34.3936300Z [36;***mtar xzf zsign.tar.gz[0m
+2026-08-16T14:49:34.3937080Z [36;***mZSIGN=$(find "$PWD" -type f -name zsign | head -***)[0m
+2026-08-16T14:49:34.3937980Z [36;***mecho "zsign binary: $ZSIGN"[0m
+2026-08-16T14:49:34.3939510Z [36;***mecho "$ZSIGN" >> "$GITHUB_PATH"[0m
+2026-08-16T14:49:34.3982000Z shell: /bin/bash -e {0}
+2026-08-16T14:49:34.3982860Z env:
+2026-08-16T14:49:34.3990140Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:49:34.3991000Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:49:34.3991700Z ##[endgroup]
+2026-08-16T14:49:34.4759050Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+2026-08-16T14:49:34.4765470Z                                  Dload  Upload   Total   Spent    Left  Speed
+2026-08-16T14:49:34.4768310Z 
+2026-08-16T14:49:34.8141430Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-08-16T14:49:34.8244790Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+2026-08-16T14:49:34.9545400Z 
+2026-08-16T14:49:34.9552200Z ***00  222k  ***00  222k    0     0   466k      0 --:--:-- --:--:-- --:--:--  466k
+2026-08-16T14:49:34.9981800Z zsign binary: /Users/runner/work/moyuxuan/moyuxuan/zsign

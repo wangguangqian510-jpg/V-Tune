@@ -46,7 +46,8 @@ jobs:
           tar xzf zsign.tar.gz
           ZSIGN=$(find "$PWD" -type f -name zsign | head -1)
           echo "zsign binary: $ZSIGN"
-          echo "$ZSIGN" >> "$GITHUB_PATH"
+          chmod +x "$ZSIGN"
+          echo "$(dirname "$ZSIGN")" >> "$GITHUB_PATH"
 
       # ④ 用你的证书签名并打包成 ipa（-b 强制指定与描述文件匹配的 Bundle ID）
       - name: Sign & package ipa

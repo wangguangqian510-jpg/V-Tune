@@ -1,0 +1,78 @@
+﻿2026-08-16T14:48:56.9205280Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-***9-deprecation-of-node-20-on-github-actions-runners/
+2026-08-16T14:48:56.9215530Z ##[group]Run actions/checkout@v4
+2026-08-16T14:48:56.9217510Z with:
+2026-08-16T14:48:56.9220290Z   repository: wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:48:56.9224940Z   token: ***
+2026-08-16T14:48:56.9226560Z   ssh-strict: true
+2026-08-16T14:48:56.9234490Z   ssh-user: git
+2026-08-16T14:48:56.9236480Z   persist-credentials: true
+2026-08-16T14:48:56.9238260Z   clean: true
+2026-08-16T14:48:56.9239890Z   sparse-checkout-cone-mode: true
+2026-08-16T14:48:56.9245340Z   fetch-depth: ***
+2026-08-16T14:48:56.9249290Z   fetch-tags: false
+2026-08-16T14:48:56.9253160Z   show-progress: true
+2026-08-16T14:48:56.9255100Z   lfs: false
+2026-08-16T14:48:56.9256860Z   submodules: false
+2026-08-16T14:48:56.9258850Z   set-safe-directory: true
+2026-08-16T14:48:56.9260630Z   allow-unsafe-pr-checkout: false
+2026-08-16T14:48:56.9263520Z env:
+2026-08-16T14:48:56.9265160Z   BUNDLE_ID: com.arammo.cycomm
+2026-08-16T14:48:56.9266830Z   APP_NAME: JukeboxPlayer
+2026-08-16T14:48:56.9268450Z ##[endgroup]
+2026-08-16T14:48:57.4263400Z Syncing repository: wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:48:57.4274800Z ##[group]Getting Git version info
+2026-08-16T14:48:57.4277410Z Working directory is '/Users/runner/work/moyuxuan/moyuxuan'
+2026-08-16T14:48:57.4281300Z [command]/opt/homebrew/bin/git version
+2026-08-16T14:48:57.4620810Z git version 2.55.0
+2026-08-16T14:48:57.4638330Z ##[endgroup]
+2026-08-16T14:48:57.4654560Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/***9ce90b3-ef6***-49f7-b34c-07f5a77e928c/.gitconfig'
+2026-08-16T14:48:57.4658090Z Temporarily overriding HOME='/Users/runner/work/_temp/***9ce90b3-ef6***-49f7-b34c-07f5a77e928c' before making global git config changes
+2026-08-16T14:48:57.4670560Z Adding repository directory to the temporary git global config as a safe directory
+2026-08-16T14:48:57.4674310Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:48:57.4790140Z Deleting the contents of '/Users/runner/work/moyuxuan/moyuxuan'
+2026-08-16T14:48:57.4794090Z ##[group]Initializing the repository
+2026-08-16T14:48:57.4796140Z [command]/opt/homebrew/bin/git init /Users/runner/work/moyuxuan/moyuxuan
+2026-08-16T14:48:57.5093860Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-08-16T14:48:57.5097050Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-08-16T14:48:57.5099880Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-08-16T14:48:57.5102170Z hint: call:
+2026-08-16T14:48:57.5106220Z hint:
+2026-08-16T14:48:57.5114260Z hint: 	git config --global init.defaultBranch <name>
+2026-08-16T14:48:57.5121020Z hint:
+2026-08-16T14:48:57.5127180Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-08-16T14:48:57.5135120Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-08-16T14:48:57.5140910Z hint:
+2026-08-16T14:48:57.5142940Z hint: 	git branch -m <name>
+2026-08-16T14:48:57.5144810Z hint:
+2026-08-16T14:48:57.5146870Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-08-16T14:48:57.5149480Z Initialized empty Git repository in /Users/runner/work/moyuxuan/moyuxuan/.git/
+2026-08-16T14:48:57.5154550Z [command]/opt/homebrew/bin/git remote add origin https://github.com/wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:48:57.5280250Z ##[endgroup]
+2026-08-16T14:48:57.5289630Z ##[group]Disabling automatic garbage collection
+2026-08-16T14:48:57.5296510Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+2026-08-16T14:48:57.5389120Z ##[endgroup]
+2026-08-16T14:48:57.5392180Z ##[group]Setting up auth
+2026-08-16T14:48:57.5394800Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-08-16T14:48:57.5519620Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-08-16T14:48:57.7179230Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-08-16T14:48:57.7270840Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-08-16T14:48:57.8422060Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-08-16T14:48:57.8519180Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-08-16T14:48:57.9318070Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-08-16T14:48:57.9443110Z ##[endgroup]
+2026-08-16T14:48:57.9452670Z ##[group]Fetching the repository
+2026-08-16T14:48:57.9457130Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=*** origin +7a3db***d4d0***76052***58e0fa3e443c97974944fcb:refs/remotes/origin/main
+2026-08-16T14:48:58.6388810Z From https://github.com/wangguangqian5***0-jpg/moyuxuan
+2026-08-16T14:48:58.6392530Z  * [new ref]         7a3db***d4d0***76052***58e0fa3e443c97974944fcb -> origin/main
+2026-08-16T14:48:58.6409360Z ##[endgroup]
+2026-08-16T14:48:58.6452840Z ##[group]Determining the checkout info
+2026-08-16T14:48:58.6459570Z ##[endgroup]
+2026-08-16T14:48:58.6463890Z [command]/opt/homebrew/bin/git sparse-checkout disable
+2026-08-16T14:48:58.6521130Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+2026-08-16T14:48:58.6606530Z ##[group]Checking out the ref
+2026-08-16T14:48:58.6611530Z [command]/opt/homebrew/bin/git checkout --progress --force -B main refs/remotes/origin/main
+2026-08-16T14:48:58.6802290Z Switched to a new branch 'main'
+2026-08-16T14:48:58.6810210Z branch 'main' set up to track 'origin/main'.
+2026-08-16T14:48:58.6833770Z ##[endgroup]
+2026-08-16T14:48:58.6913930Z [command]/opt/homebrew/bin/git log -*** --format=%H
+2026-08-16T14:48:58.6982090Z 7a3db***d4d0***76052***58e0fa3e443c97974944fcb
