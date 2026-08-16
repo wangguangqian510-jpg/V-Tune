@@ -32,6 +32,7 @@ sources = [
     "JukeboxPlayer/Views/NowPlayingBar.swift",
     "JukeboxPlayer/Views/NowPlayingView.swift",
     "JukeboxPlayer/Core/Jukebox.swift",
+    "JukeboxPlayer/Models/TrackStore.swift",
 ]
 resources = ["JukeboxPlayer/Assets.xcassets"]
 info_plist = "JukeboxPlayer/Resources/Info.plist"
@@ -108,7 +109,7 @@ def groups():
     g = []
     g.append(f'\t\t{ root_group } = {{isa = PBXGroup; children = (\n\t\t\t{ app_group },\n\t\t\t{ models_group },\n\t\t\t{ views_group },\n\t\t\t{ core_group },\n\t\t\t{ res_group },\n\t\t\t{ assets_ref },\n\t\t\t{ products_group },\n\t\t); name = JukeboxPlayer; path = JukeboxPlayer; sourceTree = "<group>"; }};')
     g.append(f'\t\t{ app_group } = {{isa = PBXGroup; children = (\n\t\t\t{ ids["fr:JukeboxPlayer/App/JukeboxPlayerApp.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/App/PlayerEngine.swift"] },\n\t\t); name = App; path = App; sourceTree = "<group>"; }};')
-    g.append(f'\t\t{ models_group } = {{isa = PBXGroup; children = (\n\t\t\t{ ids["fr:JukeboxPlayer/Models/Track.swift"] },\n\t\t); name = Models; path = Models; sourceTree = "<group>"; }};')
+    g.append(f'\t\t{ models_group } = {{isa = PBXGroup; children = (\n\t\t\t{ ids["fr:JukeboxPlayer/Models/Track.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/Models/TrackStore.swift"] },\n\t\t); name = Models; path = Models; sourceTree = "<group>"; }};')
     g.append(f'\t\t{ views_group } = {{isa = PBXGroup; children = (\n\t\t\t{ ids["fr:JukeboxPlayer/Views/ContentView.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/Views/LibraryView.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/Views/TrackRow.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/Views/NowPlayingBar.swift"] },\n\t\t\t{ ids["fr:JukeboxPlayer/Views/NowPlayingView.swift"] },\n\t\t); name = Views; path = Views; sourceTree = "<group>"; }};')
     g.append(f'\t\t{ core_group } = {{isa = PBXGroup; children = (\n\t\t\t{ ids["fr:JukeboxPlayer/Core/Jukebox.swift"] },\n\t\t); name = Core; path = Core; sourceTree = "<group>"; }};')
     g.append(f'\t\t{ res_group } = {{isa = PBXGroup; children = (\n\t\t\t{ info_ref },\n\t\t); name = Resources; path = Resources; sourceTree = "<group>"; }};')
