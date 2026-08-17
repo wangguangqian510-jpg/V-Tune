@@ -19,10 +19,14 @@ struct TrackRecord: Codable {
 enum ImportError: LocalizedError {
     case invalidFormat
     case noTracks
+    case noDocumentDir
+    case copyFailed(String)
     var errorDescription: String? {
         switch self {
         case .invalidFormat: return "JSON 格式无法识别（需要包含曲目数组，如 tracks / list / songs）"
         case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s) 的 url 字段）"
+        case .noDocumentDir: return "无法访问 App 文档目录，导入失败"
+        case .copyFailed(let msg): return "复制文件失败：\(msg)"
         }
     }
 }
@@ -36,6 +40,15 @@ final class TrackStore: ObservableObject {
     /// 仅在「曲库结构」变化（导入/删除）时自增，用于触发播放引擎重载；
     /// 收藏态变化不计入，避免一点收藏就打断播放。
     @Published private(set) var catalogVersion: Int = 0
+
+    /// 导入结果提示（成功/失败），供 UI 弹窗。Release 构建下 #if DEBUG 的 print 会被裁掉，
+    /// 必须走 UI 提示，否则「分享导入失败」会静默吞掉，表现成「进 App 主页无事发生」。
+    @Published private(set) var importNotice: String?
+
+    /// 导入成功/失败时由导入逻辑写入提示。
+    func reportImportResult(_ message: String) { importNotice = message }
+    /// UI 弹窗关闭时清除提示。
+    func dismissImportNotice() { importNotice = nil }
 
     private let fileManager = FileManager.default
     private let recordsKey = "JukeboxTrackRecords_v1"
@@ -109,12 +122,26 @@ final class TrackStore: ObservableObject {
     /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
     /// 解析 ID3 / MP4 标签（标题/歌手/专辑/时长/内嵌歌词/封面），读不到则用文件名兜底。
     func importFile(from url: URL) async throws {
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw ImportError.noDocumentDir
+        }
         let dest = uniqueURL(in: docs, for: url)
 
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
-        try fileManager.copyItem(at: url, to: dest)
+
+        // 优先直接拷贝；失败则用 NSFileCoordinator 在 security-scoped 作用域内拷贝。
+        // 重签名 / 系统分享场景下，直接 copyItem 常因沙盒权限被拒（Operation not permitted），
+        // coordinator 能正确解析安全作用域资源，是接收「分享进 App 的文件」最稳的方式。
+        do {
+            try fileManager.copyItem(at: url, to: dest)
+        } catch {
+            do {
+                try coordinateCopy(from: url, to: dest)
+            } catch {
+                throw ImportError.copyFailed(error.localizedDescription)
+            }
+        }
 
         // 读真实标签（异步，参考成熟播放器的本地导入实现，自写）。
         let tags = await extractTags(from: dest)
@@ -124,6 +151,23 @@ final class TrackStore: ObservableObject {
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
         addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
+        reportImportResult("已导入：\(title)")
+    }
+
+    /// 用 NSFileCoordinator 在作用域内拷贝文件，兼容 security-scoped 资源
+    /// （直接 copyItem 在跨 App 分享 / 重签名环境常因沙盒权限失败）。
+    private func coordinateCopy(from source: URL, to dest: URL) throws {
+        var coordinatorError: NSError?
+        var innerError: NSError?
+        let coordinator = NSFileCoordinator()
+        coordinator.coordinate(readingItemAt: source, options: .withoutChanges, error: &coordinatorError) { scopedURL in
+            do {
+                try FileManager.default.copyItem(at: scopedURL, to: dest)
+            } catch {
+                innerError = error as NSError
+            }
+        }
+        if let e = coordinatorError ?? innerError { throw e }
     }
 
     /// 添加一个远程音频 URL。
