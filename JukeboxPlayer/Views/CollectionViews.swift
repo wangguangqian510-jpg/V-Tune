@@ -69,6 +69,7 @@ struct GroupDetailView: View {
     let title: String
     let tracks: [Track]
     @EnvironmentObject private var engine: PlayerEngine
+    @EnvironmentObject private var store: TrackStore
     @State private var trackToAdd: Track?
 
     var body: some View {
