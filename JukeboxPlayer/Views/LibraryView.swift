@@ -53,7 +53,7 @@ struct LibraryView: View {
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiffAudio, .item],
+            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff, .item],
             allowsMultipleSelection: true
         ) { result in handleFileImport(result) }
         .alert("添加网络音频", isPresented: $showingURLAlert) {
