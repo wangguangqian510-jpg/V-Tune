@@ -385,6 +385,7 @@ final class PlayerEngine: ObservableObject {
         let eq = self.eqTap
         let callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
+            clientInfo: nil,
             init: { (tap, clientInfo, tapStorageOut) in
                 tapStorageOut.pointee = UnsafeMutableRawPointer(Unmanaged.passUnretained(eq).toOpaque())
             },
@@ -407,9 +408,9 @@ final class PlayerEngine: ObservableObject {
                 }
             }
         )
-        var tap: Unmanaged<MTAudioProcessingTap>?
-        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, .init, &tap)
-        if status == noErr { return tap?.takeRetainedValue() }
+        var tap: MTAudioProcessingTap?
+        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, 0, &tap)
+        if status == noErr { return tap }
         return nil
     }
 }
