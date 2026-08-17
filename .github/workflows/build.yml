@@ -7,8 +7,8 @@ on:
 
 env:
   # 已从 app.mobileprovision 解出：Aramco Services Company / Team 4TDEWHFV5T
-  # 证书只签这个 Bundle ID，必须与描述文件一致
-  BUNDLE_ID: com.arammo.cycomm
+  # 证书只签这个 Bundle ID，必须与描述文件一致：描述文件 application-identifier = 4TDEWHFV5T.com.aramco.cycomm
+  BUNDLE_ID: com.aramco.cycomm
   APP_NAME: JukeboxPlayer
 
 jobs:
@@ -61,7 +61,7 @@ jobs:
             -b "$BUNDLE_ID" \
             "$APP"
 
-      # ⑤ 自己打包成 IPA（标准 Payload/ 结构，避免 zsign “Can't find payload directory” 的 255 退出）
+      # ⑤ 自己打包成 IPA（标准 Payload/ 结构，避免 zsign "Can't find payload directory" 的 255 退出）
       - name: Package ipa
         run: |
           APP=$(find build -name "JukeboxPlayer.app" -type d | head -1)
