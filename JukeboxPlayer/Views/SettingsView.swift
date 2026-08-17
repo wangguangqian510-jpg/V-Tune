@@ -67,7 +67,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("正确导入方式：").bold()
                     Text("1. 应用内：曲库页右上角 + →「从 Files 导入 (稳定版)"。")
-                    Text("2. 文件 App：长按 MP3 → 共享/更多 → 选「在 Jukebox 中打开」或「拷贝到 Jukebox」（不是顶部分享图标）。")
+                    Text("2. 文件 App：长按 MP3 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（不是顶部分享图标）")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
