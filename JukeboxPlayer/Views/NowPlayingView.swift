@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
@@ -53,20 +54,14 @@ struct NowPlayingView: View {
         }
     }
 
-    // MARK: Artwork
+    // MARK: Artwork (黑胶旋转)
     private var artwork: some View {
-        RoundedRectangle(cornerRadius: 22)
-            .fill(LinearGradient(colors: engine.currentCover,
-                                 startPoint: .topLeading, endPoint: .bottomTrailing))
+        VinylArtwork(cover: engine.currentCover, artwork: engine.artwork)
             .frame(maxWidth: .infinity)
             .aspectRatio(1, contentMode: .fit)
+            .rotationEffect(.degrees(engine.currentTime * 20))
+            .animation(.linear, value: engine.currentTime)
             .shadow(radius: 20, y: 10)
-            .overlay {
-                if let img = engine.artwork {
-                    Image(uiImage: img).resizable().scaledToFill()
-                        .clipShape(RoundedRectangle(cornerRadius: 22))
-                }
-            }
     }
 
     // MARK: Info
@@ -92,11 +87,9 @@ struct NowPlayingView: View {
                 in: 0...max(engine.duration, 1),
                 onEditingChanged: { editing in
                     if editing {
-                        // 开始拖动：冻结进度显示，停止对播放器的连续 seek
                         engine.isScrubbing = true
                         scrubTime = engine.currentTime
                     } else {
-                        // 松手：一次性精确跳转到目标位置，恢复正常进度跟踪
                         engine.seek(to: scrubTime)
                         engine.isScrubbing = false
                     }
@@ -199,7 +192,8 @@ struct NowPlayingView: View {
 
     // MARK: Lyrics
     private var lyricsSheet: some View {
-        ZStack(alignment: .topTrailing) {
+        let parsed = engine.lyrics.flatMap { parseLRC($0) }
+        return ZStack(alignment: .topTrailing) {
             Color.black.opacity(0.95).ignoresSafeArea()
             VStack(alignment: .leading, spacing: 0) {
                 HStack {
@@ -210,21 +204,23 @@ struct NowPlayingView: View {
                     }
                 }
                 .padding()
-                ScrollView {
-                    if let lyrics = engine.lyrics, !lyrics.isEmpty {
+                if let parsed = parsed, !parsed.isEmpty {
+                    LyricsView(lines: parsed, currentTime: engine.currentTime)
+                } else if let lyrics = engine.lyrics, !lyrics.isEmpty {
+                    ScrollView {
                         Text(lyrics)
                             .font(.body)
                             .foregroundStyle(.white.opacity(0.9))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal)
                             .padding(.bottom, 40)
-                    } else {
-                        Text("暂无歌词")
-                            .font(.subheadline)
-                            .foregroundStyle(.white.opacity(0.5))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding(.top, 40)
                     }
+                } else {
+                    Text("暂无歌词")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
                 }
             }
         }
@@ -235,5 +231,111 @@ struct NowPlayingView: View {
         guard t.isFinite, t > 0 else { return "0:00" }
         let total = Int(t)
         return "\(total / 60):\(String(format: "%02d", total % 60))"
+    }
+}
+
+// MARK: - 黑胶唱片视图
+
+private struct VinylArtwork: View {
+    let cover: [Color]
+    let artwork: UIImage?
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = min(geo.size.width, geo.size.height)
+            ZStack {
+                // 黑胶盘体：深色 + 环纹光泽
+                Circle()
+                    .fill(AngularGradient(
+                        colors: [.black, Color(white: 0.28), .black, Color(white: 0.28), .black],
+                        center: .center))
+                    .frame(width: size, height: size)
+                // 中心封面（圆形，略小于盘体）
+                Circle()
+                    .fill(LinearGradient(colors: cover,
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .frame(width: size * 0.60, height: size * 0.60)
+                    .overlay {
+                        if let img = artwork {
+                            Image(uiImage: img).resizable().scaledToFill()
+                                .clipShape(Circle())
+                        }
+                    }
+                // 中心孔
+                Circle()
+                    .fill(Color.black)
+                    .frame(width: size * 0.05, height: size * 0.05)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+}
+
+// MARK: - LRC 歌词解析与逐行视图
+
+private struct LRCLine: Identifiable, Equatable {
+    let id = UUID()
+    let time: Double
+    let text: String
+}
+
+/// 解析 LRC 文本（[mm:ss.xx] 或 [mm:ss] 时间标签）。返回 nil 表示不是 LRC 格式（纯文本歌词）。
+private func parseLRC(_ raw: String) -> [LRCLine]? {
+    guard let re = try? NSRegularExpression(pattern: "\\[(\\d{1,2}):(\\d{1,2}(?:\\.\\d{1,3})?)\\]") else { return nil }
+    var out: [LRCLine] = []
+    for line in raw.components(separatedBy: "\n") {
+        let ns = line as NSString
+        let matches = re.matches(in: line, range: NSRange(location: 0, length: ns.length))
+        guard !matches.isEmpty else { continue }
+        let last = matches.last!
+        var text = ns.substring(from: last.range.location + last.range.length)
+            .trimmingCharacters(in: .whitespaces)
+        if text.isEmpty { text = "♪" }
+        for m in matches {
+            guard m.numberOfRanges >= 3 else { continue }
+            guard let minRange = Range(m.range(at: 1), in: line),
+                  let secRange = Range(m.range(at: 2), in: line),
+                  let min = Int(line[minRange]),
+                  let sec = Double(line[secRange]) else { continue }
+            out.append(LRCLine(time: Double(min) * 60 + sec, text: text))
+        }
+    }
+    return out.isEmpty ? nil : out.sorted { $0.time < $1.time }
+}
+
+/// LRC 逐行歌词：当前播放行加粗高亮，并自动滚动到屏幕中央。
+private struct LyricsView: View {
+    let lines: [LRCLine]
+    let currentTime: Double
+
+    private var currentIndex: Int {
+        var idx = 0
+        for (i, l) in lines.enumerated() {
+            if l.time <= currentTime { idx = i } else { break }
+        }
+        return idx
+    }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 14) {
+                    ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
+                        Text(line.text)
+                            .font(i == currentIndex ? .title3.bold() : .body)
+                            .foregroundStyle(i == currentIndex ? .white : .white.opacity(0.4))
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .multilineTextAlignment(.center)
+                            .id(i)
+                            .padding(.horizontal)
+                    }
+                }
+                .padding(.vertical, 40)
+            }
+            .onChange(of: currentIndex) { _, _ in
+                withAnimation { proxy.scrollTo(currentIndex, anchor: .center) }
+            }
+            .onAppear { proxy.scrollTo(currentIndex, anchor: .center) }
+        }
     }
 }
