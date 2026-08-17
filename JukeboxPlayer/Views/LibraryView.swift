@@ -238,6 +238,7 @@ struct LibraryView: View {
             }
         case .failure(let error):
             importError = error.localizedDescription
+            store.noteImport("(文件选择器)", ok: false, message: error.localizedDescription)
             showingErrorAlert = true
         }
     }
