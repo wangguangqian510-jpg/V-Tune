@@ -175,6 +175,7 @@ struct LibraryView: View {
     }
 
     private var toolbarItems: some ToolbarContent {
+        Group {
         ToolbarItem(placement: .navigationBarLeading) {
             NavigationLink {
                 SettingsView()
@@ -204,6 +205,7 @@ struct LibraryView: View {
             } label: {
                 Image(systemName: "plus")
             }
+        }
         }
     }
 

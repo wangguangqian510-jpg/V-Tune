@@ -122,7 +122,7 @@ final class TrackStore: ObservableObject {
         let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
         let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines())
+        let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
         addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
     }
 
