@@ -107,6 +107,7 @@ open class JukeboxItem: NSObject {
                 self.delegate?.jukeboxItemDidLoadPlayerItem(self)
             } else {
                 self.didLoad = false
+                self.delegate?.jukeboxItemDidFail(self)
             }
         }
     }
@@ -131,11 +132,17 @@ open class JukeboxItem: NSObject {
 
     private func validateAsset(_ asset: AVURLAsset) -> Bool {
         var error: NSError?
+        let playableStatus = asset.statusOfValue(forKey: "playable", error: &error)
+        if playableStatus != .loaded {
+            print("[JukeboxItem] asset not playable: \(error?.localizedDescription ?? "unknown error")")
+            return false
+        }
         asset.statusOfValue(forKey: "duration", error: &error)
         if let error = error {
             if error.code == -1022 {
                 fatalError("\n\n***** Jukebox fatal error *****\nIt looks like the asset cannot be loaded from the HTTP URL: \"\(url)\".\nEnable NSAppTransportSecurity -> NSAllowsArbitraryLoads in your Info.plist for HTTP streams.\n")
             }
+            print("[JukeboxItem] duration load error: \(error.localizedDescription)")
             return false
         }
         return true
@@ -154,7 +161,7 @@ open class JukeboxItem: NSObject {
 
     private func loadAsync(_ completion: @escaping (AVURLAsset) -> Void) {
         let asset = AVURLAsset(url: url)
-        asset.loadValuesAsynchronously(forKeys: ["duration"]) {
+        asset.loadValuesAsynchronously(forKeys: ["playable", "duration", "commonMetadata"]) {
             DispatchQueue.main.async { completion(asset) }
         }
     }
@@ -287,6 +294,7 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
     func jukeboxItemDidFail(_ item: JukeboxItem) {
         stop()
         state = .failed
+        delegate?.jukeboxStateDidChange(self)
     }
 
     func jukeboxItemDidUpdate(_ item: JukeboxItem) {

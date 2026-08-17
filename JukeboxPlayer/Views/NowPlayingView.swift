@@ -14,6 +14,15 @@ struct NowPlayingView: View {
 
             VStack(spacing: 24) {
                 header
+                if let error = engine.lastError {
+                    Text(error)
+                        .font(.caption)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.red.opacity(0.85))
+                        .clipShape(Capsule())
+                }
                 Group {
                     if showLyrics {
                         lyricsView

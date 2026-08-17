@@ -114,6 +114,9 @@ final class TrackStore: ObservableObject {
 
     /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
     /// 返回新建曲目的 ID（失败或跳过时返回 nil）。
+    ///
+    /// 为避免大文件阻塞主线程，这里先把文件复制进 Documents 并立即生成一条 record，
+    /// 然后在后台异步解析 ID3 / MP4 标签；解析完成后再更新 record 并刷新 UI。
     func importFile(from url: URL) throws -> UUID? {
         guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         let dest = uniqueURL(in: docs, for: url)
@@ -122,14 +125,39 @@ final class TrackStore: ObservableObject {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try fileManager.copyItem(at: url, to: dest)
 
-        // 读真实 ID3 / MP4 标签，拿歌手、专辑、标题、歌词；读不到则用文件名兜底。
-        let tags = readAudioTags(from: dest)
+        // 先用文件名兜底生成 record，保证导入立刻成功并出现在歌单里。
         let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
-        let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
-        let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
-        let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
+        let id = addImportedRecord(filename: dest.lastPathComponent, title: baseTitle, artist: "未知歌手", album: "", lyrics: "")
+
+        // 后台解析真实标签，完成后更新。
+        Task.detached(priority: .userInitiated) { [weak self] in
+            let tags = readAudioTags(from: dest)
+            guard let self = self else { return }
+            await MainActor.run {
+                guard self.records[id] != nil else { return }
+                let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines))
+                    .flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+                let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines))
+                    .flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+                let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let updated = TrackRecord(
+                    id: id,
+                    title: title,
+                    artist: artist,
+                    album: album,
+                    source: .imported,
+                    urlString: dest.lastPathComponent,
+                    coverSeed: dest.lastPathComponent,
+                    lyrics: lyrics.isEmpty ? nil : lyrics
+                )
+                self.records[id] = updated
+                self.saveRecords()
+                self.refresh()
+                self.catalogVersion += 1
+            }
+        }
+        return id
     }
 
     /// 添加一个远程音频 URL。

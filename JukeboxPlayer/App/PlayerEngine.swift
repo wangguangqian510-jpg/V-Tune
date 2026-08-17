@@ -18,6 +18,7 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var artist: String = ""
     @Published private(set) var album: String = ""
     @Published private(set) var artwork: UIImage?
+    @Published private(set) var lastError: String?
 
     @Published var volume: Float = 1.0 {
         didSet { jukebox?.volume = volume }
@@ -87,14 +88,21 @@ final class PlayerEngine: ObservableObject {
         guard let jukebox = jukebox else { return }
         isPlaying = (jukebox.state == .playing)
         currentIndex = jukebox.playIndex
+        if jukebox.state == .failed {
+            lastError = "当前曲目无法播放，请检查网络链接或本地文件是否有效"
+        } else {
+            lastError = nil
+        }
         updateNowPlaying()
     }
 
     private func updateNowPlaying() {
         guard let item = jukebox?.currentItem else { return }
-        title = (item.meta.title ?? item.localTitle) ?? item.url.lastPathComponent
-        artist = item.meta.artist ?? ""
-        album = item.meta.album ?? ""
+        // 优先使用 AVAsset 解析到的动态元数据；解析不到时回退到 Track 的本地元数据。
+        let localTrack = tracks[safe: currentIndex]
+        title = item.meta.title ?? item.localTitle ?? localTrack?.title ?? item.url.lastPathComponent
+        artist = item.meta.artist ?? localTrack?.artist ?? ""
+        album = item.meta.album ?? localTrack?.album ?? ""
         artwork = item.meta.artwork
         duration = item.meta.duration ?? 0
         currentTime = item.currentTime ?? 0
