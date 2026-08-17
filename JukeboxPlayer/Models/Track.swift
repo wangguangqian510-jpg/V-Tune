@@ -6,6 +6,8 @@ enum TrackSource: String, Codable {
     case sample
     case imported
     case remote
+    /// 引用原文件（不复制）：仅存安全书签，播放时直接读用户 Files 里的原文件
+    case referenced
 }
 
 /// 一首曲目的数据模型。封面用渐变色表示，避免依赖外部图片资源。
@@ -36,17 +38,24 @@ struct Track: Identifiable, Hashable {
     /// 是否来自本地文件系统
     var isLocalFile: Bool { url.isFileURL }
 
-    /// 是否允许用户删除（示例曲不可删）
-    var isRemovable: Bool { source != .sample }
+    /// 是否允许用户从曲库移除（示例曲也可移除/隐藏，但只隐藏不删文件）
+    var isRemovable: Bool { true }
 
     /// 示例播放列表：使用公开可访问的 Sample MP3（SoundHelix），方便直接运行体验。
+    /// 注意：id 必须固定（不能用 UUID() 默认随机），否则「隐藏示例曲」的持久化集合跨启动会失效。
     static let samples: [Track] = [
-        Track(title: "Song One",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")!, cover: [.blue, .purple], source: .sample),
-        Track(title: "Song Two",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3")!, cover: [.pink, .orange], source: .sample),
-        Track(title: "Song Three", artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3")!, cover: [.teal, .green], source: .sample),
-        Track(title: "Song Four",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3")!, cover: [.indigo, .cyan], source: .sample),
-        Track(title: "Song Five",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3")!, cover: [.red, .yellow], source: .sample),
-        Track(title: "Song Six",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3")!, cover: [.mint, .blue], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111101")!,
+              title: "Song One",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")!, cover: [.blue, .purple], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111102")!,
+              title: "Song Two",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3")!, cover: [.pink, .orange], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111103")!,
+              title: "Song Three", artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3")!, cover: [.teal, .green], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111104")!,
+              title: "Song Four",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3")!, cover: [.indigo, .cyan], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111105")!,
+              title: "Song Five",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3")!, cover: [.red, .yellow], source: .sample),
+        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111106")!,
+              title: "Song Six",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3")!, cover: [.mint, .blue], source: .sample),
     ]
 }
 
