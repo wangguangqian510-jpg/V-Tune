@@ -112,7 +112,7 @@ struct NowPlayingView: View {
                     VStack(spacing: 18) {
                         Color.clear.frame(height: 24)
                         ForEach(currentLyrics) { line in
-                            let isCurrent = (currentLineIndex.flatMap { currentLyrics[$0].id } == line.id)
+                            let isCurrent = (currentLineIndex.map { currentLyrics[$0].id } == line.id)
                             Text(line.text)
                                 .font(isCurrent ? .title3.bold() : .body)
                                 .foregroundStyle(isCurrent ? .white : .white.opacity(0.4))
