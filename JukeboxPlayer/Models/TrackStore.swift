@@ -27,6 +27,12 @@ enum ImportError: LocalizedError {
     }
 }
 
+/// JSON 导入结果：导入的曲目数与自动生成的歌单名。
+struct PlaylistImportResult {
+    let count: Int
+    let playlistName: String
+}
+
 /// 管理示例曲 + 用户导入的本地/远程音频 + 歌单 + 收藏。
 /// 本地音频复制到 App Documents 目录，元数据用 JSON 存 UserDefaults。
 @MainActor
@@ -107,8 +113,9 @@ final class TrackStore: ObservableObject {
     // MARK: - 导入
 
     /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
-    func importFile(from url: URL) throws {
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+    /// 返回新建曲目的 ID（失败或跳过时返回 nil）。
+    func importFile(from url: URL) throws -> UUID? {
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
         let dest = uniqueURL(in: docs, for: url)
 
         let accessing = url.startAccessingSecurityScopedResource()
@@ -122,7 +129,7 @@ final class TrackStore: ObservableObject {
         let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
+        return addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
     }
 
     /// 添加一个远程音频 URL。
@@ -146,33 +153,41 @@ final class TrackStore: ObservableObject {
     }
 
     /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
-    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。返回成功导入的曲目数。
+    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。
+    /// 导入后会自动创建一个歌单并把曲目放进去。返回导入数与歌单名。
     /// 抛错仅发生在「整体格式无法识别」或「一条都没导进来」时。
-    func importPlaylist(from data: Data) throws -> Int {
+    func importPlaylist(from data: Data) throws -> PlaylistImportResult {
         let parsed = try JSONSerialization.jsonObject(with: data)
 
         let items: [[String: Any]]
+        var name: String?
         if let dict = parsed as? [String: Any] {
             // 常见曲目数组键名都试一遍
             items = dict.compactMap { key, value in
                 (["tracks", "list", "songs", "data", "items", "musics"].contains(key) ? value : nil)
             }
             .first(where: { $0 is [[String: Any]] }) as? [[String: Any]] ?? []
+            // 常见歌单名字段
+            name = firstString(dict, keys: ["name", "title", "playlist", "listName", "歌单名", "名称"])
         } else if let arr = parsed as? [[String: Any]] {
             items = arr
         } else {
             throw ImportError.invalidFormat
         }
 
-        let imported = importItems(items)
-        if imported == 0 {
+        let ids = importItems(items)
+        if ids.isEmpty {
             throw ImportError.noTracks
         }
-        return imported
+
+        let playlistName = name ?? "导入歌单"
+        let playlist = createPlaylist(name: playlistName)
+        addTracks(ids, to: playlist.id)
+        return PlaylistImportResult(count: ids.count, playlistName: playlistName)
     }
 
-    private func importItems(_ items: [[String: Any]]) -> Int {
-        var imported = 0
+    private func importItems(_ items: [[String: Any]]) -> [UUID] {
+        var ids: [UUID] = []
         for item in items {
             guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]),
                   let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
@@ -194,14 +209,14 @@ final class TrackStore: ObservableObject {
                 lyrics: lyrics
             )
             records[id] = record
-            imported += 1
+            ids.append(id)
         }
-        if imported > 0 {
+        if !ids.isEmpty {
             saveRecords()
             refresh()
             catalogVersion += 1
         }
-        return imported
+        return ids
     }
 
     /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。
@@ -274,6 +289,15 @@ final class TrackStore: ObservableObject {
         }
     }
 
+    /// 批量把曲目 ID 加入指定歌单（用于导入后自动成歌单）。
+    func addTracks(_ ids: [UUID], to playlistID: UUID) {
+        guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
+        for id in ids where !playlists[i].trackIDs.contains(id) {
+            playlists[i].trackIDs.append(id)
+        }
+        savePlaylists()
+    }
+
     func removeTrack(_ trackID: UUID, from playlistID: UUID) {
         guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         playlists[i].trackIDs.removeAll { $0 == trackID }
@@ -282,7 +306,7 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String) {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String) -> UUID {
         let id = UUID()
         let record = TrackRecord(
             id: id,
@@ -298,6 +322,7 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
+        return id
     }
 
     private func uniqueURL(in directory: URL, for source: URL) -> URL {
@@ -379,8 +404,11 @@ final class TrackStore: ObservableObject {
 
     private func saveRecords() {
         let list = Array(records.values)
-        if let data = try? JSONEncoder().encode(list) {
+        do {
+            let data = try JSONEncoder().encode(list)
             UserDefaults.standard.set(data, forKey: recordsKey)
+        } catch {
+            print("[TrackStore] saveRecords 编码失败: \(error)")
         }
     }
 
@@ -391,8 +419,11 @@ final class TrackStore: ObservableObject {
     }
 
     private func savePlaylists() {
-        if let data = try? JSONEncoder().encode(playlists) {
+        do {
+            let data = try JSONEncoder().encode(playlists)
             UserDefaults.standard.set(data, forKey: playlistsKey)
+        } catch {
+            print("[TrackStore] savePlaylists 编码失败: \(error)")
         }
     }
 
@@ -403,8 +434,11 @@ final class TrackStore: ObservableObject {
     }
 
     private func saveFavorites() {
-        if let data = try? JSONEncoder().encode(Array(favoriteIDs)) {
+        do {
+            let data = try JSONEncoder().encode(Array(favoriteIDs))
             UserDefaults.standard.set(data, forKey: favoritesKey)
+        } catch {
+            print("[TrackStore] saveFavorites 编码失败: \(error)")
         }
     }
 }

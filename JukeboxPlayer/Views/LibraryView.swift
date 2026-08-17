@@ -213,12 +213,23 @@ struct LibraryView: View {
         switch result {
         case .success(let urls):
             var errors: [String] = []
+            var importedIDs: [UUID] = []
             for url in urls {
                 do {
-                    try store.importFile(from: url)
+                    if let id = try store.importFile(from: url) {
+                        importedIDs.append(id)
+                    }
                 } catch {
                     errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
                 }
+            }
+            // 本地导入也自动归入一个歌单，避免「歌曲」进了库却不在「歌单」里。
+            if !importedIDs.isEmpty {
+                let fmt = DateFormatter()
+                fmt.dateFormat = "MM-dd HH:mm"
+                let name = importedIDs.count > 1 ? "本地导入 \(importedIDs.count) 首" : "本地导入 \(fmt.string(from: Date()))"
+                let playlist = store.createPlaylist(name: name)
+                store.addTracks(importedIDs, to: playlist.id)
             }
             if !errors.isEmpty {
                 importError = errors.joined(separator: "\n")

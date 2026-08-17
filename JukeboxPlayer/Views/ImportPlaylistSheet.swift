@@ -83,8 +83,8 @@ struct ImportPlaylistSheet: View {
     }
 
     private func importData(_ data: Data) throws {
-        let n = try store.importPlaylist(from: data)
-        present(message: "成功导入 \(n) 首曲目")
+        let result = try store.importPlaylist(from: data)
+        present(message: "成功导入 \(result.count) 首，已生成歌单「\(result.playlistName)」")
     }
 
     private func present(message: String) {
