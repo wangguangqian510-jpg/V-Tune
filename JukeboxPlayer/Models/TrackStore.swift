@@ -31,6 +31,16 @@ enum ImportError: LocalizedError {
     }
 }
 
+/// 导入尝试的持久化日志记录（成功/失败 + 原文），供「设置 -> 导入记录」展示，
+/// 用于在无 Xcode 环境下定位「导入失败但无提示」的静默问题。
+struct ImportLogEntry: Codable, Identifiable {
+    var id = UUID()
+    let time: Date
+    let fileName: String
+    let ok: Bool
+    let message: String
+}
+
 /// 管理示例曲 + 用户导入的本地/远程音频 + 歌单 + 收藏。
 /// 本地音频复制到 App Documents 目录，元数据用 JSON 存 UserDefaults。
 @MainActor
@@ -50,17 +60,29 @@ final class TrackStore: ObservableObject {
     /// UI 弹窗关闭时清除提示。
     func dismissImportNotice() { importNotice = nil }
 
+    /// 记录一次导入尝试（成功/失败），持久化供「导入记录」页查看。
+    func noteImport(_ fileName: String, ok: Bool, message: String) {
+        let entry = ImportLogEntry(time: Date(), fileName: fileName, ok: ok, message: message)
+        importLog.insert(entry, at: 0)
+        if importLog.count > 50 { importLog.removeLast() }
+        saveImportLog()
+    }
+
     private let fileManager = FileManager.default
     private let recordsKey = "JukeboxTrackRecords_v1"
     private let playlistsKey = "JukeboxPlaylists_v1"
     private let favoritesKey = "JukeboxFavoriteIDs_v1"
     private var records: [UUID: TrackRecord] = [:]
     private var favoriteIDs: Set<UUID> = []
+    /// 导入尝试日志（最新在前），持久化到 UserDefaults，供「设置 -> 导入记录」展示。
+    @Published private(set) var importLog: [ImportLogEntry] = []
+    private let importLogKey = "JukeboxImportLog_v1"
 
     init() {
         loadRecords()
         loadPlaylists()
         loadFavorites()
+        loadImportLog()
         refresh()
     }
 
@@ -119,9 +141,23 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 导入
 
+    /// 包装层：统一记录导入日志（触发/成功/失败 + 原文），再交给真正实现。
+    /// 两条入口（onOpenURL 分享 / fileImporter 应用内）都走这里，日志一处覆盖。
+    func importFile(from url: URL) async throws {
+        let fileName = url.lastPathComponent
+        noteImport(fileName, ok: true, message: "入口已触发，开始处理")
+        do {
+            try await importFileImpl(from: url)
+            noteImport(fileName, ok: true, message: "成功：已写入曲库")
+        } catch {
+            noteImport(fileName, ok: false, message: error.localizedDescription)
+            throw error
+        }
+    }
+
     /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
     /// 解析 ID3 / MP4 标签（标题/歌手/专辑/时长/内嵌歌词/封面），读不到则用文件名兜底。
-    func importFile(from url: URL) async throws {
+    private func importFileImpl(from url: URL) async throws {
         guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw ImportError.noDocumentDir
         }
@@ -482,6 +518,18 @@ final class TrackStore: ObservableObject {
     }
 
     // MARK: - 持久化
+
+    private func loadImportLog() {
+        guard let data = UserDefaults.standard.data(forKey: importLogKey),
+              let list = try? JSONDecoder().decode([ImportLogEntry].self, from: data) else { return }
+        importLog = list
+    }
+
+    private func saveImportLog() {
+        if let data = try? JSONEncoder().encode(importLog) {
+            UserDefaults.standard.set(data, forKey: importLogKey)
+        }
+    }
 
     private func loadRecords() {
         guard let data = UserDefaults.standard.data(forKey: recordsKey),
