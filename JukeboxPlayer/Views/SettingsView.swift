@@ -6,10 +6,12 @@ struct StorageInfo {
     var cacheBytes: Int64 = 0
     var totalBytes: Int64 = 0
     var importedFiles: Int = 0
+    var referencedCount: Int = 0
     var remoteCount: Int = 0
     var totalTracks: Int = 0
     var favoriteCount: Int = 0
     var playlistCount: Int = 0
+    var hiddenSamples: Int = 0
 }
 
 func formatBytes(_ value: Int64) -> String {
@@ -41,9 +43,38 @@ struct SettingsView: View {
                 }
                 .disabled(storage.importedFiles == 0)
             }
+            Section("音效（EQ）") {
+                Toggle("启用均衡器", isOn: $engine.eqEnabled)
+                if engine.eqEnabled {
+                    Picker("预设", selection: $engine.eqPreset) {
+                        ForEach(Array(EQAudioTap.presets.keys.sorted()), id: \.self) { name in
+                            Text(name)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    Text("预设：低音增强 / 人声 / 明亮 / 摇滚。关闭时不影响基础播放。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Section("导入设置") {
+                Toggle("导入时复制进 App（关 = 引用原文件，省空间）", isOn: $store.importByCopy)
+                HStack { Text("引用原文件（不复制）"); Spacer(); Text("\(storage.referencedCount)") }
+                HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
+                Button {
+                    store.restoreSamples()
+                    storage = store.storageInfo()
+                } label: {
+                    Label("恢复被删除的示例曲", systemImage: "arrow.uturn.backward")
+                }
+                .disabled(storage.hiddenSamples == 0)
+            }
+
             Section("曲库") {
                 HStack { Text("曲目总数"); Spacer(); Text("\(storage.totalTracks)") }
-                HStack { Text("本地文件"); Spacer(); Text("\(storage.importedFiles)") }
+                HStack { Text("本地文件（已复制）"); Spacer(); Text("\(storage.importedFiles)") }
+                HStack { Text("引用原文件（不复制）"); Spacer(); Text("\(storage.referencedCount)") }
                 HStack { Text("网络音频"); Spacer(); Text("\(storage.remoteCount)") }
                 HStack { Text("我的收藏"); Spacer(); Text("\(storage.favoriteCount)") }
                 HStack { Text("歌单"); Spacer(); Text("\(storage.playlistCount)") }
@@ -66,8 +97,9 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 6) {
                     Text("正确导入方式：").bold()
-                    Text("1. 应用内：曲库页右上角 + → 从 Files 导入（稳定版）")
-                    Text("2. 文件 App：长按 MP3 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（不是顶部分享图标）")
+                    Text("1. 应用内：曲库页右上角 + → 从 Files 导入（批量）")
+                    Text("2. 默认「引用原文件」：不复制，只占一份空间；原文件勿删/移动，否则该曲播不了")
+                    Text("3. 文件 App：长按 MP3 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（不是顶部分享图标）")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
