@@ -55,19 +55,7 @@ jobs:
           APP=$(find build -name "JukeboxPlayer.app" -type d | head -1)
           echo "Signing app: $APP"
           # 合并描述文件原有 entitlements 与文件访问权限，避免 zsign -e 覆盖导致签名无效
-          python3 - <<'PY'
-import plistlib
-data = open('app.mobileprovision','rb').read()
-s = data.find(b'<?xml')
-e = data.rfind(b'</plist>') + len(b'</plist>')
-pl = plistlib.loads(data[s:e])
-ents = pl.get('Entitlements', {})
-ents['com.apple.security.files.user-selected.read-write'] = True
-ents['com.apple.security.files.downloads.read-write'] = True
-with open('merged.entitlements','wb') as f:
-    f.write(plistlib.dumps(ents))
-print('merged entitlements:', list(ents.keys()))
-PY
+          python3 merge_entitlements.py app.mobileprovision merged.entitlements
           zsign -f \
             -k cert.p12 \
             -p "${{ secrets.CERT_PASSWORD }}" \
