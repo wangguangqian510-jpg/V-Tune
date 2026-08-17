@@ -52,6 +52,32 @@ struct SettingsView: View {
                 HStack { Text("版本"); Spacer(); Text(appVersion) }
                 HStack { Text("Bundle ID"); Spacer(); Text(Bundle.main.bundleIdentifier ?? "") }
             }
+            Section("导入记录") {
+                if store.importLog.isEmpty {
+                    Text("暂无导入记录（导入一次后会在此显示触发/成功/失败与报错原文）").foregroundStyle(.secondary)
+                } else {
+                    ForEach(store.importLog) { entry in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Image(systemName: entry.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                    .foregroundStyle(entry.ok ? .green : .red)
+                                Text(entry.fileName)
+                                    .font(.subheadline)
+                                    .lineLimit(1)
+                                Spacer()
+                                Text(entry.time, style: .time)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(entry.message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 2)
+                    }
+                }
+            }
         }
         .navigationTitle("设置")
         .onAppear { storage = store.storageInfo() }
