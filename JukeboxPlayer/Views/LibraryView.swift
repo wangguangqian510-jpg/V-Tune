@@ -181,13 +181,6 @@ struct LibraryView: View {
     }
 
     private var toolbarItems: some ToolbarContent {
-        ToolbarItem(placement: .navigationBarLeading) {
-            Button {
-                showingSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-            }
-        }
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button {
@@ -204,6 +197,11 @@ struct LibraryView: View {
                     showingPlaylistImport = true
                 } label: {
                     Label("导入歌单 JSON", systemImage: "square.and.arrow.down.on.square")
+                }
+                Button {
+                    showingSettings = true
+                } label: {
+                    Label("设置", systemImage: "gearshape")
                 }
             } label: {
                 Image(systemName: "plus")
