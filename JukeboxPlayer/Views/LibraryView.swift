@@ -165,8 +165,6 @@ struct LibraryView: View {
     }
 
     private func play(_ track: Track, from list: [Track]) {
-        // 复用已加载的全局队列（catalogVersion 变化时已含全部曲目，包括导入的），
-        // 直接按全局索引播放，避免每次点击都重建 Jukebox 导致状态丢失/远程曲播不了。
         guard let idx = store.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         engine.play(index: idx)
     }
@@ -201,15 +199,10 @@ struct LibraryView: View {
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button {
-                    showingImporter = true
-                } label: {
-                    Label("从 Files 导入 (SwiftUI)", systemImage: "folder")
-                }
-                Button {
                     showingDocumentPicker = true
-                    store.noteImport("(UI)", ok: true, message: "用户点击 UIDocumentPicker 入口")
+                    store.noteImport("(UI)", ok: true, message: "用户点击 UIDocumentPicker 入口（支持多选批量导入）")
                 } label: {
-                    Label("从 Files 导入 (稳定版)", systemImage: "folder.badge.plus")
+                    Label("从 Files 导入（批量）", systemImage: "folder.badge.plus")
                 }
                 Button {
                     showingURLAlert = true
