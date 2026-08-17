@@ -4,6 +4,7 @@ import UIKit
 import SwiftUI
 import MediaPlayer
 import AVFoundation
+import AudioToolbox
 
 /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
 enum PlaybackMode: String, CaseIterable {
@@ -44,6 +45,16 @@ final class PlayerEngine: ObservableObject {
 
     /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
     @Published var playbackMode: PlaybackMode = .order
+
+    // MARK: - EQ 音效（默认关闭，避免影响基础播放稳定性）
+    @Published var eqEnabled: Bool = false {
+        didSet { applyEQToCurrentItem() }
+    }
+    @Published var eqPreset: String = "关闭" {
+        didSet { applyEQToCurrentItem() }
+    }
+    private let eqTap = EQAudioTap()
+    private var processingTap: Unmanaged<MTAudioProcessingTap>?
 
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
@@ -156,6 +167,7 @@ final class PlayerEngine: ObservableObject {
         playerItem = item
         player = AVPlayer(playerItem: item)
         player?.volume = volume
+        applyEQToCurrentItem()
 
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -265,7 +277,9 @@ final class PlayerEngine: ObservableObject {
 
     private func setupAudioSession() {
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            // 显式允许蓝牙（A2DP 耳机/音箱）路由，否则部分设备连上蓝牙仍走扬声器
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default,
+                options: [.allowBluetooth, .allowBluetoothA2DP])
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
             #if DEBUG
@@ -335,9 +349,68 @@ final class PlayerEngine: ObservableObject {
         guard let info = notification.userInfo,
               let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonValue) else { return }
+        // 仅当「已无任何输出设备」时才暂停（真正的断开，如拔掉耳机且无其他输出）。
+        // 连上蓝牙时旧设备会变为 unavailable，但新路由（蓝牙）已生效，应继续播放，不应误暂停。
         if reason == .oldDeviceUnavailable {
-            player?.pause(); isPlaying = false
+            let hasOutput = !AVAudioSession.sharedInstance().currentRoute.outputs.isEmpty
+            if !hasOutput {
+                player?.pause(); isPlaying = false
+            }
         }
+    }
+
+    // MARK: - EQ 音效（MTAudioProcessingTap，默认关闭）
+
+    /// 根据开关/预设，给当前 playerItem 挂上或卸下 EQ 音频混合。eqEnabled 关闭时直接卸下。
+    private func applyEQToCurrentItem() {
+        guard let item = playerItem else { return }
+        guard eqEnabled, let bands = EQAudioTap.presets[eqPreset] else {
+            item.audioMix = nil
+            return
+        }
+        eqTap.setBands(bands)
+        guard let tap = createEQTap() else {
+            item.audioMix = nil
+            return
+        }
+        let params = AVMutableAudioMixInputParameters()
+        params.audioTapProcessor = tap
+        let mix = AVMutableAudioMix()
+        mix.inputParameters = [params]
+        item.audioMix = mix
+    }
+
+    /// 创建 MTAudioProcessingTap 并绑定到 eqTap。eqTap 由 PlayerEngine 强引用，存储指针用 passUnretained，finalize 不释放。
+    private func createEQTap() -> MTAudioProcessingTap? {
+        let eq = self.eqTap
+        let callbacks = MTAudioProcessingTapCallbacks(
+            version: kMTAudioProcessingTapCallbacksVersion_0,
+            init: { (tap, clientInfo, tapStorageOut) in
+                tapStorageOut.pointee = UnsafeMutableRawPointer(Unmanaged.passUnretained(eq).toOpaque())
+            },
+            finalize: { _ in },
+            prepare: { (tap, maxFrames, processingFormat) in
+                let processor = Unmanaged<EQAudioTap>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+                let asbd = processingFormat.pointee
+                processor.configure(sampleRate: asbd.mSampleRate, channels: Int(asbd.mChannelsPerFrame))
+            },
+            unprepare: { _ in },
+            process: { (tap, numberFrames, flags, bufferList, numberFramesOut, flagsOut) in
+                let processor = Unmanaged<EQAudioTap>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
+                var frames = numberFrames
+                var f = flags
+                let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferList, &f, nil, &frames)
+                numberFramesOut.pointee = frames
+                flagsOut.pointee = f
+                if status == noErr {
+                    processor.process(bufferList: bufferList, numberFrames: Int(frames))
+                }
+            }
+        )
+        var tap: Unmanaged<MTAudioProcessingTap>?
+        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, .init, &tap)
+        if status == noErr { return tap?.takeRetainedValue() }
+        return nil
     }
 }
 
@@ -346,5 +419,95 @@ final class PlayerEngine: ObservableObject {
 extension Collection {
     subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil
+    }
+}
+
+// MARK: - EQ 处理核心（3 段 Biquad 峰值滤波）
+
+/// 3 段 Biquad 峰值 EQ（低 80Hz / 中 1kHz / 高 10kHz），通过 MTAudioProcessingTap 接入 AVPlayer。
+/// 处理在音频渲染线程进行；主线程切换预设时仅短时与渲染线程重叠，属可接受的轻微抖动，故标 @unchecked Sendable。
+final class EQAudioTap: @unchecked Sendable {
+    /// 预设名 -> [低音增益, 中音增益, 高音增益]（单位 dB）
+    static let presets: [String: [Double]] = [
+        "关闭":     [0, 0, 0],
+        "低音增强": [8, 0, 2],
+        "人声":     [2, 5, 3],
+        "明亮":     [0, 2, 7],
+        "摇滚":     [5, 3, 4],
+    ]
+
+    private struct Coeffs { var b0: Float = 0; var b1: Float = 0; var b2: Float = 0; var a1: Float = 0; var a2: Float = 0 }
+    private var filters: [[Coeffs]] = []
+    private var z1: [[Float]] = []
+    private var z2: [[Float]] = []
+    private var bands: [Double] = [0, 0, 0]
+    private var sampleRate: Double = 44100
+    private var channels: Int = 2
+
+    func setBands(_ newBands: [Double]) {
+        bands = newBands
+        recompute()
+    }
+
+    func configure(sampleRate: Double, channels: Int) {
+        self.sampleRate = sampleRate
+        self.channels = max(1, channels)
+        recompute()
+    }
+
+    private func recompute() {
+        let freqs = [80.0, 1000.0, 10000.0]
+        let q: Double = 1.0
+        var newFilters: [[Coeffs]] = []
+        for _ in 0..<channels {
+            var chFilters: [Coeffs] = []
+            for i in 0..<3 {
+                let g = bands.count > i ? bands[i] : 0
+                chFilters.append(peaking(sampleRate: sampleRate, freq: freqs[i], gainDB: g, q: q))
+            }
+            newFilters.append(chFilters)
+        }
+        filters = newFilters
+        z1 = Array(repeating: Array(repeating: 0, count: 3), count: channels)
+        z2 = Array(repeating: Array(repeating: 0, count: 3), count: channels)
+    }
+
+    /// RBJ 峰值滤波器系数（已按 a0 归一化，Transposed Direct Form II）
+    private func peaking(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
+        let A = pow(10, gainDB / 40)
+        let w0 = 2 * Double.pi * freq / sampleRate
+        let cosw0 = cos(w0)
+        let alpha = sin(w0) / (2 * q)
+        let b0 = 1 + alpha * A
+        let b1 = -2 * cosw0
+        let b2 = 1 - alpha * A
+        let a0 = 1 + alpha / A
+        let a1 = -2 * cosw0
+        let a2 = 1 - alpha / A
+        return Coeffs(b0: Float(b0 / a0), b1: Float(b1 / a0), b2: Float(b2 / a0),
+                      a1: Float(a1 / a0), a2: Float(a2 / a0))
+    }
+
+    /// 对 AudioBufferList 做 in-place 三阶 Biquad 级联处理
+    func process(bufferList: UnsafeMutablePointer<AudioBufferList>, numberFrames: Int) {
+        let abl = UnsafeMutableAudioBufferListPointer(bufferList)
+        let nch = min(channels, abl.count)
+        for ch in 0..<nch {
+            guard let data = abl[ch].mData?.assumingMemoryBound(to: Float.self) else { continue }
+            for band in 0..<3 {
+                let c = filters[ch][band]
+                var z1v = z1[ch][band]
+                var z2v = z2[ch][band]
+                for i in 0..<numberFrames {
+                    let x = data[i]
+                    let y = c.b0 * x + z1v
+                    z1v = c.b1 * x - c.a1 * y + z2v
+                    z2v = c.b2 * x - c.a2 * y
+                    data[i] = y
+                }
+                z1[ch][band] = z1v
+                z2[ch][band] = z2v
+            }
+        }
     }
 }
