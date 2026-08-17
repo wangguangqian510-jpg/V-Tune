@@ -138,7 +138,7 @@ final class TrackStore: ObservableObject {
                 var stale = false
                 let resolved: URL
                 do {
-                    resolved = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
                 } catch {
                     continue
                 }
@@ -201,7 +201,7 @@ final class TrackStore: ObservableObject {
 
         // 引用原文件模式：尝试生成安全书签；成功则不再复制，省一倍空间
         if !importByCopy {
-            if let bm = try? url.bookmarkData(options: .securityScope,
+            if let bm = try? url.bookmarkData(options: .withSecurityScope,
                                              includingResourceValuesForKeys: nil,
                                              relativeTo: nil) {
                 let tags = await extractTags(from: url)
@@ -275,7 +275,8 @@ final class TrackStore: ObservableObject {
             source: .remote,
             urlString: url.absoluteString,
             coverSeed: url.absoluteString,
-            lyrics: nil
+            lyrics: nil,
+            bookmark: nil
         )
         records[id] = record
         saveRecords()
@@ -359,7 +360,8 @@ final class TrackStore: ObservableObject {
             source: .remote,
             urlString: urlString,
             coverSeed: urlString,
-            lyrics: nil
+            lyrics: nil,
+            bookmark: nil
         )
         records[id] = record
         return id
