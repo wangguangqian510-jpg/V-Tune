@@ -128,7 +128,7 @@ struct LibraryView: View {
                     onTap: { play(track, from: filtered) },
                     onAddToPlaylist: { trackToAdd = $0 }
                 )
-                .deleteDisabled(!track.isRemovable)
+                .deleteDisabled(false)
             }
             .onDelete(perform: delete)
         }
@@ -260,7 +260,9 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 正在呈现")
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav], asCopy: true)
+        // asCopy: false → 拿到原文件的安全作用域 URL，App 不复制（只存书签），避免占 2 倍空间。
+        // 书签创建失败时会自动回退为复制模式（见 TrackStore.importFileImpl）。
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav], asCopy: false)
         picker.allowsMultipleSelection = true
         picker.delegate = context.coordinator
         return picker
