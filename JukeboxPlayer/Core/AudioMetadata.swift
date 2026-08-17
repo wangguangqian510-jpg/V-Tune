@@ -2,66 +2,84 @@ import Foundation
 import AVFoundation
 import UIKit
 
-/// 本地音频文件的 ID3 / MP4 元数据（同步读取，仅用于导入时解析）。
+/// 本地音频文件的标签信息（导入时解析）。
 struct AudioFileTags {
     var title: String?
     var artist: String?
     var album: String?
+    var duration: Double?
     var lyrics: String?
+    var artwork: Data?
 }
 
-/// 同步读取音频标签：AVFoundation 的元数据加载是异步的，这里用信号量
-/// 转成同步调用，导入时短暂阻塞主线程即可（本地文件解析很快）。
-func readAudioTags(from url: URL) -> AudioFileTags {
+/// 异步提取音频标签：标题 / 歌手 / 专辑 / 时长 / 内嵌歌词（ID3 USLT、iTunes ©lyr、AVAsset.lyrics）/ 内嵌封面。
+/// 思路参考成熟播放器的本地导入实现，此处为自写版本，仅用 AVFoundation，不依赖任何第三方库。
+func extractTags(from url: URL) async -> AudioFileTags {
     let asset = AVURLAsset(url: url)
-    var result = AudioFileTags(title: nil, artist: nil, album: nil, lyrics: nil)
-    let group = DispatchGroup()
-    group.enter()
-    asset.loadValuesAsynchronously(forKeys: ["commonMetadata"]) {
-        if asset.statusOfValue(forKey: "commonMetadata", error: nil) == .loaded {
-            for item in asset.commonMetadata {
-                switch item.commonKey {
-                case .commonKeyTitle:      result.title = asTagString(item.value)
-                case .commonKeyAlbumName:  result.album = asTagString(item.value)
-                case .commonKeyArtist:     result.artist = asTagString(item.value)
-                default:
-                    // 歌词：部分 SDK 的 AVMetadataKey 没有 commonKeyLyrics 成员，
-                    // 用原始键名做字符串兜底匹配（commonMetadata / USLT 等）。
-                    let keyText = metadataKeyText(item).lowercased()
-                    if keyText.contains("lyric") || keyText == "uslt" {
-                        result.lyrics = asTagString(item.value)
-                    }
-                }
-            }
-            // 再兜底扫一遍全部元数据格式（含 iTunes 私有的 USLT 等）
-            if result.lyrics == nil {
-                for item in asset.metadata {
-                    let keyText = metadataKeyText(item).lowercased()
-                    if keyText.contains("lyric") || keyText == "uslt" {
-                        result.lyrics = asTagString(item.value)
-                        break
-                    }
-                }
+    var result = AudioFileTags()
+
+    // 时长
+    if let d = try? await asset.load(.duration) {
+        let secs = CMTimeGetSeconds(d)
+        if secs.isFinite, secs > 0 { result.duration = secs }
+    }
+
+    // 公共元数据：标题 / 歌手 / 专辑 / 封面
+    let metadata = (try? await asset.load(.metadata)) ?? []
+    for item in metadata {
+        if let commonKey = item.commonKey?.rawValue {
+            switch commonKey {
+            case AVMetadataKey.commonKeyTitle.rawValue:
+                result.title = (try? await item.load(.stringValue)) ?? result.title
+            case AVMetadataKey.commonKeyArtist.rawValue:
+                result.artist = (try? await item.load(.stringValue)) ?? result.artist
+            case AVMetadataKey.commonKeyAlbumName.rawValue:
+                result.album = (try? await item.load(.stringValue)) ?? result.album
+            case AVMetadataKey.commonKeyArtwork.rawValue:
+                if let data = try? await item.load(.dataValue) { result.artwork = data }
+            default:
+                break
             }
         }
-        group.leave()
+        // 歌词：ID3 USLT / SYLT、iTunes ©lyr、含 "lyric"/"uslt" 的键
+        if result.lyrics == nil {
+            var hit = false
+            if let id = item.identifier?.rawValue.lowercased() {
+                if id.contains("uslt") || id.contains("sylt") || id.contains("lyric") || id.contains("lyr") {
+                    hit = true
+                }
+            }
+            if !hit, let key = item.key as? String, key.lowercased().contains("lyric") || key.lowercased().contains("uslt") {
+                hit = true
+            }
+            if hit, let text = try? await item.load(.stringValue), !text.isEmpty {
+                result.lyrics = text
+            }
+        }
     }
-    group.wait()
+
+    // AVAsset 直接提供的歌词（部分格式可用）
+    if result.lyrics == nil {
+        if let l = try? await asset.load(.lyrics), !l.isEmpty {
+            result.lyrics = l
+        }
+    }
+
+    // 封面过大时压缩到 300px，避免持久化体积膨胀
+    if let data = result.artwork, data.count > 500_000 {
+        result.artwork = compressArtwork(data: data, maxSize: 300)
+    }
+
     return result
 }
 
-/// 把元数据值统一成非空的字符串（兼容 String / Data(UTF-8)）。
-private func asTagString(_ value: Any?) -> String? {
-    if let s = value as? String, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
-    if let d = value as? Data,
-       let s = String(data: d, encoding: .utf8),
-       !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
-    return nil
-}
-
-/// 安全提取元数据项的键名文本（避免 commonKey 与 key 的类型冲突）。
-private func metadataKeyText(_ item: AVMetadataItem) -> String {
-    if let ck = item.commonKey { return ck.rawValue }
-    if let s = item.key as? String { return s }
-    return String(describing: item.key)
+/// 压缩封面图片到指定边长（最长边）。
+private func compressArtwork(data: Data, maxSize: CGFloat) -> Data? {
+    guard let image = UIImage(data: data) else { return data }
+    let size = CGSize(width: maxSize, height: maxSize)
+    UIGraphicsBeginImageContextWithOptions(size, false, 0)
+    image.draw(in: CGRect(origin: .zero, size: size))
+    let resized = UIGraphicsGetImageFromCurrentImageContext()
+    UIGraphicsEndImageContext()
+    return resized?.jpegData(compressionQuality: 0.8)
 }

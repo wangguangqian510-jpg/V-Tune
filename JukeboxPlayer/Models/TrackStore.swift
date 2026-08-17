@@ -11,7 +11,7 @@ struct TrackRecord: Codable {
     /// 本地文件：仅存文件名；远程音频：存完整 URL 字符串
     let urlString: String
     let coverSeed: String
-    /// 歌词（LRC 或纯文本）；可选以兼容旧存档
+    /// 内嵌 / 侧载歌词（纯文本或 LRC），无则为 nil
     let lyrics: String?
 }
 
@@ -22,15 +22,9 @@ enum ImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidFormat: return "JSON 格式无法识别（需要包含曲目数组，如 tracks / list / songs）"
-        case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s):// 或 file:// 的 url 字段）"
+        case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s) 的 url 字段）"
         }
     }
-}
-
-/// JSON 导入结果：导入的曲目数与自动生成的歌单名。
-struct PlaylistImportResult {
-    let count: Int
-    let playlistName: String
 }
 
 /// 管理示例曲 + 用户导入的本地/远程音频 + 歌单 + 收藏。
@@ -106,58 +100,30 @@ final class TrackStore: ObservableObject {
             cover: coverColors(for: record.coverSeed),
             source: source,
             isFavorite: favoriteIDs.contains(record.id),
-            lyrics: record.lyrics ?? ""
+            lyrics: record.lyrics
         )
     }
 
     // MARK: - 导入
 
     /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
-    /// 返回新建曲目的 ID（失败或跳过时返回 nil）。
-    ///
-    /// 为避免大文件阻塞主线程，这里先把文件复制进 Documents 并立即生成一条 record，
-    /// 然后在后台异步解析 ID3 / MP4 标签；解析完成后再更新 record 并刷新 UI。
-    func importFile(from url: URL) throws -> UUID? {
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+    /// 解析 ID3 / MP4 标签（标题/歌手/专辑/时长/内嵌歌词/封面），读不到则用文件名兜底。
+    func importFile(from url: URL) async throws {
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
         let dest = uniqueURL(in: docs, for: url)
 
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try fileManager.copyItem(at: url, to: dest)
 
-        // 先用文件名兜底生成 record，保证导入立刻成功并出现在歌单里。
+        // 读真实标签（异步，参考成熟播放器的本地导入实现，自写）。
+        let tags = await extractTags(from: dest)
         let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
-        let id = addImportedRecord(filename: dest.lastPathComponent, title: baseTitle, artist: "未知歌手", album: "", lyrics: "")
-
-        // 后台解析真实标签，完成后更新。
-        Task.detached(priority: .userInitiated) { [weak self] in
-            let tags = readAudioTags(from: dest)
-            guard let self = self else { return }
-            await MainActor.run {
-                guard self.records[id] != nil else { return }
-                let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines))
-                    .flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
-                let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines))
-                    .flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
-                let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let updated = TrackRecord(
-                    id: id,
-                    title: title,
-                    artist: artist,
-                    album: album,
-                    source: .imported,
-                    urlString: dest.lastPathComponent,
-                    coverSeed: dest.lastPathComponent,
-                    lyrics: lyrics.isEmpty ? nil : lyrics
-                )
-                self.records[id] = updated
-                self.saveRecords()
-                self.refresh()
-                self.catalogVersion += 1
-            }
-        }
-        return id
+        let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+        let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+        let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines())
+        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
     }
 
     /// 添加一个远程音频 URL。
@@ -178,25 +144,25 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
+        addToImportPlaylist(id)
     }
 
     /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
-    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。
-    /// 导入后会自动创建一个歌单并把曲目放进去。返回导入数与歌单名。
+    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。返回成功导入的曲目数。
+    /// 导入后会自动创建一个歌单（JSON 含 name/title 则用其命名，否则「导入歌单」），保证「歌单」页不为空。
     /// 抛错仅发生在「整体格式无法识别」或「一条都没导进来」时。
-    func importPlaylist(from data: Data) throws -> PlaylistImportResult {
+    func importPlaylist(from data: Data) throws -> Int {
         let parsed = try JSONSerialization.jsonObject(with: data)
 
         let items: [[String: Any]]
-        var name: String?
+        var playlistName: String?
         if let dict = parsed as? [String: Any] {
+            playlistName = firstString(dict, keys: ["name", "title", "playlist", "listName", "list_name"])
             // 常见曲目数组键名都试一遍
             items = dict.compactMap { key, value in
                 (["tracks", "list", "songs", "data", "items", "musics"].contains(key) ? value : nil)
             }
             .first(where: { $0 is [[String: Any]] }) as? [[String: Any]] ?? []
-            // 常见歌单名字段
-            name = firstString(dict, keys: ["name", "title", "playlist", "listName", "歌单名", "名称"])
         } else if let arr = parsed as? [[String: Any]] {
             items = arr
         } else {
@@ -208,42 +174,34 @@ final class TrackStore: ObservableObject {
             throw ImportError.noTracks
         }
 
-        let playlistName = name ?? "导入歌单"
-        let playlist = createPlaylist(name: playlistName)
-        addTracks(ids, to: playlist.id)
-        return PlaylistImportResult(count: ids.count, playlistName: playlistName)
+        let name = (playlistName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "导入歌单"
+        let playlist = Playlist(name: name, trackIDs: ids)
+        playlists.append(playlist)
+        savePlaylists()
+        catalogVersion += 1
+        return ids.count
     }
 
     private func importItems(_ items: [[String: Any]]) -> [UUID] {
         var ids: [UUID] = []
         for item in items {
-            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]) else { continue }
-            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"]) ?? ""
+            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]),
+                  let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
+            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"])
+                ?? url.deletingPathExtension().lastPathComponent
             let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName"]) ?? "未知歌手"
             let album = firstString(item, keys: ["album", "albumName", "albumname"]) ?? ""
-            let lyrics = firstString(item, keys: ["lyrics", "lrc", "text"])
-            let sourceHint = firstString(item, keys: ["source"])?.lowercased()
 
-            // file:// 本地路径，或显式声明 source=imported/local：按本地文件导入。
-            if rawURL.hasPrefix("file://") || sourceHint == "imported" || sourceHint == "local" {
-                if let id = importLocalFileRef(from: rawURL, title: title, artist: artist, album: album, lyrics: lyrics) {
-                    ids.append(id)
-                }
-                continue
-            }
-
-            // http(s) 远程直链：作为网络音频。
-            guard let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
             let id = UUID()
             let record = TrackRecord(
                 id: id,
-                title: title.isEmpty ? url.deletingPathExtension().lastPathComponent : title,
+                title: title,
                 artist: artist,
                 album: album,
                 source: .remote,
                 urlString: url.absoluteString,
                 coverSeed: url.absoluteString,
-                lyrics: lyrics
+                lyrics: nil
             )
             records[id] = record
             ids.append(id)
@@ -254,44 +212,6 @@ final class TrackStore: ObservableObject {
             catalogVersion += 1
         }
         return ids
-    }
-
-    /// 处理 JSON 中引用的本地文件（file:// 或显式 source=imported/local）：
-    /// 把文件复制进 App Documents，生成一条「本地导入」记录并立即进库。
-    /// 文件不存在或复制失败时返回 nil（跳过该条，不崩溃）。
-    private func importLocalFileRef(from rawURL: String, title: String, artist: String, album: String, lyrics: String?) -> UUID? {
-        let fileURL: URL
-        if rawURL.hasPrefix("file://") {
-            fileURL = URL(string: rawURL) ?? URL(fileURLWithPath: rawURL)
-        } else {
-            fileURL = URL(fileURLWithPath: rawURL)
-        }
-        guard fileManager.fileExists(atPath: fileURL.path) else {
-            print("[TrackStore] 本地文件引用不存在，已跳过: \(rawURL)"); return nil
-        }
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
-        let dest = uniqueURL(in: docs, for: fileURL)
-        do {
-            let accessing = fileURL.startAccessingSecurityScopedResource()
-            defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
-            try fileManager.copyItem(at: fileURL, to: dest)
-        } catch {
-            print("[TrackStore] 本地文件引用复制失败: \(error)"); return nil
-        }
-        let baseTitle = title.isEmpty ? (dest.lastPathComponent as NSString).deletingPathExtension : title
-        let id = UUID()
-        let record = TrackRecord(
-            id: id,
-            title: baseTitle,
-            artist: artist,
-            album: album,
-            source: .imported,
-            urlString: dest.lastPathComponent,
-            coverSeed: dest.lastPathComponent,
-            lyrics: lyrics
-        )
-        records[id] = record
-        return id
     }
 
     /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。
@@ -364,15 +284,6 @@ final class TrackStore: ObservableObject {
         }
     }
 
-    /// 批量把曲目 ID 加入指定歌单（用于导入后自动成歌单）。
-    func addTracks(_ ids: [UUID], to playlistID: UUID) {
-        guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
-        for id in ids where !playlists[i].trackIDs.contains(id) {
-            playlists[i].trackIDs.append(id)
-        }
-        savePlaylists()
-    }
-
     func removeTrack(_ trackID: UUID, from playlistID: UUID) {
         guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         playlists[i].trackIDs.removeAll { $0 == trackID }
@@ -381,7 +292,7 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String) -> UUID {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?) {
         let id = UUID()
         let record = TrackRecord(
             id: id,
@@ -391,13 +302,29 @@ final class TrackStore: ObservableObject {
             source: .imported,
             urlString: filename,
             coverSeed: filename,
-            lyrics: lyrics.isEmpty ? nil : lyrics
+            lyrics: lyrics
         )
         records[id] = record
         saveRecords()
         refresh()
         catalogVersion += 1
-        return id
+        addToImportPlaylist(id)
+    }
+
+    // MARK: - 自动归入歌单
+
+    /// 把导入的曲目自动加入「导入的歌曲」歌单，保证「歌单」页不为空。
+    private func addToImportPlaylist(_ id: UUID) {
+        if let idx = playlists.firstIndex(where: { $0.name == "导入的歌曲" }) {
+            if !playlists[idx].trackIDs.contains(id) {
+                playlists[idx].trackIDs.append(id)
+                savePlaylists()
+            }
+        } else {
+            let playlist = Playlist(name: "导入的歌曲", trackIDs: [id])
+            playlists.append(playlist)
+            savePlaylists()
+        }
     }
 
     private func uniqueURL(in directory: URL, for source: URL) -> URL {
@@ -479,11 +406,8 @@ final class TrackStore: ObservableObject {
 
     private func saveRecords() {
         let list = Array(records.values)
-        do {
-            let data = try JSONEncoder().encode(list)
+        if let data = try? JSONEncoder().encode(list) {
             UserDefaults.standard.set(data, forKey: recordsKey)
-        } catch {
-            print("[TrackStore] saveRecords 编码失败: \(error)")
         }
     }
 
@@ -494,11 +418,8 @@ final class TrackStore: ObservableObject {
     }
 
     private func savePlaylists() {
-        do {
-            let data = try JSONEncoder().encode(playlists)
+        if let data = try? JSONEncoder().encode(playlists) {
             UserDefaults.standard.set(data, forKey: playlistsKey)
-        } catch {
-            print("[TrackStore] savePlaylists 编码失败: \(error)")
         }
     }
 
@@ -509,11 +430,8 @@ final class TrackStore: ObservableObject {
     }
 
     private func saveFavorites() {
-        do {
-            let data = try JSONEncoder().encode(Array(favoriteIDs))
+        if let data = try? JSONEncoder().encode(Array(favoriteIDs)) {
             UserDefaults.standard.set(data, forKey: favoritesKey)
-        } catch {
-            print("[TrackStore] saveFavorites 编码失败: \(error)")
         }
     }
 }

@@ -20,7 +20,7 @@ struct ContentView: View {
         }
         .onOpenURL { url in
             Task { @MainActor in
-                try? store.importFile(from: url)
+                try? await store.importFile(from: url)
             }
         }
     }

@@ -20,12 +20,9 @@ struct LibraryView: View {
     @State private var showingURLAlert = false
     @State private var showingPlaylistImport = false
     @State private var showingErrorAlert = false
-    @State private var showingImportSuccess = false
-    @State private var importSuccessText: String?
     @State private var urlString = ""
     @State private var importError: String?
     @State private var trackToAdd: Track?
-    @State private var showingSettings = false
 
     private var filtered: [Track] {
         let base = store.tracks
@@ -39,15 +36,6 @@ struct LibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 诊断条：实时显示引擎状态，便于在真机定位「点了没反应 / 导入无提示」。
-            Text("⚙ \(engine.debugLine)  ·  错误：\(engine.lastError ?? "无")")
-                .font(.system(size: 10))
-                .foregroundStyle(.orange)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color.orange.opacity(0.12))
-
             tabBar
 
             switch tab {
@@ -64,7 +52,7 @@ struct LibraryView: View {
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .aiff, .item],
+            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav],
             allowsMultipleSelection: true
         ) { result in handleFileImport(result) }
         .alert("添加网络音频", isPresented: $showingURLAlert) {
@@ -81,21 +69,11 @@ struct LibraryView: View {
         } message: {
             Text(importError ?? "")
         }
-        .alert("导入成功", isPresented: $showingImportSuccess) {
-            Button("确定", role: .cancel) {}
-        } message: {
-            Text(importSuccessText ?? "")
-        }
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
         }
         .sheet(isPresented: $showingPlaylistImport) {
             ImportPlaylistSheet().environmentObject(store)
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView()
-                .environmentObject(store)
-                .environmentObject(engine)
         }
     }
 
@@ -109,9 +87,9 @@ struct LibraryView: View {
                         withAnimation(.easeInOut(duration: 0.18)) { tab = t }
                     } label: {
                         VStack(spacing: 4) {
-            Text("\(t.rawValue)\(countText(for: t))")
-                .font(.system(size: 15, weight: tab == t ? .semibold : .regular))
-                .foregroundStyle(tab == t ? Color.primary : .secondary)
+                            Text(t.rawValue)
+                                .font(.system(size: 15, weight: tab == t ? .semibold : .regular))
+                                .foregroundStyle(tab == t ? Color.primary : .secondary)
                             Capsule()
                                 .fill(tab == t ? Color.accentColor : Color.clear)
                                 .frame(width: 20, height: 3)
@@ -169,14 +147,6 @@ struct LibraryView: View {
 
     // MARK: 工具
 
-    private func countText(for t: LibTab) -> String {
-        switch t {
-        case .songs:     return " \(store.tracks.count)"
-        case .playlists: return " \(store.playlists.count)"
-        default:         return ""
-        }
-    }
-
     private func isCurrent(_ track: Track) -> Bool {
         engine.tracks[safe: engine.currentIndex]?.id == track.id
     }
@@ -205,6 +175,15 @@ struct LibraryView: View {
     }
 
     private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            NavigationLink {
+                SettingsView()
+                    .environmentObject(store)
+                    .environmentObject(engine)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+        }
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button {
@@ -222,11 +201,6 @@ struct LibraryView: View {
                 } label: {
                     Label("导入歌单 JSON", systemImage: "square.and.arrow.down.on.square")
                 }
-                Button {
-                    showingSettings = true
-                } label: {
-                    Label("设置", systemImage: "gearshape")
-                }
             } label: {
                 Image(systemName: "plus")
             }
@@ -236,33 +210,24 @@ struct LibraryView: View {
     private func handleFileImport(_ result: Result<[URL], Error>) {
         switch result {
         case .success(let urls):
-            var errors: [String] = []
-            var importedIDs: [UUID] = []
-            for url in urls {
-                do {
-                    if let id = try store.importFile(from: url) {
-                        importedIDs.append(id)
+            Task {
+                var errors: [String] = []
+                for url in urls {
+                    do {
+                        try await store.importFile(from: url)
+                    } catch {
+                        errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
                     }
-                } catch {
-                    errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
+                }
+                if !errors.isEmpty {
+                    await MainActor.run {
+                        importError = errors.joined(separator: "\n")
+                        showingErrorAlert = true
+                    }
                 }
             }
-            // 本地导入也自动归入一个歌单，避免「歌曲」进了库却不在「歌单」里。
-            if !importedIDs.isEmpty {
-                let fmt = DateFormatter()
-                fmt.dateFormat = "MM-dd HH:mm"
-                let name = importedIDs.count > 1 ? "本地导入 \(importedIDs.count) 首" : "本地导入 \(fmt.string(from: Date()))"
-                let playlist = store.createPlaylist(name: name)
-                store.addTracks(importedIDs, to: playlist.id)
-            }
-            // 无论成功/失败/零导入都给出反馈，避免「完全没反应」无法判断问题在哪。
-            var msg = "文件选择器回调收到 \(urls.count) 个文件。"
-            msg += importedIDs.isEmpty ? " 未导入任何曲目。" : " 成功导入 \(importedIDs.count) 首，已归入歌单。"
-            if !errors.isEmpty { msg += "\n错误：\(errors.joined(separator: "; "))" }
-            importSuccessText = msg
-            showingImportSuccess = true
         case .failure(let error):
-            importError = "文件选择器返回失败：\(error.localizedDescription)"
+            importError = error.localizedDescription
             showingErrorAlert = true
         }
     }
