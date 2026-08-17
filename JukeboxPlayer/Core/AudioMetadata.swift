@@ -21,18 +21,26 @@ func readAudioTags(from url: URL) -> AudioFileTags {
         if asset.statusOfValue(forKey: "commonMetadata", error: nil) == .loaded {
             for item in asset.commonMetadata {
                 switch item.commonKey {
-                case .commonKeyTitle:      result.title = item.value as? String
-                case .commonKeyAlbumName:  result.album = item.value as? String
-                case .commonKeyArtist:     result.artist = item.value as? String
-                case .commonKeyLyrics:
-                    if let s = item.value as? String, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        result.lyrics = s
-                    } else if let d = item.value as? Data,
-                              let s = String(data: d, encoding: .utf8),
-                              !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        result.lyrics = s
+                case .commonKeyTitle:      result.title = asTagString(item.value)
+                case .commonKeyAlbumName:  result.album = asTagString(item.value)
+                case .commonKeyArtist:     result.artist = asTagString(item.value)
+                default:
+                    // 歌词：部分 SDK 的 AVMetadataKey 没有 commonKeyLyrics 成员，
+                    // 用原始键名做字符串兜底匹配（commonMetadata / USLT 等）。
+                    let keyText = String(describing: item.commonKey ?? item.key ?? "").lowercased()
+                    if keyText.contains("lyric") || keyText == "uslt" {
+                        result.lyrics = asTagString(item.value)
                     }
-                default: break
+                }
+            }
+            // 再兜底扫一遍全部元数据格式（含 iTunes 私有的 USLT 等）
+            if result.lyrics == nil {
+                for item in asset.metadata {
+                    let keyText = String(describing: item.commonKey ?? item.key ?? "").lowercased()
+                    if keyText.contains("lyric") || keyText == "uslt" {
+                        result.lyrics = asTagString(item.value)
+                        break
+                    }
                 }
             }
         }
@@ -40,4 +48,13 @@ func readAudioTags(from url: URL) -> AudioFileTags {
     }
     group.wait()
     return result
+}
+
+/// 把元数据值统一成非空的字符串（兼容 String / Data(UTF-8)）。
+private func asTagString(_ value: Any?) -> String? {
+    if let s = value as? String, !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
+    if let d = value as? Data,
+       let s = String(data: d, encoding: .utf8),
+       !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return s }
+    return nil
 }
