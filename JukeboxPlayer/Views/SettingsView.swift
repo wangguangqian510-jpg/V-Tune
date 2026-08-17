@@ -81,5 +81,5 @@ struct SettingsView: View {
     }
 
     /// 每次提交新构建时手动更新，便于在反馈时确认装的是哪个版本。
-    private var appBuild: String { "2026-08-17 #31" }
+    private var appBuild: String { "2026-08-17 #32" }
 }
