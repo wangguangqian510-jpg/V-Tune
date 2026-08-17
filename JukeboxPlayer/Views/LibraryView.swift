@@ -20,6 +20,8 @@ struct LibraryView: View {
     @State private var showingURLAlert = false
     @State private var showingPlaylistImport = false
     @State private var showingErrorAlert = false
+    @State private var showingImportSuccess = false
+    @State private var importSuccessText: String?
     @State private var urlString = ""
     @State private var importError: String?
     @State private var trackToAdd: Track?
@@ -70,6 +72,11 @@ struct LibraryView: View {
         } message: {
             Text(importError ?? "")
         }
+        .alert("导入成功", isPresented: $showingImportSuccess) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(importSuccessText ?? "")
+        }
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
         }
@@ -93,9 +100,9 @@ struct LibraryView: View {
                         withAnimation(.easeInOut(duration: 0.18)) { tab = t }
                     } label: {
                         VStack(spacing: 4) {
-                            Text(t.rawValue)
-                                .font(.system(size: 15, weight: tab == t ? .semibold : .regular))
-                                .foregroundStyle(tab == t ? Color.primary : .secondary)
+            Text("\(t.rawValue)\(countText(for: t))")
+                .font(.system(size: 15, weight: tab == t ? .semibold : .regular))
+                .foregroundStyle(tab == t ? Color.primary : .secondary)
                             Capsule()
                                 .fill(tab == t ? Color.accentColor : Color.clear)
                                 .frame(width: 20, height: 3)
@@ -152,6 +159,14 @@ struct LibraryView: View {
     }
 
     // MARK: 工具
+
+    private func countText(for t: LibTab) -> String {
+        switch t {
+        case .songs:     return " \(store.tracks.count)"
+        case .playlists: return " \(store.playlists.count)"
+        default:         return ""
+        }
+    }
 
     private func isCurrent(_ track: Track) -> Bool {
         engine.tracks[safe: engine.currentIndex]?.id == track.id
@@ -230,6 +245,8 @@ struct LibraryView: View {
                 let name = importedIDs.count > 1 ? "本地导入 \(importedIDs.count) 首" : "本地导入 \(fmt.string(from: Date()))"
                 let playlist = store.createPlaylist(name: name)
                 store.addTracks(importedIDs, to: playlist.id)
+                importSuccessText = "已导入 \(importedIDs.count) 首，已归入歌单「\(name)」"
+                showingImportSuccess = true
             }
             if !errors.isEmpty {
                 importError = errors.joined(separator: "\n")
