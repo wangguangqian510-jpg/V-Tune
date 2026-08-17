@@ -5,6 +5,8 @@ struct NowPlayingView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showQueue = false
     @State private var showLyrics = false
+    /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
+    @State private var scrubTime: Double = 0
 
     var body: some View {
         ZStack {
@@ -82,13 +84,28 @@ struct NowPlayingView: View {
     // MARK: Progress
     private var progress: some View {
         VStack(spacing: 6) {
-            Slider(value: Binding(get: { engine.currentTime },
-                                  set: { engine.seek(to: $0) }),
-                   in: 0...max(engine.duration, 1))
-                .tint(.white)
+            Slider(
+                value: Binding(
+                    get: { engine.isScrubbing ? scrubTime : engine.currentTime },
+                    set: { scrubTime = $0 }
+                ),
+                in: 0...max(engine.duration, 1),
+                onEditingChanged: { editing in
+                    if editing {
+                        // 开始拖动：冻结进度显示，停止对播放器的连续 seek
+                        engine.isScrubbing = true
+                        scrubTime = engine.currentTime
+                    } else {
+                        // 松手：一次性精确跳转到目标位置，恢复正常进度跟踪
+                        engine.seek(to: scrubTime)
+                        engine.isScrubbing = false
+                    }
+                }
+            )
+            .tint(.white)
 
             HStack {
-                Text(formatTime(engine.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
+                Text(formatTime(engine.isScrubbing ? scrubTime : engine.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
                 Spacer()
                 Text(formatTime(engine.duration)).font(.caption).foregroundStyle(.white.opacity(0.7))
             }

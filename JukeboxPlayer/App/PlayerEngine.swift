@@ -35,6 +35,8 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var lyrics: String?
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastError: String?
+    /// 用户正在拖动进度条时为 true：期间周期观察器不回写 currentTime，避免与滑块互相打架。
+    @Published var isScrubbing: Bool = false
 
     @Published var volume: Float = 1.0 {
         didSet { player?.volume = volume }
@@ -161,10 +163,22 @@ final class PlayerEngine: ObservableObject {
             guard let self = self else { return }
             let s = CMTimeGetSeconds(t)
             if s.isFinite {
-                self.currentTime = s
+                // 拖动进度条期间不回写 currentTime，否则会和滑块的 set 互相覆盖、
+                // 触发一连串零容差 seek 把 AVPlayer 搞到卡死（表现为「拖一下只播 2 秒就停」）。
+                if !self.isScrubbing { self.currentTime = s }
                 if s > self.duration { self.duration = s }
             }
         }
+
+        // 时长兜底：部分本地文件 item.duration 在 readyToPlay 时仍是 indefinite，
+        // 这里额外监听 duration 一旦变有限值就修正，避免进度条总程只有 1 秒。
+        item.publisher(for: \.duration)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] d in
+                let secs = CMTimeGetSeconds(d)
+                if secs.isFinite, secs > 0 { self?.duration = secs }
+            }
+            .store(in: &cancellables)
 
         // 状态观察
         item.publisher(for: \.status)

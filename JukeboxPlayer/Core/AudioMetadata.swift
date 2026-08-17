@@ -13,22 +13,37 @@ struct AudioFileTags {
 }
 
 /// 异步提取音频标签：标题 / 歌手 / 专辑 / 时长 / 内嵌歌词 / 封面。
-/// 关键：带 6 秒超时保护。某些 mp3 在 iOS 上 AVAsset 并发 load 会永久挂起，
+/// 关键：带 6 秒超时保护。某些 mp3 在 iOS 上 AVAsset 同步读元数据会永久挂起，
 /// 超时则退回空标签（导入仍成功、用文件名兜底），避免「导入不进」。
+///
+/// 之前版本的超时任务返回的是 `nil`，被 `if let r = result` 跳过，`group.cancelAll()`
+/// 永远不执行，`for await` 会一直等那个挂死的读任务 → `importFile` 卡死、
+/// 文件复制了但记录没建 → 列表空、无法导入。修复：超时返回**非空占位**，
+/// 让循环能 break 并取消读取任务；同时把同步读放到全局并发队列，避免拖垮 Swift 协作线程池。
 func extractTags(from url: URL) async -> AudioFileTags {
     await withTaskGroup(of: AudioFileTags?.self) { group in
-        group.addTask { readTagsSync(from: url) }
+        // 同步阻塞读：放到全局队列，绝不占用并发协作线程。
         group.addTask {
-            try? await Task.sleep(nanoseconds: 6_000_000_000)
-            return nil
-        }
-        for await result in group {
-            if let r = result {
-                group.cancelAll()
-                return r
+            await withCheckedContinuation { (cont: CheckedContinuation<AudioFileTags?, Never>) in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    cont.resume(returning: readTagsSync(from: url))
+                }
             }
         }
-        return AudioFileTags()
+        // 6 秒超时：返回非空占位（空标签），使下面循环能 break 并取消读取任务。
+        group.addTask {
+            try? await Task.sleep(nanoseconds: 6_000_000_000)
+            return AudioFileTags()
+        }
+        var result: AudioFileTags = AudioFileTags()
+        for await r in group {
+            if let r = r {        // 先完成者（真实标签或超时占位）胜出
+                result = r
+                break
+            }
+        }
+        group.cancelAll()
+        return result
     }
 }
 
