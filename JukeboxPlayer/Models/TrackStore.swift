@@ -22,7 +22,7 @@ enum ImportError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidFormat: return "JSON 格式无法识别（需要包含曲目数组，如 tracks / list / songs）"
-        case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s) 的 url 字段）"
+        case .noTracks:      return "没有找到任何可导入的音频链接（每条需含 http(s):// 或 file:// 的 url 字段）"
         }
     }
 }
@@ -217,18 +217,27 @@ final class TrackStore: ObservableObject {
     private func importItems(_ items: [[String: Any]]) -> [UUID] {
         var ids: [UUID] = []
         for item in items {
-            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]),
-                  let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
-            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"])
-                ?? url.deletingPathExtension().lastPathComponent
+            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]) else { continue }
+            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"]) ?? ""
             let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName"]) ?? "未知歌手"
             let album = firstString(item, keys: ["album", "albumName", "albumname"]) ?? ""
             let lyrics = firstString(item, keys: ["lyrics", "lrc", "text"])
+            let sourceHint = firstString(item, keys: ["source"])?.lowercased()
 
+            // file:// 本地路径，或显式声明 source=imported/local：按本地文件导入。
+            if rawURL.hasPrefix("file://") || sourceHint == "imported" || sourceHint == "local" {
+                if let id = importLocalFileRef(from: rawURL, title: title, artist: artist, album: album, lyrics: lyrics) {
+                    ids.append(id)
+                }
+                continue
+            }
+
+            // http(s) 远程直链：作为网络音频。
+            guard let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
             let id = UUID()
             let record = TrackRecord(
                 id: id,
-                title: title,
+                title: title.isEmpty ? url.deletingPathExtension().lastPathComponent : title,
                 artist: artist,
                 album: album,
                 source: .remote,
@@ -245,6 +254,44 @@ final class TrackStore: ObservableObject {
             catalogVersion += 1
         }
         return ids
+    }
+
+    /// 处理 JSON 中引用的本地文件（file:// 或显式 source=imported/local）：
+    /// 把文件复制进 App Documents，生成一条「本地导入」记录并立即进库。
+    /// 文件不存在或复制失败时返回 nil（跳过该条，不崩溃）。
+    private func importLocalFileRef(from rawURL: String, title: String, artist: String, album: String, lyrics: String?) -> UUID? {
+        let fileURL: URL
+        if rawURL.hasPrefix("file://") {
+            fileURL = URL(string: rawURL) ?? URL(fileURLWithPath: rawURL)
+        } else {
+            fileURL = URL(fileURLWithPath: rawURL)
+        }
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            print("[TrackStore] 本地文件引用不存在，已跳过: \(rawURL)"); return nil
+        }
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let dest = uniqueURL(in: docs, for: fileURL)
+        do {
+            let accessing = fileURL.startAccessingSecurityScopedResource()
+            defer { if accessing { fileURL.stopAccessingSecurityScopedResource() } }
+            try fileManager.copyItem(at: fileURL, to: dest)
+        } catch {
+            print("[TrackStore] 本地文件引用复制失败: \(error)"); return nil
+        }
+        let baseTitle = title.isEmpty ? (dest.lastPathComponent as NSString).deletingPathExtension : title
+        let id = UUID()
+        let record = TrackRecord(
+            id: id,
+            title: baseTitle,
+            artist: artist,
+            album: album,
+            source: .imported,
+            urlString: dest.lastPathComponent,
+            coverSeed: dest.lastPathComponent,
+            lyrics: lyrics
+        )
+        records[id] = record
+        return id
     }
 
     /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。

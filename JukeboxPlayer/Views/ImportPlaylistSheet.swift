@@ -15,7 +15,7 @@ struct ImportPlaylistSheet: View {
     var body: some View {
         NavigationView {
             VStack(spacing: 16) {
-                Text("粘贴歌单 JSON，或选择 .json 文件。\n要求：含曲目数组（tracks / list / songs…），每条带 http(s) 的 url 字段。")
+                Text("粘贴歌单 JSON，或选择 .json 文件。\n要求：含曲目数组（tracks / list / songs…），每条带 http(s):// 或 file:// 的 url 字段。")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
