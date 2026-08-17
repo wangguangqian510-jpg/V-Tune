@@ -17,6 +17,7 @@ struct LibraryView: View {
     @State private var tab: LibTab = .songs
     @State private var searchText = ""
     @State private var showingImporter = false
+    @State private var showingDocumentPicker = false
     @State private var showingURLAlert = false
     @State private var showingPlaylistImport = false
     @State private var showingErrorAlert = false
@@ -55,6 +56,10 @@ struct LibraryView: View {
             allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav],
             allowsMultipleSelection: true
         ) { result in handleFileImport(result) }
+        .sheet(isPresented: $showingDocumentPicker) {
+            DocumentPicker(isPresented: $showingDocumentPicker)
+                .environmentObject(store)
+        }
         .alert("添加网络音频", isPresented: $showingURLAlert) {
             TextField("https://example.com/music.mp3", text: $urlString)
                 .keyboardType(.URL)
@@ -198,7 +203,13 @@ struct LibraryView: View {
                 Button {
                     showingImporter = true
                 } label: {
-                    Label("从 Files 导入", systemImage: "folder")
+                    Label("从 Files 导入 (SwiftUI)", systemImage: "folder")
+                }
+                Button {
+                    showingDocumentPicker = true
+                    store.noteImport("(UI)", ok: true, message: "用户点击 UIDocumentPicker 入口")
+                } label: {
+                    Label("从 Files 导入 (稳定版)", systemImage: "folder.badge.plus")
                 }
                 Button {
                     showingURLAlert = true
@@ -240,6 +251,58 @@ struct LibraryView: View {
             importError = error.localizedDescription
             store.noteImport("(文件选择器)", ok: false, message: error.localizedDescription)
             showingErrorAlert = true
+        }
+    }
+}
+
+// MARK: - UIDocumentPicker 包装（asCopy: true 让系统拷贝到可读临时目录，绕过重签名/沙盒权限问题）
+
+struct DocumentPicker: UIViewControllerRepresentable {
+    @EnvironmentObject var store: TrackStore
+    @Binding var isPresented: Bool
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
+        store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 正在呈现")
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav], asCopy: true)
+        picker.allowsMultipleSelection = true
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
+
+    class Coordinator: NSObject, UIDocumentPickerDelegate {
+        let parent: DocumentPicker
+
+        init(_ parent: DocumentPicker) {
+            self.parent = parent
+        }
+
+        func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+            parent.store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 选中 \(urls.count) 个文件")
+            Task { @MainActor in
+                var errors: [String] = []
+                for url in urls {
+                    do {
+                        try await parent.store.importFile(from: url)
+                    } catch {
+                        errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
+                    }
+                }
+                if !errors.isEmpty {
+                    parent.store.reportImportResult(errors.joined(separator: "\n"))
+                }
+                parent.isPresented = false
+            }
+        }
+
+        func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+            parent.store.noteImport("(UI)", ok: false, message: "UIDocumentPicker 用户取消")
+            parent.isPresented = false
         }
     }
 }
