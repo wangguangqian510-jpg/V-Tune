@@ -11,6 +11,8 @@ struct TrackRecord: Codable {
     /// 本地文件：仅存文件名；远程音频：存完整 URL 字符串
     let urlString: String
     let coverSeed: String
+    /// 歌词（LRC 或纯文本）；可选以兼容旧存档
+    let lyrics: String?
 }
 
 /// 歌单 JSON 导入时的可预期错误。
@@ -97,7 +99,8 @@ final class TrackStore: ObservableObject {
             url: url,
             cover: coverColors(for: record.coverSeed),
             source: source,
-            isFavorite: favoriteIDs.contains(record.id)
+            isFavorite: favoriteIDs.contains(record.id),
+            lyrics: record.lyrics ?? ""
         )
     }
 
@@ -112,13 +115,14 @@ final class TrackStore: ObservableObject {
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
         try fileManager.copyItem(at: url, to: dest)
 
-        // 读真实 ID3 / MP4 标签，拿歌手、专辑、标题；读不到则用文件名兜底。
+        // 读真实 ID3 / MP4 标签，拿歌手、专辑、标题、歌词；读不到则用文件名兜底。
         let tags = readAudioTags(from: dest)
         let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
         let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
         let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album)
+        let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
     }
 
     /// 添加一个远程音频 URL。
@@ -132,7 +136,8 @@ final class TrackStore: ObservableObject {
             album: "",
             source: .remote,
             urlString: url.absoluteString,
-            coverSeed: url.absoluteString
+            coverSeed: url.absoluteString,
+            lyrics: nil
         )
         records[id] = record
         saveRecords()
@@ -175,6 +180,7 @@ final class TrackStore: ObservableObject {
                 ?? url.deletingPathExtension().lastPathComponent
             let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName"]) ?? "未知歌手"
             let album = firstString(item, keys: ["album", "albumName", "albumname"]) ?? ""
+            let lyrics = firstString(item, keys: ["lyrics", "lrc", "text"])
 
             let id = UUID()
             let record = TrackRecord(
@@ -184,7 +190,8 @@ final class TrackStore: ObservableObject {
                 album: album,
                 source: .remote,
                 urlString: url.absoluteString,
-                coverSeed: url.absoluteString
+                coverSeed: url.absoluteString,
+                lyrics: lyrics
             )
             records[id] = record
             imported += 1
@@ -275,7 +282,7 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String, title: String, artist: String, album: String) {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String) {
         let id = UUID()
         let record = TrackRecord(
             id: id,
@@ -284,7 +291,8 @@ final class TrackStore: ObservableObject {
             album: album,
             source: .imported,
             urlString: filename,
-            coverSeed: filename
+            coverSeed: filename,
+            lyrics: lyrics.isEmpty ? nil : lyrics
         )
         records[id] = record
         saveRecords()

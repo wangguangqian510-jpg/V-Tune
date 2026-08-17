@@ -18,8 +18,10 @@ struct Track: Identifiable, Hashable {
     let cover: [Color]
     let source: TrackSource
     let isFavorite: Bool
+    /// 歌词文本（LRC 格式或纯文本），无歌词时为空串。
+    let lyrics: String
 
-    init(id: UUID = UUID(), title: String, artist: String, album: String = "", url: URL, cover: [Color], source: TrackSource, isFavorite: Bool = false) {
+    init(id: UUID = UUID(), title: String, artist: String, album: String = "", url: URL, cover: [Color], source: TrackSource, isFavorite: Bool = false, lyrics: String = "") {
         self.id = id
         self.title = title
         self.artist = artist
@@ -28,6 +30,7 @@ struct Track: Identifiable, Hashable {
         self.cover = cover
         self.source = source
         self.isFavorite = isFavorite
+        self.lyrics = lyrics
     }
 
     /// 是否来自本地文件系统
