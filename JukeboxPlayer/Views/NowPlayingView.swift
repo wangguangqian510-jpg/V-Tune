@@ -205,7 +205,7 @@ struct NowPlayingView: View {
                 }
                 .padding()
                 if let parsed = parsed, !parsed.isEmpty {
-                    LyricsView(lines: parsed, currentTime: engine.currentTime)
+                    LyricsView(lines: parsed).environmentObject(engine)
                 } else if let lyrics = engine.lyrics, !lyrics.isEmpty {
                     ScrollView {
                         Text(lyrics)
@@ -304,14 +304,17 @@ private func parseLRC(_ raw: String) -> [LRCLine]? {
 }
 
 /// LRC 逐行歌词：当前播放行加粗高亮，并自动滚动到屏幕中央。
+/// 用 onReceive(engine.$currentTime) 而非 onChange —— 后者两参数闭包是 iOS 17+ API，
+/// 在部署目标 16.0 下会触发可用性编译错误。
 private struct LyricsView: View {
     let lines: [LRCLine]
-    let currentTime: Double
+    @EnvironmentObject private var engine: PlayerEngine
+    @State private var lastIndex: Int = 0
 
-    private var currentIndex: Int {
+    private func index(at t: Double) -> Int {
         var idx = 0
         for (i, l) in lines.enumerated() {
-            if l.time <= currentTime { idx = i } else { break }
+            if l.time <= t { idx = i } else { break }
         }
         return idx
     }
@@ -320,10 +323,11 @@ private struct LyricsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 14) {
-                    ForEach(Array(lines.enumerated()), id: \.offset) { i, line in
-                        Text(line.text)
-                            .font(i == currentIndex ? .title3.bold() : .body)
-                            .foregroundStyle(i == currentIndex ? .white : .white.opacity(0.4))
+                    ForEach(0..<lines.count, id: \.self) { i in
+                        let active = i == index(at: engine.currentTime)
+                        Text(lines[i].text)
+                            .font(active ? .title3.bold() : .body)
+                            .foregroundStyle(active ? .white : .white.opacity(0.4))
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
                             .id(i)
@@ -332,10 +336,14 @@ private struct LyricsView: View {
                 }
                 .padding(.vertical, 40)
             }
-            .onChange(of: currentIndex) { _, _ in
-                withAnimation { proxy.scrollTo(currentIndex, anchor: .center) }
+            .onReceive(engine.$currentTime) { t in
+                let idx = index(at: t)
+                if idx != lastIndex {
+                    lastIndex = idx
+                    withAnimation { proxy.scrollTo(idx, anchor: .center) }
+                }
             }
-            .onAppear { proxy.scrollTo(currentIndex, anchor: .center) }
+            .onAppear { proxy.scrollTo(index(at: engine.currentTime), anchor: .center) }
         }
     }
 }
