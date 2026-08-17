@@ -383,7 +383,7 @@ final class PlayerEngine: ObservableObject {
     /// 创建 MTAudioProcessingTap 并绑定到 eqTap。eqTap 由 PlayerEngine 强引用，存储指针用 passUnretained，finalize 不释放。
     private func createEQTap() -> MTAudioProcessingTap? {
         let eq = self.eqTap
-        let callbacks = MTAudioProcessingTapCallbacks(
+        var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: nil,
             init: { (tap, clientInfo, tapStorageOut) in
