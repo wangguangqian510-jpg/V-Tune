@@ -23,6 +23,7 @@ struct JukeboxPlayerApp: App {
         // 否则会静默吞错、表现为「分享后进 App 主页无事发生」。
         .onOpenURL { url in
             Task { @MainActor in
+                store.noteImport(url.lastPathComponent, ok: true, message: "onOpenURL 触发：\(url.absoluteString)")
                 do {
                     try await store.importFile(from: url)
                 } catch {
