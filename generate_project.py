@@ -193,6 +193,7 @@ tgt_debug_settings = """\
 \t\t\t\tENABLE_PREVIEWS = YES;
 \t\t\t\tGENERATE_INFOPLIST_FILE = NO;
 \t\t\t\tINFOPLIST_FILE = "JukeboxPlayer/Resources/Info.plist";
+				CODE_SIGN_ENTITLEMENTS = "JukeboxPlayer/Resources/JukeboxPlayer.entitlements";
 \t\t\t\tLD_RUNPATH_SEARCH_PATHS = ( "$(inherited)", "@executable_path/Frameworks" );
 \t\t\t\tMARKETING_VERSION = 1.0;
 \t\t\t\tPRODUCT_BUNDLE_IDENTIFIER = com.aramco.cycomm;
