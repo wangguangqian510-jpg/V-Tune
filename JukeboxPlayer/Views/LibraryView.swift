@@ -69,6 +69,14 @@ struct LibraryView: View {
         } message: {
             Text(importError ?? "")
         }
+        .alert("导入结果", isPresented: Binding(
+            get: { store.importNotice != nil },
+            set: { if !$0 { store.dismissImportNotice() } }
+        )) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(store.importNotice ?? "")
+        }
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
         }
