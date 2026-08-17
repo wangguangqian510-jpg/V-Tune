@@ -148,32 +148,40 @@ final class TrackStore: ObservableObject {
     }
 
     /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
-    /// 容错解析多种常见字段命名；缺 URL 的条目会被跳过。返回成功导入的曲目数。
-    /// 导入后会自动创建一个歌单（JSON 含 name/title 则用其命名，否则「导入歌单」），保证「歌单」页不为空。
-    /// 抛错仅发生在「整体格式无法识别」或「一条都没导进来」时。
+    /// 策略：先按常见字段名提取曲目数组；若一条都提取不到，则全树递归扫描所有疑似音频的 http(s) URL 兜底，
+    /// 最大限度兼容各种 JSON 结构。导入后自动建歌单（JSON 含 name/title 则用之命名，否则「导入歌单」）。
+    /// 抛错仅发生在「完全没有任何可导入音频链接」时。
     func importPlaylist(from data: Data) throws -> Int {
         let parsed = try JSONSerialization.jsonObject(with: data)
 
-        let items: [[String: Any]]
         var playlistName: String?
+        var items: [[String: Any]] = []
         if let dict = parsed as? [String: Any] {
-            playlistName = firstString(dict, keys: ["name", "title", "playlist", "listName", "list_name"])
-            // 常见曲目数组键名都试一遍
+            playlistName = firstString(dict, keys: ["name", "title", "playlist", "listName", "list_name", "歌单名", "名称"])
             items = dict.compactMap { key, value in
-                (["tracks", "list", "songs", "data", "items", "musics"].contains(key) ? value : nil)
+                (["tracks", "list", "songs", "data", "items", "musics", "歌曲", "歌单"].contains(key) ? value : nil)
             }
             .first(where: { $0 is [[String: Any]] }) as? [[String: Any]] ?? []
         } else if let arr = parsed as? [[String: Any]] {
             items = arr
-        } else {
-            throw ImportError.invalidFormat
         }
 
-        let ids = importItems(items)
+        var ids: [UUID] = []
+        if !items.isEmpty {
+            ids = importItems(items)
+        }
+        // 兜底：字段名路径一条都没抓到时，递归扫描整棵 JSON 找音频 URL
         if ids.isEmpty {
-            throw ImportError.noTracks
+            let urls = collectAudioURLs(parsed)
+            for u in urls {
+                ids.append(addRemoteTrack(urlString: u, title: nil, artist: nil, album: nil))
+            }
+            if !ids.isEmpty {
+                saveRecords(); refresh(); catalogVersion += 1
+            }
         }
 
+        if ids.isEmpty { throw ImportError.noTracks }
         let name = (playlistName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "导入歌单"
         let playlist = Playlist(name: name, trackIDs: ids)
         playlists.append(playlist)
@@ -185,33 +193,66 @@ final class TrackStore: ObservableObject {
     private func importItems(_ items: [[String: Any]]) -> [UUID] {
         var ids: [UUID] = []
         for item in items {
-            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file"]),
+            guard let rawURL = firstString(item, keys: ["url", "src", "play_url", "playUrl", "audio", "link", "mp3", "file", "urlString", "songUrl", "音乐", "链接", "地址"]),
                   let url = URL(string: rawURL), url.scheme?.hasPrefix("http") == true else { continue }
-            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name"])
+            let title = firstString(item, keys: ["title", "name", "song", "songname", "musicName", "music_name", "歌曲", "歌名", "名称"])
                 ?? url.deletingPathExtension().lastPathComponent
-            let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName"]) ?? "未知歌手"
-            let album = firstString(item, keys: ["album", "albumName", "albumname"]) ?? ""
-
-            let id = UUID()
-            let record = TrackRecord(
-                id: id,
-                title: title,
-                artist: artist,
-                album: album,
-                source: .remote,
-                urlString: url.absoluteString,
-                coverSeed: url.absoluteString,
-                lyrics: nil
-            )
-            records[id] = record
-            ids.append(id)
+            let artist = firstString(item, keys: ["artist", "singer", "author", "singerName", "artistName", "歌手", "演唱"]) ?? "未知歌手"
+            let album = firstString(item, keys: ["album", "albumName", "albumname", "专辑"]) ?? ""
+            ids.append(addRemoteTrack(urlString: url.absoluteString, title: title, artist: artist, album: album))
         }
         if !ids.isEmpty {
-            saveRecords()
-            refresh()
-            catalogVersion += 1
+            saveRecords(); refresh(); catalogVersion += 1
         }
         return ids
+    }
+
+    /// 新增一条远程曲目记录，返回其 id（不负责 save/refresh，由调用方统一处理）。
+    private func addRemoteTrack(urlString: String, title: String?, artist: String?, album: String?) -> UUID {
+        let id = UUID()
+        let t = (title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 }
+            ?? URL(string: urlString).flatMap { $0.deletingPathExtension().lastPathComponent } ?? "未知曲目"
+        let a = (artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+        let al = (album?.trimmingCharacters(in: .whitespacesAndNewlines)) ?? ""
+        let record = TrackRecord(
+            id: id,
+            title: t,
+            artist: a,
+            album: al,
+            source: .remote,
+            urlString: urlString,
+            coverSeed: urlString,
+            lyrics: nil
+        )
+        records[id] = record
+        return id
+    }
+
+    /// 递归遍历整棵 JSON，收集所有「疑似音频」的 http(s) 字符串（兜底解析用）。
+    private func collectAudioURLs(_ value: Any) -> [String] {
+        var out: [String] = []
+        func dfs(_ v: Any) {
+            if let s = v as? String {
+                if isAudioURL(s) { out.append(s) }
+            } else if let arr = v as? [Any] {
+                arr.forEach(dfs)
+            } else if let dict = v as? [String: Any] {
+                dict.values.forEach(dfs)
+            }
+        }
+        dfs(value)
+        return out
+    }
+
+    private func isAudioURL(_ s: String) -> Bool {
+        guard s.hasPrefix("http://") || s.hasPrefix("https://") else { return false }
+        let pathExt = (URL(string: s)?.pathExtension ?? "").lowercased()
+        let nonAudio = ["jpg", "jpeg", "png", "webp", "gif", "svg", "json", "html", "css", "js", "xml", "txt", "php"]
+        if nonAudio.contains(pathExt) { return false }
+        let audio = ["mp3", "m4a", "aac", "wav", "flac", "ogg", "opus", "wma", "ape", "aiff", "caf"]
+        if audio.contains(pathExt) { return true }
+        // 无扩展名也接受（很多直链音频不带扩展名），仅排除已知的图片/文档后缀
+        return true
     }
 
     /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。
