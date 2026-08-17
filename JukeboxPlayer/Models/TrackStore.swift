@@ -8,11 +8,13 @@ struct TrackRecord: Codable {
     let artist: String
     let album: String
     let source: TrackSource
-    /// 本地文件：仅存文件名；远程音频：存完整 URL 字符串
+    /// 本地文件：仅存文件名；远程音频：存完整 URL 字符串；引用原文件：存原文件名（仅展示用）
     let urlString: String
     let coverSeed: String
     /// 内嵌 / 侧载歌词（纯文本或 LRC），无则为 nil
     let lyrics: String?
+    /// 引用原文件模式：存安全书签；复制/远程模式为 nil
+    let bookmark: Data?
 }
 
 /// 歌单 JSON 导入时的可预期错误。
@@ -72,16 +74,29 @@ final class TrackStore: ObservableObject {
     private let recordsKey = "JukeboxTrackRecords_v1"
     private let playlistsKey = "JukeboxPlaylists_v1"
     private let favoritesKey = "JukeboxFavoriteIDs_v1"
+    private let hiddenSamplesKey = "JukeboxHiddenSampleIDs_v1"
+    private let importByCopyKey = "JukeboxImportByCopy_v1"
     private var records: [UUID: TrackRecord] = [:]
     private var favoriteIDs: Set<UUID> = []
+    /// 被用户「删除/隐藏」的示例曲 id（示例曲不可真删文件，只能隐藏），跨启动持久化。
+    private var hiddenSampleIDs: Set<UUID> = []
+    /// 导入模式：false=引用原文件（不复制，省空间）；true=复制到 App（最稳）。默认引用。
+    var importByCopy: Bool {
+        didSet { UserDefaults.standard.set(importByCopy, forKey: importByCopyKey) }
+    }
+    /// 当前已 startAccessing 的引用原文件 URL（保持作用域，供 AVPlayer 播放），refresh 时整体刷新。
+    private var accessedReferencedURLs: Set<URL> = []
     /// 导入尝试日志（最新在前），持久化到 UserDefaults，供「设置 -> 导入记录」展示。
     @Published private(set) var importLog: [ImportLogEntry] = []
     private let importLogKey = "JukeboxImportLog_v1"
 
     init() {
+        let byCopy = UserDefaults.standard.bool(forKey: importByCopyKey)
+        importByCopy = byCopy
         loadRecords()
         loadPlaylists()
         loadFavorites()
+        loadHiddenSamples()
         loadImportLog()
         refresh()
     }
@@ -99,8 +114,12 @@ final class TrackStore: ObservableObject {
 
     /// 重新扫描本地文件 + 重建播放列表。收藏状态从 favoriteIDs 回填。
     func refresh() {
+        // 释放上一次 refresh 时持有的安全作用域，避免长期累积
+        for u in accessedReferencedURLs { u.stopAccessingSecurityScopedResource() }
+        accessedReferencedURLs.removeAll()
+
         guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            tracks = Track.samples
+            tracks = visibleSamples()
             return
         }
 
@@ -114,6 +133,18 @@ final class TrackStore: ObservableObject {
             case .remote:
                 guard let url = URL(string: record.urlString) else { continue }
                 userTracks.append(makeTrack(record: record, url: url, source: .remote))
+            case .referenced:
+                guard let bm = record.bookmark else { continue }
+                var stale = false
+                let resolved: URL
+                do {
+                    resolved = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+                } catch {
+                    continue
+                }
+                let acc = resolved.startAccessingSecurityScopedResource()
+                if acc { accessedReferencedURLs.insert(resolved) }
+                userTracks.append(makeTrack(record: record, url: resolved, source: .referenced))
             case .sample:
                 break
             }
@@ -122,7 +153,12 @@ final class TrackStore: ObservableObject {
         userTracks.sort {
             $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
-        tracks = Track.samples + userTracks
+        tracks = visibleSamples() + userTracks
+    }
+
+    /// 过滤掉被用户隐藏的示例曲
+    private func visibleSamples() -> [Track] {
+        Track.samples.filter { !hiddenSampleIDs.contains($0.id) }
     }
 
     private func makeTrack(record: TrackRecord, url: URL, source: TrackSource) -> Track {
@@ -155,16 +191,37 @@ final class TrackStore: ObservableObject {
         }
     }
 
-    /// 从 Files / Share Sheet 导入一个音频文件到 App Documents。
+    /// 从 Files / Share Sheet 导入一个音频文件。
+    /// - 引用模式（默认）：不复制，仅存安全书签，播放时直接读用户 Files 里的原文件（只占一份空间）。
+    /// - 复制模式：拷进 App Documents（最稳，离线/后台可靠，但占 2 倍空间，可在设置切换）。
     /// 解析 ID3 / MP4 标签（标题/歌手/专辑/时长/内嵌歌词/封面），读不到则用文件名兜底。
     private func importFileImpl(from url: URL) async throws {
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+
+        // 引用原文件模式：尝试生成安全书签；成功则不再复制，省一倍空间
+        if !importByCopy {
+            if let bm = try? url.bookmarkData(options: .securityScope,
+                                             includingResourceValuesForKeys: nil,
+                                             relativeTo: nil) {
+                let tags = await extractTags(from: url)
+                let baseTitle = (url.lastPathComponent as NSString).deletingPathExtension
+                let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+                let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+                let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+                let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
+                addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
+                reportImportResult("已引用（不复制）：\(title)")
+                return
+            }
+            // 书签失败（如源不是安全作用域 URL）→ 回退到复制模式
+        }
+
+        // 复制模式：拷进 App Documents
         guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw ImportError.noDocumentDir
         }
         let dest = uniqueURL(in: docs, for: url)
-
-        let accessing = url.startAccessingSecurityScopedResource()
-        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
         // 优先直接拷贝；失败则用 NSFileCoordinator 在 security-scoped 作用域内拷贝。
         // 重签名 / 系统分享场景下，直接 copyItem 常因沙盒权限被拒（Operation not permitted），
@@ -346,10 +403,22 @@ final class TrackStore: ObservableObject {
         return nil
     }
 
-    /// 删除一条本地或远程曲目（同时清理收藏与歌单引用）
+    /// 删除/隐藏一条曲目：
+    /// - 示例曲：不删文件，仅加入隐藏集合（持久化），下次刷新不再出现；
+    /// - 引用原文件：不动用户原文件，仅移除记录并释放安全作用域；
+    /// - 复制导入 / 远程：移除记录，复制模式同时删掉本地副本。
     func delete(track: Track) {
-        guard track.isRemovable else { return }
-        if track.isLocalFile {
+        if track.source == .sample {
+            hiddenSampleIDs.insert(track.id)
+            saveHiddenSamples()
+            refresh()
+            catalogVersion += 1
+            return
+        }
+        if track.source == .referenced {
+            track.url.stopAccessingSecurityScopedResource()
+            accessedReferencedURLs.remove(track.url)
+        } else if track.isLocalFile {
             try? fileManager.removeItem(at: track.url)
         }
         records.removeValue(forKey: track.id)
@@ -362,6 +431,20 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
+    }
+
+    /// 恢复所有被隐藏的示例曲
+    func restoreSamples() {
+        hiddenSampleIDs.removeAll()
+        saveHiddenSamples()
+        refresh()
+        catalogVersion += 1
+    }
+
+    /// 释放所有已持有的引用原文件安全作用域（App 退出/进入后台前调用）
+    func stopAllAccess() {
+        for u in accessedReferencedURLs { u.stopAccessingSecurityScopedResource() }
+        accessedReferencedURLs.removeAll()
     }
 
     // MARK: - 收藏（我喜欢）
@@ -423,7 +506,29 @@ final class TrackStore: ObservableObject {
             source: .imported,
             urlString: filename,
             coverSeed: filename,
-            lyrics: lyrics
+            lyrics: lyrics,
+            bookmark: nil
+        )
+        records[id] = record
+        saveRecords()
+        refresh()
+        catalogVersion += 1
+        addToImportPlaylist(id)
+    }
+
+    /// 引用原文件模式：存安全书签，不复制文件，播放时直接读用户原文件。
+    private func addReferencedRecord(bookmark: Data, fileName: String, title: String, artist: String, album: String, lyrics: String?) {
+        let id = UUID()
+        let record = TrackRecord(
+            id: id,
+            title: title,
+            artist: artist,
+            album: album,
+            source: .referenced,
+            urlString: fileName,
+            coverSeed: fileName,
+            lyrics: lyrics,
+            bookmark: bookmark
         )
         records[id] = record
         saveRecords()
@@ -470,6 +575,8 @@ final class TrackStore: ObservableObject {
         info.totalTracks = tracks.count
         info.remoteCount = tracks.filter { $0.source == .remote }.count
         info.importedFiles = tracks.filter { $0.source == .imported }.count
+        info.referencedCount = tracks.filter { $0.source == .referenced }.count
+        info.hiddenSamples = hiddenSampleIDs.count
         info.favoriteCount = favoriteIDs.count
         info.playlistCount = playlists.count
         info.docsBytes = Self.directorySize(fileManager.urls(for: .documentDirectory, in: .userDomainMask).first)
@@ -565,6 +672,18 @@ final class TrackStore: ObservableObject {
     private func saveFavorites() {
         if let data = try? JSONEncoder().encode(Array(favoriteIDs)) {
             UserDefaults.standard.set(data, forKey: favoritesKey)
+        }
+    }
+
+    private func loadHiddenSamples() {
+        guard let data = UserDefaults.standard.data(forKey: hiddenSamplesKey),
+              let list = try? JSONDecoder().decode([UUID].self, from: data) else { return }
+        hiddenSampleIDs = Set(list)
+    }
+
+    private func saveHiddenSamples() {
+        if let data = try? JSONEncoder().encode(Array(hiddenSampleIDs)) {
+            UserDefaults.standard.set(data, forKey: hiddenSamplesKey)
         }
     }
 }
