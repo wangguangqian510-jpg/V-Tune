@@ -201,7 +201,7 @@ final class TrackStore: ObservableObject {
 
         // 引用原文件模式：尝试生成安全书签；成功则不再复制，省一倍空间
         if !importByCopy {
-            if let bm = try? url.bookmarkData(options: .withSecurityScope,
+            if let bm = try? url.bookmarkData(options: [],
                                              includingResourceValuesForKeys: nil,
                                              relativeTo: nil) {
                 let tags = await extractTags(from: url)
