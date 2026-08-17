@@ -306,6 +306,61 @@ final class TrackStore: ObservableObject {
         return dest
     }
 
+    // MARK: - 存储空间 / 缓存清理
+
+    /// 统计 App 占用空间与曲库概况。
+    func storageInfo() -> StorageInfo {
+        var info = StorageInfo()
+        info.totalTracks = tracks.count
+        info.remoteCount = tracks.filter { $0.source == .remote }.count
+        info.importedFiles = tracks.filter { $0.source == .imported }.count
+        info.favoriteCount = favoriteIDs.count
+        info.playlistCount = playlists.count
+        info.docsBytes = Self.directorySize(fileManager.urls(for: .documentDirectory, in: .userDomainMask).first)
+        info.cacheBytes = Self.directorySize(fileManager.urls(for: .cachesDirectory, in: .userDomainMask).first)
+        info.totalBytes = info.docsBytes + info.cacheBytes
+        return info
+    }
+
+    /// 删除本机导入的所有本地音频文件，释放空间；网络音频链接与收藏/歌单结构保留。
+    /// 返回释放的字节数。
+    @discardableResult
+    func clearLocalCache() -> Int64 {
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return 0 }
+        var freed: Int64 = 0
+        let importedIDs = records.values.filter { $0.source == .imported }.map { $0.id }
+        for id in importedIDs {
+            guard let record = records[id] else { continue }
+            let url = docs.appendingPathComponent(record.urlString)
+            if let size = try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int64 {
+                freed += size
+            }
+            try? fileManager.removeItem(at: url)
+            records.removeValue(forKey: id)
+            favoriteIDs.remove(id)
+        }
+        for i in playlists.indices {
+            playlists[i].trackIDs.removeAll { importedIDs.contains($0) }
+        }
+        saveRecords(); saveFavorites(); savePlaylists()
+        refresh()
+        catalogVersion += 1
+        return freed
+    }
+
+    private static func directorySize(_ url: URL?) -> Int64 {
+        guard let url = url else { return 0 }
+        var total: Int64 = 0
+        guard let enumerator = FileManager.default.enumerator(at: url,
+                  includingPropertiesForKeys: [.fileSizeKey], options: [.skipsHiddenFiles]) else { return 0 }
+        for case let fileURL as URL in enumerator {
+            if let size = try? fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize {
+                total += Int64(size)
+            }
+        }
+        return total
+    }
+
     // MARK: - 持久化
 
     private func loadRecords() {

@@ -37,6 +37,8 @@ final class PlayerEngine: ObservableObject {
     // MARK: - 播放列表
 
     func load(_ tracks: [Track]) {
+        // 队列未变化且已存在时跳过重建，避免每次导入/点击都重置播放状态。
+        if jukebox != nil, self.tracks.map(\.id) == tracks.map(\.id) { return }
         self.tracks = tracks
         let items = tracks.map { JukeboxItem(url: $0.url, localTitle: $0.title) }
         jukebox = Jukebox(delegate: self, items: items)

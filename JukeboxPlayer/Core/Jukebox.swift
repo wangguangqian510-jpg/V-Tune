@@ -264,15 +264,14 @@ open class Jukebox: NSObject, JukeboxItemDelegate {
 
     // MARK: Initializer
 
-    public required init?(delegate: JukeboxDelegate? = nil, items: [JukeboxItem] = [JukeboxItem]()) {
+    public required init(delegate: JukeboxDelegate? = nil, items: [JukeboxItem] = [JukeboxItem]()) {
         self.delegate = delegate
         super.init()
 
         do {
             try configureAudioSession()
         } catch {
-            print("[Jukebox - Error] \(error)")
-            return nil
+            print("[Jukebox - AudioSession] \(error)")
         }
 
         assignQueuedItems(items)

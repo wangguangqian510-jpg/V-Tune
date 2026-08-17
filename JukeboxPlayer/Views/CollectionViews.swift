@@ -104,8 +104,8 @@ struct GroupDetailView: View {
     }
 
     private func play(_ track: Track) {
-        guard let idx = tracks.firstIndex(where: { $0.id == track.id }) else { return }
-        engine.load(tracks)
+        // 复用全局队列播放（与「歌曲」页一致），导入的远程曲同样可直接播放。
+        guard let idx = store.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         engine.play(index: idx)
     }
 }

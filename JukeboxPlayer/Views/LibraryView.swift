@@ -152,8 +152,9 @@ struct LibraryView: View {
     }
 
     private func play(_ track: Track, from list: [Track]) {
-        guard let idx = list.firstIndex(where: { $0.id == track.id }) else { return }
-        engine.load(list)
+        // 复用已加载的全局队列（catalogVersion 变化时已含全部曲目，包括导入的），
+        // 直接按全局索引播放，避免每次点击都重建 Jukebox 导致状态丢失/远程曲播不了。
+        guard let idx = store.tracks.firstIndex(where: { $0.id == track.id }) else { return }
         engine.play(index: idx)
     }
 
@@ -174,6 +175,15 @@ struct LibraryView: View {
     }
 
     private var toolbarItems: some ToolbarContent {
+        ToolbarItem(placement: .navigationBarLeading) {
+            NavigationLink {
+                SettingsView()
+                    .environmentObject(store)
+                    .environmentObject(engine)
+            } label: {
+                Image(systemName: "gearshape")
+            }
+        }
         ToolbarItem(placement: .navigationBarTrailing) {
             Menu {
                 Button {
