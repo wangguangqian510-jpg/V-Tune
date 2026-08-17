@@ -385,9 +385,9 @@ final class PlayerEngine: ObservableObject {
         let eq = self.eqTap
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
-            clientInfo: nil,
+            clientInfo: Unmanaged.passUnretained(eq).toOpaque(),
             init: { (tap, clientInfo, tapStorageOut) in
-                tapStorageOut.pointee = UnsafeMutableRawPointer(Unmanaged.passUnretained(eq).toOpaque())
+                tapStorageOut.pointee = clientInfo
             },
             finalize: { _ in },
             prepare: { (tap, maxFrames, processingFormat) in
