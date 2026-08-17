@@ -52,6 +52,27 @@ struct SettingsView: View {
                 HStack { Text("版本"); Spacer(); Text(appVersion) }
                 HStack { Text("Bundle ID"); Spacer(); Text(Bundle.main.bundleIdentifier ?? "") }
             }
+            Section("导入诊断") {
+                Button {
+                    store.noteImport("(测试)", ok: true, message: "日志功能正常；若此处有记录而导入后没有，说明导入入口未触发")
+                } label: {
+                    Label("测试写入一条导入记录", systemImage: "doc.text.magnifyingglass")
+                }
+                HStack {
+                    Text("文档类型注册")
+                    Spacer()
+                    Text(docTypesRegistered ? "已注册" : "未注册")
+                        .foregroundStyle(docTypesRegistered ? .green : .red)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("正确导入方式：").bold()
+                    Text("1. 应用内：曲库页右上角 + →「从 Files 导入 (稳定版)"。")
+                    Text("2. 文件 App：长按 MP3 → 共享/更多 → 选「在 Jukebox 中打开」或「拷贝到 Jukebox」（不是顶部分享图标）。")
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Section("导入记录") {
                 if store.importLog.isEmpty {
                     Text("暂无导入记录（导入一次后会在此显示触发/成功/失败与报错原文）").foregroundStyle(.secondary)
@@ -97,6 +118,10 @@ struct SettingsView: View {
         } message: {
             Text(clearResult ?? "")
         }
+    }
+
+    private var docTypesRegistered: Bool {
+        (Bundle.main.infoDictionary?["CFBundleDocumentTypes"] as? [[String: Any]])?.isEmpty == false
     }
 
     private var appVersion: String {
