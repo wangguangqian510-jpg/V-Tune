@@ -39,6 +39,15 @@ struct LibraryView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // 诊断条：实时显示引擎状态，便于在真机定位「点了没反应 / 导入无提示」。
+            Text("⚙ \(engine.debugLine)  ·  错误：\(engine.lastError ?? "无")")
+                .font(.system(size: 10))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.orange.opacity(0.12))
+
             tabBar
 
             switch tab {
@@ -245,15 +254,15 @@ struct LibraryView: View {
                 let name = importedIDs.count > 1 ? "本地导入 \(importedIDs.count) 首" : "本地导入 \(fmt.string(from: Date()))"
                 let playlist = store.createPlaylist(name: name)
                 store.addTracks(importedIDs, to: playlist.id)
-                importSuccessText = "已导入 \(importedIDs.count) 首，已归入歌单「\(name)」"
-                showingImportSuccess = true
             }
-            if !errors.isEmpty {
-                importError = errors.joined(separator: "\n")
-                showingErrorAlert = true
-            }
+            // 无论成功/失败/零导入都给出反馈，避免「完全没反应」无法判断问题在哪。
+            var msg = "文件选择器回调收到 \(urls.count) 个文件。"
+            msg += importedIDs.isEmpty ? " 未导入任何曲目。" : " 成功导入 \(importedIDs.count) 首，已归入歌单。"
+            if !errors.isEmpty { msg += "\n错误：\(errors.joined(separator: "; "))" }
+            importSuccessText = msg
+            showingImportSuccess = true
         case .failure(let error):
-            importError = error.localizedDescription
+            importError = "文件选择器返回失败：\(error.localizedDescription)"
             showingErrorAlert = true
         }
     }

@@ -19,6 +19,9 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var album: String = ""
     @Published private(set) var artwork: UIImage?
     @Published private(set) var lastError: String?
+    /// 诊断行：实时显示播放调用/队列/storeRef 状态，便于在真机定位「点了没反应」。
+    @Published private(set) var debugLine: String = "引擎就绪"
+    private var playCount = 0
 
     @Published var volume: Float = 1.0 {
         didSet { jukebox?.volume = volume }
@@ -51,6 +54,7 @@ final class PlayerEngine: ObservableObject {
         jukebox = Jukebox(delegate: self, items: items)
         jukebox?.playbackMode = playbackMode
         currentIndex = 0
+        debugLine = "load tracks=\(tracks.count) queue=\(jukebox?.queuedItems.count ?? 0)"
         updateNowPlaying()
     }
 
@@ -64,8 +68,12 @@ final class PlayerEngine: ObservableObject {
     // MARK: - 控制
 
     func play(index: Int? = nil) {
+        playCount += 1
         if let index = index { currentIndex = index }
+        let qb = jukebox?.queuedItems.count ?? -1
         ensureQueueSynced()
+        let qa = jukebox?.queuedItems.count ?? -1
+        debugLine = "play#\(playCount) idx=\(currentIndex) q:\(qb)->\(qa) ref=\(storeRef != nil ? "Y" : "N")"
         jukebox?.play(atIndex: currentIndex)
     }
 
@@ -112,6 +120,7 @@ final class PlayerEngine: ObservableObject {
         } else {
             lastError = nil
         }
+        debugLine += " | state=\(jukebox.state)"
         updateNowPlaying()
     }
 
