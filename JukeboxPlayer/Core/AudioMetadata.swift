@@ -27,7 +27,7 @@ func readAudioTags(from url: URL) -> AudioFileTags {
                 default:
                     // 歌词：部分 SDK 的 AVMetadataKey 没有 commonKeyLyrics 成员，
                     // 用原始键名做字符串兜底匹配（commonMetadata / USLT 等）。
-                    let keyText = String(describing: item.commonKey ?? item.key ?? "").lowercased()
+                    let keyText = String(describing: item.commonKey ?? item.key).lowercased()
                     if keyText.contains("lyric") || keyText == "uslt" {
                         result.lyrics = asTagString(item.value)
                     }
@@ -36,7 +36,7 @@ func readAudioTags(from url: URL) -> AudioFileTags {
             // 再兜底扫一遍全部元数据格式（含 iTunes 私有的 USLT 等）
             if result.lyrics == nil {
                 for item in asset.metadata {
-                    let keyText = String(describing: item.commonKey ?? item.key ?? "").lowercased()
+                    let keyText = String(describing: item.commonKey ?? item.key).lowercased()
                     if keyText.contains("lyric") || keyText == "uslt" {
                         result.lyrics = asTagString(item.value)
                         break
