@@ -1,0 +1,228 @@
+import SwiftUI
+import PrimuseKit
+
+struct RecentlyDeletedView: View {
+    @Environment(MusicLibrary.self) private var library
+    @Environment(SourcesStore.self) private var sourcesStore
+    @State private var configsTick: Int = 0
+
+    var body: some View {
+        Form {
+            playlistsSection
+            hiddenMirrorPlaylistsSection
+            sourcesSection
+            scraperConfigsSection
+        }
+        #if os(macOS)
+        .formStyle(.grouped)
+        #else
+        .navigationTitle("recently_deleted")
+        .navigationBarTitleDisplayMode(.inline)
+        #endif
+        .overlay {
+            if library.recentlyDeletedPlaylists.isEmpty
+                && library.hiddenMirrorPlaylists.isEmpty
+                && sourcesStore.recentlyDeletedSources.isEmpty
+                && ScraperConfigStore.shared.recentlyDeletedConfigs.isEmpty {
+                EmptyStateView(
+                    titleKey: "recently_deleted_empty",
+                    descriptionKey: "recently_deleted_empty_desc",
+                    systemImage: "trash"
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var hiddenMirrorPlaylistsSection: some View {
+        let items = library.hiddenMirrorPlaylists
+        if !items.isEmpty {
+            Section {
+                ForEach(items) { suppression in
+                    hiddenMirrorRow(suppression)
+                }
+            } header: {
+                Text("hidden_source_playlists")
+            } footer: {
+                Text("hidden_source_playlists_desc")
+            }
+        }
+    }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private var playlistsSection: some View {
+        let items = library.recentlyDeletedPlaylists
+        if !items.isEmpty {
+            Section {
+                ForEach(items) { playlist in
+                    row(
+                        title: playlist.name,
+                        deletedAt: playlist.deletedAt,
+                        systemImage: "music.note.list",
+                        restore: { library.restorePlaylist(id: playlist.id) },
+                        purge: { library.permanentlyDeletePlaylist(id: playlist.id) }
+                    )
+                }
+            } header: {
+                Text("recently_deleted_playlists")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var sourcesSection: some View {
+        let items = sourcesStore.recentlyDeletedSources
+        if !items.isEmpty {
+            Section {
+                ForEach(items) { source in
+                    row(
+                        title: source.name,
+                        deletedAt: source.deletedAt,
+                        systemImage: source.type.iconName,
+                        statusMessage: sourcesStore.permanentDeletionFailureIDs.contains(source.id)
+                            ? "\(String(localized: "status_unavailable")) · \(String(localized: "retry"))"
+                            : nil,
+                        restore: { sourcesStore.restore(id: source.id) },
+                        purge: { sourcesStore.permanentlyDelete(id: source.id) }
+                    )
+                }
+            } header: {
+                Text("recently_deleted_sources")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var scraperConfigsSection: some View {
+        let _ = configsTick // re-evaluate when configsTick bumps
+        let items = ScraperConfigStore.shared.recentlyDeletedConfigs
+        if !items.isEmpty {
+            Section {
+                ForEach(items) { config in
+                    row(
+                        title: config.name,
+                        deletedAt: config.deletedAt,
+                        systemImage: "wand.and.stars",
+                        restore: {
+                            ScraperConfigStore.shared.restore(id: config.id)
+                            configsTick += 1
+                        },
+                        purge: {
+                            ScraperConfigStore.shared.permanentlyDelete(id: config.id)
+                            configsTick += 1
+                        }
+                    )
+                }
+            } header: {
+                Text("recently_deleted_scraper_configs")
+            }
+        }
+    }
+
+    // MARK: - Row
+
+    private func row(
+        title: String,
+        deletedAt: Date?,
+        systemImage: String,
+        statusMessage: String? = nil,
+        restore: @escaping () -> Void,
+        purge: @escaping () -> Void
+    ) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .frame(width: 28)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                if let statusMessage {
+                    Text(statusMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .lineLimit(2)
+                } else if let deletedAt {
+                    Text(daysRemaining(from: deletedAt))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            // macOS 没法 swipe,inline 给两个按钮(恢复 / 彻底删除)。
+            // iOS 维持 swipeActions,行内不再插按钮以免和滑动冲突。
+            #if os(macOS)
+            Button {
+                restore()
+            } label: {
+                Label("restore", systemImage: "arrow.uturn.backward")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help(Text("restore"))
+
+            Button(role: .destructive) {
+                purge()
+            } label: {
+                Label("delete_permanently", systemImage: "trash")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help(Text("delete_permanently"))
+            #endif
+        }
+        #if os(iOS)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button(role: .destructive) { purge() } label: {
+                Label("delete_permanently", systemImage: "trash.fill")
+            }
+            Button { restore() } label: {
+                Label("restore", systemImage: "arrow.uturn.backward")
+            }
+            .tint(.blue)
+        }
+        #endif
+    }
+
+    private func hiddenMirrorRow(_ suppression: MirrorPlaylistSuppression) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "eye.slash")
+                .frame(width: 28)
+                .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(suppression.displayName)
+                Text(suppression.hiddenAt, style: .date)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+            #if os(macOS)
+            Button {
+                library.restoreHiddenMirrorPlaylist(suppression)
+            } label: {
+                Label("restore_hidden_playlist", systemImage: "eye")
+                    .labelStyle(.iconOnly)
+            }
+            .buttonStyle(.borderless)
+            .help(Text("restore_hidden_playlist"))
+            #endif
+        }
+        #if os(iOS)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button {
+                library.restoreHiddenMirrorPlaylist(suppression)
+            } label: {
+                Label("restore_hidden_playlist", systemImage: "eye")
+            }
+            .tint(.blue)
+        }
+        #endif
+    }
+
+    private func daysRemaining(from deletedAt: Date) -> String {
+        let pruneAt = deletedAt.addingTimeInterval(7 * 24 * 60 * 60)
+        let interval = pruneAt.timeIntervalSinceNow
+        let days = max(0, Int(interval / 86400))
+        return String(format: NSLocalizedString("auto_remove_in_n_days", comment: ""), days)
+    }
+}

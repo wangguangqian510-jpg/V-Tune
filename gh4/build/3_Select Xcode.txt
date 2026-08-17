@@ -1,7 +1,0 @@
-﻿2026-08-16T14:45:32.6354420Z ##[group]Run sudo xcode-select -switch /Applications/Xcode.app
-2026-08-16T14:45:32.6356920Z [36;***msudo xcode-select -switch /Applications/Xcode.app[0m
-2026-08-16T14:45:32.6405580Z shell: /bin/bash -e {0}
-2026-08-16T14:45:32.6407590Z env:
-2026-08-16T14:45:32.6409380Z   BUNDLE_ID: com.arammo.cycomm
-2026-08-16T14:45:32.6411330Z   APP_NAME: JukeboxPlayer
-2026-08-16T14:45:32.6413100Z ##[endgroup]

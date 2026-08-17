@@ -1,0 +1,305 @@
+import CoreSpotlight
+import Foundation
+import ImageIO
+import OSLog
+import PrimuseKit
+#if os(iOS)
+import UniformTypeIdentifiers
+#endif
+
+private let spotlightLog = Logger(subsystem: "com.welape.yuanyin", category: "Spotlight")
+
+// 让 detached background task 也能引用 ── 放在文件作用域避免 @MainActor 隔离。
+private let kSongDomain = "com.welape.yuanyin.spotlight.song"
+private let kAlbumDomain = "com.welape.yuanyin.spotlight.album"
+private let kArtistDomain = "com.welape.yuanyin.spotlight.artist"
+private let kPlaylistDomain = "com.welape.yuanyin.spotlight.playlist"
+
+/// Index 主库到系统 Spotlight。用户下拉 Spotlight 搜索 / Siri 搜歌时,猿音
+/// 的歌 / 专辑 / 艺术家 / 歌单会出现在结果里; 点进去走 NSUserActivity
+/// `CSSearchableItemActionType` 把 identifier 交给 app, ContentView 通过
+/// `.onContinueUserActivity` 路由到对应播放或导航。
+///
+/// 索引策略:
+/// - 整库 reindex 由 `reindex(library:)` 调用,在启动 + 库变更 token 翻动时跑
+/// - 索引项的 `domainIdentifier` 拆 song / album / artist / playlist 四类,
+///   便于将来需要时按类批量删除
+/// - 主标题 = 歌名 / 专辑 / 艺术家 / 歌单名; 副标题 = artist (歌曲/专辑) 或
+///   item count (歌单)
+/// - thumbnailData 从 MetadataAssetStore 取,小图压缩后塞进 attribute set
+@MainActor
+final class SpotlightIndexService {
+    /// 同时 inflight 的 reindex 任务 —— 库变更 token 高频触发时只跑最新一次。
+    private var pendingTask: Task<Void, Never>?
+
+    /// reindex 触发到真正动手前的去抖窗口。backfill 每 10 首 / 3 秒就 bump
+    /// 一次 songReplacementToken,若立刻 delete+rebuild,Spotlight 索引在
+    /// backfill 数小时期间会长时间处于被清空 / 半建状态。等 token 静默这段
+    /// 时间后再重建,期间的高频 bump 会被新任务 cancel 在 delete 之前。
+    private static let reindexDebounce: Duration = .seconds(8)
+
+    /// 批量重建。先 deleteAll(本 app 的) 再 indexSearchableItems(所有当前可见
+    /// 项)。整库万级数据 reindex 在背景 Task.detached 跑,主线程只负责快照
+    /// 当前 library 状态。去抖窗口内的连续触发只会保留最后一次。
+    func reindex(library: MusicLibrary) {
+        // 取消上一次未完成的 reindex —— 若它还停在去抖 sleep 里,delete 尚未
+        // 发生,旧索引就不会被清空。
+        pendingTask?.cancel()
+
+        // 快照在主线程做(MusicLibrary 是 @MainActor),后续序列化 + 喂 Spotlight
+        // 走 detached background Task。
+        let songs = library.visibleSongs
+        let albums = library.visibleAlbums
+        let artists = library.visibleArtists
+        // playlist song count 也要在主线程预先 lookup 好,nonisolated 任务
+        // 拿不到 MusicLibrary 实例。
+        let playlistSummaries: [PlaylistSummary] = library.playlists.map { p in
+            PlaylistSummary(id: p.id, name: p.name, songCount: library.songs(forPlaylist: p.id).count)
+        }
+
+        pendingTask = Task.detached(priority: .background) { [songs, albums, artists, playlistSummaries] in
+            // 去抖:静默期内被再次触发会在这里被 cancel,delete 还没跑到。
+            do {
+                try await Task.sleep(for: Self.reindexDebounce)
+            } catch {
+                return
+            }
+            if Task.isCancelled { return }
+            await Self.performReindex(
+                songs: songs,
+                albums: albums,
+                artists: artists,
+                playlists: playlistSummaries
+            )
+        }
+    }
+
+    /// Stop CPU/file work when the app is resigning active. A Spotlight
+    /// rebuild is opportunistic and must never compete with UIKit's 10-second
+    /// scene-update watchdog window.
+    func cancelPendingReindex() {
+        pendingTask?.cancel()
+        pendingTask = nil
+    }
+
+    /// 解析 NSUserActivity 拿出原始 identifier。Spotlight 点击会把
+    /// `CSSearchableItemActivityIdentifier` 塞进 userInfo,这里直接还出来。
+    static func identifier(from activity: NSUserActivity) -> SpotlightItem? {
+        guard activity.activityType == CSSearchableItemActionType,
+              let id = activity.userInfo?[CSSearchableItemActivityIdentifier] as? String else {
+            return nil
+        }
+        return parse(uniqueIdentifier: id)
+    }
+
+    /// 把 unique identifier 拆回 (kind, modelID)。Spotlight 项的 id 我们约定
+    /// 形如 `song:<modelID>` / `album:<modelID>` 等。
+    static func parse(uniqueIdentifier: String) -> SpotlightItem? {
+        let parts = uniqueIdentifier.split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false)
+        guard parts.count == 2 else { return nil }
+        switch String(parts[0]) {
+        case "song": return .song(id: String(parts[1]))
+        case "album": return .album(id: String(parts[1]))
+        case "artist": return .artist(id: String(parts[1]))
+        case "playlist": return .playlist(id: String(parts[1]))
+        default: return nil
+        }
+    }
+
+    // MARK: - Private
+
+    /// 主线程快照后,detached 用得到的 playlist 简表。Playlist 模型自己不带
+    /// songCount,得 query 一次 library.songs(forPlaylist:) 计算。
+    private struct PlaylistSummary: Sendable {
+        let id: String
+        let name: String
+        let songCount: Int
+    }
+
+    private nonisolated static func performReindex(
+        songs: [Song],
+        albums: [Album],
+        artists: [Artist],
+        playlists: [PlaylistSummary]
+    ) async {
+        let index = CSSearchableIndex.default()
+
+        var items: [CSSearchableItem] = []
+        items.reserveCapacity(songs.count + albums.count + artists.count + playlists.count)
+        // Album tracks commonly share one cover reference. Decode each unique
+        // image once instead of rereading/recompressing it for every song.
+        var thumbnailCache: [String: Data] = [:]
+        var missingThumbnails: Set<String> = []
+
+        for (offset, song) in songs.enumerated() {
+            if Task.isCancelled { return }
+            let attrs = CSSearchableItemAttributeSet(contentType: .audio)
+            attrs.title = song.title
+            attrs.album = song.albumTitle
+            attrs.artist = song.artistName
+            attrs.contentDescription = [song.artistName, song.albumTitle]
+                .compactMap { $0 }.joined(separator: " — ")
+            attrs.keywords = [song.title, song.artistName, song.albumTitle].compactMap { $0 }
+            if let coverRef = song.coverArtFileName, !coverRef.isEmpty {
+                if let cached = thumbnailCache[coverRef] {
+                    attrs.thumbnailData = cached
+                } else if !missingThumbnails.contains(coverRef) {
+                    if let thumbnail = await thumbnailData(for: coverRef) {
+                        thumbnailCache[coverRef] = thumbnail
+                        attrs.thumbnailData = thumbnail
+                    } else {
+                        missingThumbnails.insert(coverRef)
+                    }
+                }
+            }
+            items.append(CSSearchableItem(
+                uniqueIdentifier: "song:\(song.id)",
+                domainIdentifier: kSongDomain,
+                attributeSet: attrs
+            ))
+            if offset.isMultiple(of: 100) {
+                await Task.yield()
+            }
+        }
+        for album in albums {
+            if Task.isCancelled { return }
+            let attrs = CSSearchableItemAttributeSet(contentType: .audio)
+            attrs.title = album.title
+            attrs.album = album.title
+            attrs.artist = album.artistName
+            attrs.contentDescription = album.artistName ?? ""
+            attrs.keywords = [album.title, album.artistName].compactMap { $0 }
+            // Album 没 coverArtFileName,只有 coverArtPath ── 那是源站路径,
+            // 不在 App Group 资产目录里。Spotlight thumb 留空,系统给通用 icon。
+            items.append(CSSearchableItem(
+                uniqueIdentifier: "album:\(album.id)",
+                domainIdentifier: kAlbumDomain,
+                attributeSet: attrs
+            ))
+        }
+        for artist in artists {
+            if Task.isCancelled { return }
+            let attrs = CSSearchableItemAttributeSet(contentType: .audio)
+            attrs.title = artist.name
+            attrs.artist = artist.name
+            attrs.contentDescription = String(localized: "spotlight_artist_subtitle")
+            attrs.keywords = [artist.name]
+            items.append(CSSearchableItem(
+                uniqueIdentifier: "artist:\(artist.id)",
+                domainIdentifier: kArtistDomain,
+                attributeSet: attrs
+            ))
+        }
+        for playlist in playlists {
+            if Task.isCancelled { return }
+            let attrs = CSSearchableItemAttributeSet(contentType: .audio)
+            attrs.title = playlist.name
+            attrs.contentDescription = String(
+                format: String(localized: "spotlight_playlist_subtitle_format"),
+                playlist.songCount
+            )
+            attrs.keywords = [playlist.name]
+            items.append(CSSearchableItem(
+                uniqueIdentifier: "playlist:\(playlist.id)",
+                domainIdentifier: kPlaylistDomain,
+                attributeSet: attrs
+            ))
+        }
+
+        if Task.isCancelled { return }
+
+        // Build the replacement completely before deleting the live index.
+        // Cancellation during source-removal bursts now keeps the previous
+        // valid index instead of leaving Spotlight empty/half-built.
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            index.deleteSearchableItems(withDomainIdentifiers: [
+                kSongDomain, kAlbumDomain, kArtistDomain, kPlaylistDomain,
+            ]) { _ in continuation.resume() }
+        }
+
+        let finalItems = items
+        // `CSSearchableItem` is not Sendable. The indexing API consumes the
+        // array synchronously, but its completion handler is @Sendable; keep
+        // that handler limited to the Sendable count instead of implicitly
+        // capturing the whole item array just for logging.
+        let finalItemCount = finalItems.count
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            index.indexSearchableItems(finalItems) { error in
+                if let error {
+                    spotlightLog.error("Spotlight index failed: \(error.localizedDescription)")
+                } else {
+                    spotlightLog.notice("Spotlight indexed \(finalItemCount) items")
+                }
+                continuation.resume()
+            }
+        }
+    }
+
+    /// 读封面 Data,压成 128x128 JPEG 缩略图喂给 Spotlight。
+    /// `readCoverData(named:)` 是 nonisolated 的纯磁盘读,直接在当前(background)
+    /// 线程调用,不要 hop 到 MainActor —— 万级歌曲的封面 IO 压主线程会卡 UI。
+    ///
+    /// 不要在 detached task 里走 `UIImage.draw` / `UIGraphicsImageRenderer`。
+    /// 刮削写入封面后会触发整库 Spotlight reindex,旧实现连续从后台调用 UIKit
+    /// 绘图，实机最终会在 CoreGraphics bitmap context 内以 SIGSEGV(0x28) 崩溃。
+    /// ImageIO 的 thumbnail API 专为后台解码/缩放设计，也能让损坏图片安全返回 nil。
+    /// 没封面 / 失败时返回 nil — Spotlight 会显示通用 SF icon。
+    private nonisolated static func thumbnailData(for coverArtFileName: String?) async -> Data? {
+        guard let coverArtFileName, !coverArtFileName.isEmpty else { return nil }
+        guard let raw = MetadataAssetStore.shared.readCoverData(named: coverArtFileName) else { return nil }
+        #if os(iOS)
+        guard !ArtworkImageCompatibility.hasRedundantJPEGSampling(raw) else { return nil }
+        return autoreleasepool {
+            let sourceOptions = [
+                kCGImageSourceShouldCache: false,
+            ] as CFDictionary
+            guard let source = CGImageSourceCreateWithData(raw as CFData, sourceOptions) else {
+                return nil
+            }
+
+            let thumbnailOptions = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: 128,
+            ] as CFDictionary
+            guard let thumbnail = CGImageSourceCreateThumbnailAtIndex(
+                source,
+                0,
+                thumbnailOptions
+            ) else {
+                return nil
+            }
+
+            let output = NSMutableData()
+            guard let destination = CGImageDestinationCreateWithData(
+                output,
+                UTType.jpeg.identifier as CFString,
+                1,
+                nil
+            ) else {
+                return nil
+            }
+            let destinationOptions = [
+                kCGImageDestinationLossyCompressionQuality: 0.7,
+            ] as CFDictionary
+            CGImageDestinationAddImage(destination, thumbnail, destinationOptions)
+            guard CGImageDestinationFinalize(destination) else { return nil }
+            return output as Data
+        }
+        #else
+        // macOS 没有 Spotlight (CoreSpotlight 在 macOS 也可用, 但本服务 currently
+        // 只在 iOS Spotlight 中露出); 直接返回原 JPEG, Spotlight 会自己裁切。
+        return raw
+        #endif
+    }
+}
+
+/// Spotlight 结果项类型。`SpotlightIndexService.identifier(from:)` 解析后
+/// 给 ContentView,ContentView 根据 case 路由到播放 / 详情页。
+enum SpotlightItem: Sendable {
+    case song(id: String)
+    case album(id: String)
+    case artist(id: String)
+    case playlist(id: String)
+}

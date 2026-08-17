@@ -1,0 +1,551 @@
+import CryptoKit
+import Foundation
+import PrimuseKit
+
+enum NFSSelectionPathCodec {
+    struct SelectionPath: Sendable {
+        let exportPath: String
+        let relativePath: String
+    }
+
+    static func makeSelectionPath(exportPath: String, relativePath: String) -> String {
+        "nfs::\(encodeToken(normalizedExportPath(exportPath)))::\(encodeToken(normalizedRelativePath(relativePath)))"
+    }
+
+    static func parse(
+        _ path: String,
+        constrainedToExport configuredExportPath: String? = nil
+    ) throws -> SelectionPath {
+        guard path.hasPrefix("nfs::") else {
+            throw SourceError.pathNotFound(path)
+        }
+
+        let payload = String(path.dropFirst("nfs::".count))
+        guard let separator = payload.range(of: "::") else {
+            throw SourceError.pathNotFound(path)
+        }
+
+        let exportToken = String(payload[..<separator.lowerBound])
+        let relativeToken = String(payload[separator.upperBound...])
+
+        guard let exportPath = decodeToken(exportToken),
+              let relativePath = decodeToken(relativeToken) else {
+            throw SourceError.pathNotFound(path)
+        }
+
+        guard let scoped = NFSSelectionScopePolicy.resolve(
+            exportPath: exportPath,
+            relativePath: relativePath,
+            configuredExportPath: configuredExportPath
+        ) else {
+            throw SourceError.pathNotFound(path)
+        }
+
+        return SelectionPath(
+            exportPath: scoped.exportPath,
+            relativePath: scoped.relativePath
+        )
+    }
+
+    static func displayComponents(for path: String) -> [String] {
+        guard let selection = try? parse(path) else {
+            return []
+        }
+
+        let exportName = displayName(forExportPath: selection.exportPath)
+        let children = selection.relativePath
+            .split(separator: "/")
+            .map(String.init)
+
+        return [exportName] + children
+    }
+
+    static func cacheFileName(for path: String) -> String? {
+        guard let selection = try? parse(path) else { return nil }
+        return cacheFileName(for: selection)
+    }
+
+    static func cacheFileName(for selection: SelectionPath) -> String {
+        CacheFileNamePolicy.make(
+            path: "\(selection.exportPath):\(selection.relativePath)",
+            preferredExtension: (selection.relativePath as NSString).pathExtension
+        )
+    }
+
+    static func displayName(forExportPath exportPath: String) -> String {
+        let trimmed = exportPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let name = (trimmed as NSString).lastPathComponent
+        return name.isEmpty ? exportPath : name
+    }
+
+    static func normalizedRelativePath(_ path: String) -> String {
+        if path.isEmpty || path == "/" {
+            return "/"
+        }
+
+        return path.hasPrefix("/") ? path : "/\(path)"
+    }
+
+    static func normalizedExportPath(_ path: String) -> String {
+        let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        return RemotePathScopePolicy(rootPath: trimmed).rootPath
+    }
+
+    private static func encodeToken(_ value: String) -> String {
+        Data(value.utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+    }
+
+    private static func decodeToken(_ value: String) -> String? {
+        var base64 = value
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+
+        let padding = base64.count % 4
+        if padding != 0 {
+            base64 += String(repeating: "=", count: 4 - padding)
+        }
+
+        guard let data = Data(base64Encoded: base64) else {
+            return nil
+        }
+
+        return String(data: data, encoding: .utf8)
+    }
+}
+
+private struct NFSFallbackCandidate {
+    let version: NFSVersion
+    let client: any NFSClientBackend
+}
+
+actor NFSSource: MusicSourceConnector {
+    let sourceID: String
+
+    private let host: String
+    private let port: Int?
+    private let configuredExportPath: String?
+    private let nfsVersion: NFSVersion
+    private var client: (any NFSClientBackend)?
+    private var activeVersion: NFSVersion?
+    private var connectedExportPath: String?
+    private var cachedExports: [String]?
+    private let cacheDirectory: URL
+    private var localFileTasks: [String: Task<URL, Error>] = [:]
+
+    init(
+        sourceID: String,
+        host: String,
+        port: Int? = nil,
+        exportPath: String? = nil,
+        nfsVersion: NFSVersion = .auto
+    ) {
+        self.sourceID = sourceID
+        self.host = host
+        self.port = port
+        self.nfsVersion = nfsVersion
+        let normalizedExport = exportPath?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.configuredExportPath = normalizedExport?.isEmpty == false
+            ? NFSSelectionPathCodec.normalizedExportPath(normalizedExport!)
+            : nil
+
+        let cacheDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("primuse_nfs_cache")
+            .appendingPathComponent(sourceID)
+        try? FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+        self.cacheDirectory = cacheDirectory
+
+    }
+
+    func connect() async throws {
+        _ = try resolveClient()
+        if let configuredExportPath {
+            _ = try await ensureConnected(to: configuredExportPath)
+        }
+    }
+
+    func disconnect() async {
+        guard let client else {
+            return
+        }
+
+        await client.disconnect()
+
+        self.client = nil
+        self.activeVersion = nil
+        self.connectedExportPath = nil
+        self.cachedExports = nil
+    }
+
+    func listFiles(at path: String) async throws -> [RemoteFileItem] {
+        if path == "/", let configuredExportPath {
+            return try await listDirectory(
+                exportPath: configuredExportPath,
+                relativePath: "/"
+            )
+        }
+
+        if path == "/" {
+            let exports = try await loadExports()
+            return exports
+                .map { exportPath in
+                    RemoteFileItem(
+                        name: NFSSelectionPathCodec.displayName(forExportPath: exportPath),
+                        path: NFSSelectionPathCodec.makeSelectionPath(
+                            exportPath: exportPath,
+                            relativePath: "/"
+                        ),
+                        isDirectory: true,
+                        size: 0,
+                        modifiedDate: nil
+                    )
+                }
+                .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        }
+
+        let selection = try await resolveSelectionPath(for: path)
+        return try await listDirectory(
+            exportPath: selection.exportPath,
+            relativePath: selection.relativePath
+        )
+    }
+
+    func localURL(for path: String) async throws -> URL {
+        let selection = try await resolveSelectionPath(for: path)
+        let client = try await ensureConnected(to: selection.exportPath)
+
+        let cacheName = NFSSelectionPathCodec.cacheFileName(for: selection)
+        let localURL = cacheDirectory.appendingPathComponent(cacheName)
+        if FileManager.default.fileExists(atPath: localURL.path) {
+            return localURL
+        }
+
+        if let inFlight = localFileTasks[cacheName] {
+            return try await inFlight.value
+        }
+
+        let task = Task<URL, Error> {
+            let tempURL = self.cacheDirectory.appendingPathComponent(
+                "\(cacheName).part-\(UUID().uuidString)"
+            )
+            do {
+                try await client.download(path: selection.relativePath, to: tempURL)
+                if FileManager.default.fileExists(atPath: localURL.path) {
+                    try? FileManager.default.removeItem(at: tempURL)
+                    return localURL
+                }
+                try FileManager.default.moveItem(at: tempURL, to: localURL)
+                return localURL
+            } catch {
+                try? FileManager.default.removeItem(at: tempURL)
+                throw SourceError.connectionFailed(error.localizedDescription)
+            }
+        }
+        localFileTasks[cacheName] = task
+        defer { localFileTasks[cacheName] = nil }
+        return try await task.value
+    }
+
+    func deleteFile(at path: String) async throws {
+        let selection = try await resolveSelectionPath(for: path)
+        let client = try await ensureConnected(to: selection.exportPath)
+
+        try await client.remove(path: selection.relativePath)
+    }
+
+    /// NFSv3/v4 都通过 libnfs 执行 NFS_READ (offset + count)，协议级支持
+    /// 任意 offset 读取，让 CloudPlaybackSource 边下边播替代整文件下载。
+    func fetchRange(path: String, offset: Int64, length: Int64) async throws -> Data {
+        guard length > 0 else { return Data() }
+        let selection = try await resolveSelectionPath(for: path)
+        let client = try await ensureConnected(to: selection.exportPath)
+
+        // offset < 0 表示从末尾倒数，先 stat 拿 size 转正。
+        let actualRange: Range<Int64>
+        if offset < 0 {
+            // 区分"大小拿不到"与"0 字节文件": 前者无法换算 suffix range,
+            // 返回空会被回填误判为"无尾部标签"而静默丢标签, 应抛错。
+            let total = try await client.fileSize(path: selection.relativePath)
+            let start = max(0, total + offset)
+            guard let requestedEnd = SafeByteRange.exclusiveEnd(offset: start, length: length) else {
+                return Data()
+            }
+            let end = min(total, requestedEnd)
+            guard start < end else { return Data() }
+            actualRange = start..<end
+        } else {
+            guard let end = SafeByteRange.exclusiveEnd(offset: offset, length: length) else {
+                return Data()
+            }
+            actualRange = offset..<end
+        }
+
+        return try await client.read(
+            path: selection.relativePath,
+            offset: actualRange.lowerBound,
+            length: actualRange.upperBound - actualRange.lowerBound
+        )
+    }
+
+    func streamData(for path: String) async throws -> AsyncThrowingStream<Data, Error> {
+        let localURL = try await localURL(for: path)
+        return AsyncThrowingStream { continuation in
+            Task {
+                do {
+                    let handle = try FileHandle(forReadingFrom: localURL)
+                    defer { try? handle.close() }
+
+                    while true {
+                        let data = try handle.read(upToCount: 64 * 1024) ?? Data()
+                        if data.isEmpty {
+                            break
+                        }
+                        continuation.yield(data)
+                    }
+
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+        }
+    }
+
+    func scanAudioFiles(from path: String) async throws -> AsyncThrowingStream<RemoteFileItem, Error> {
+        AsyncThrowingStream { continuation in
+            let producer = Task {
+                do {
+                    try await scanDirectory(at: path, continuation: continuation)
+                    continuation.finish()
+                } catch {
+                    Task.isCancelled ? continuation.finish() : continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { @Sendable _ in producer.cancel() }
+        }
+    }
+
+    private func scanDirectory(
+        at path: String,
+        continuation: AsyncThrowingStream<RemoteFileItem, Error>.Continuation
+    ) async throws {
+        try Task.checkCancellation()
+        let items = try await listFiles(at: path)
+
+        for item in items {
+            try Task.checkCancellation()
+            if item.isDirectory {
+                try await scanDirectory(at: item.path, continuation: continuation)
+                continue
+            }
+
+            if let scannable = SidecarHintResolver.scannableItem(item, siblings: items) {
+                continuation.yield(scannable)
+            }
+        }
+    }
+
+    private func resolveClient() throws -> any NFSClientBackend {
+        if let client {
+            return client
+        }
+
+        let version = nfsVersion.connectionAttemptOrder[0]
+        let client = try makeClient(version: version)
+        self.client = client
+        self.activeVersion = version
+        return client
+    }
+
+    private func makeClient(version: NFSVersion) throws -> any NFSClientBackend {
+        if version == .v4 {
+            return NFSv4ClientBackend(host: host, port: port, sourceID: sourceID)
+        }
+
+        // IPv6 addresses must be wrapped in brackets for URL construction
+        let urlHost = host.contains(":") && !host.hasPrefix("[")
+            ? "[\(host)]"
+            : host
+        var components = URLComponents()
+        components.scheme = "nfs"
+        components.host = urlHost
+
+        // NFSKit appends URL ports to the hostname before rpcbind lookup,
+        // producing an unresolvable `host:port` address. NFSv3 discovers its
+        // MOUNT and NFS service ports through rpcbind; only the v4 backend
+        // above applies the explicitly configured NFS port directly.
+
+        guard let url = components.url else {
+            throw SourceError.connectionFailed("Invalid NFS host")
+        }
+
+        return try NFSKitClientBackend(url: url)
+    }
+
+    private func loadExports(forceRefresh: Bool = false) async throws -> [String] {
+        if forceRefresh == false, let cachedExports, cachedExports.isEmpty == false {
+            return cachedExports
+        }
+
+        let activeClient = try resolveClient()
+        let exports: [String]
+        do {
+            let loaded = try await activeClient.listExports()
+            guard loaded.isEmpty == false else {
+                throw SourceError.connectionFailed("No NFS exports found")
+            }
+            exports = loaded
+        } catch {
+            let candidate = try makeFallbackCandidateForAuto(after: error)
+            do {
+                let loaded = try await candidate.client.listExports()
+                guard loaded.isEmpty == false else {
+                    throw SourceError.connectionFailed("No NFS exports found")
+                }
+                await commitFallback(candidate)
+                exports = loaded
+            } catch {
+                await candidate.client.disconnect()
+                throw error
+            }
+        }
+
+        let normalizedExports = exports
+            .compactMap { exportPath -> String? in
+                let scope = RemotePathScopePolicy(rootPath: exportPath)
+                return scope.matchesRoot(exportPath) ? scope.rootPath : nil
+            }
+            .sorted { $0.localizedCompare($1) == .orderedAscending }
+
+        if normalizedExports.isEmpty {
+            throw SourceError.connectionFailed("No NFS exports found")
+        }
+
+        cachedExports = normalizedExports
+        return normalizedExports
+    }
+
+    private func ensureConnected(to exportPath: String) async throws -> any NFSClientBackend {
+        var activeClient = try resolveClient()
+        let normalizedExportPath = NFSSelectionPathCodec.normalizedExportPath(exportPath)
+
+        if connectedExportPath == normalizedExportPath {
+            return activeClient
+        }
+
+        if connectedExportPath != nil {
+            await activeClient.disconnect()
+            self.connectedExportPath = nil
+        }
+
+        do {
+            try await activeClient.connect(exportPath: normalizedExportPath)
+        } catch {
+            let candidate = try makeFallbackCandidateForAuto(after: error)
+            do {
+                try await candidate.client.connect(exportPath: normalizedExportPath)
+                await commitFallback(candidate, connectedTo: normalizedExportPath)
+                activeClient = candidate.client
+            } catch {
+                await candidate.client.disconnect()
+                throw error
+            }
+        }
+
+        connectedExportPath = normalizedExportPath
+        return activeClient
+    }
+
+    private func makeFallbackCandidateForAuto(after originalError: any Error) throws -> NFSFallbackCandidate {
+        guard let activeVersion,
+              let fallbackVersion = nfsVersion.fallbackVersion(after: activeVersion) else {
+            throw originalError
+        }
+
+        return NFSFallbackCandidate(
+            version: fallbackVersion,
+            client: try makeClient(version: fallbackVersion)
+        )
+    }
+
+    private func commitFallback(
+        _ candidate: NFSFallbackCandidate,
+        connectedTo exportPath: String? = nil
+    ) async {
+        let previousClient = client
+        let previousVersion = activeVersion
+
+        client = candidate.client
+        activeVersion = previousVersion?.versionAfterFallback(
+            to: candidate.version,
+            succeeded: true
+        ) ?? candidate.version
+        connectedExportPath = exportPath
+        cachedExports = nil
+
+        await previousClient?.disconnect()
+    }
+
+    private func resolveSelectionPath(
+        for path: String
+    ) async throws -> NFSSelectionPathCodec.SelectionPath {
+        if path.hasPrefix("nfs::") {
+            let selection = try NFSSelectionPathCodec.parse(
+                path,
+                constrainedToExport: configuredExportPath
+            )
+            if configuredExportPath == nil {
+                let allowedExports = try await loadExports()
+                guard allowedExports.contains(where: {
+                    RemotePathScopePolicy(rootPath: $0).matchesRoot(selection.exportPath)
+                }) else {
+                    throw SourceError.pathNotFound(path)
+                }
+            }
+            return selection
+        }
+
+        if let configuredExportPath {
+            guard let relativePath = RemotePathScopePolicy(rootPath: "/")
+                .resolvedPath(forStoredPath: path) else {
+                throw SourceError.pathNotFound(path)
+            }
+            return .init(
+                exportPath: configuredExportPath,
+                relativePath: relativePath
+            )
+        }
+
+        throw SourceError.pathNotFound(path)
+    }
+
+    private func listDirectory(
+        exportPath: String,
+        relativePath: String
+    ) async throws -> [RemoteFileItem] {
+        let client = try await ensureConnected(to: exportPath)
+
+        return try await client.listDirectory(path: relativePath)
+            .compactMap { entry in
+                guard let normalizedPath = RemotePathScopePolicy(rootPath: "/")
+                    .resolvedPath(forStoredPath: entry.path) else {
+                    return nil
+                }
+                return RemoteFileItem(
+                    name: entry.name,
+                    path: NFSSelectionPathCodec.makeSelectionPath(
+                        exportPath: exportPath,
+                        relativePath: normalizedPath
+                    ),
+                    isDirectory: entry.isDirectory,
+                    size: entry.size,
+                    modifiedDate: entry.modifiedDate
+                )
+            }
+            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+}

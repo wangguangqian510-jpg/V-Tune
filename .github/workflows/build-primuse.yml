@@ -1,0 +1,88 @@
+name: Build & Sign Primuse IPA
+
+on:
+  push:
+    branches: [ primuse-test ]
+  workflow_dispatch:
+
+env:
+  # 企业证书只签这个 Bundle ID（与原 JukeboxPlayer 共用同一份 mobileprovision）
+  BUNDLE_ID: com.arammo.cycomm
+  APP_NAME: Primuse
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode.app
+
+      # primuse 用 XcodeGen 由 project.yml 现生成 xcodeproj
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project (Primuse.xcodeproj)
+        run: xcodegen generate
+
+      # ① 编译未签名 .app（关掉签名，覆盖 Bundle ID；已剥 CarPlay/Widget/Watch/CloudKit）
+      - name: Build unsigned .app
+        run: |
+          xcodebuild build \
+            -project Primuse.xcodeproj \
+            -scheme Primuse \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
+            PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID
+
+      # ② 还原证书 / 描述文件
+      - name: Decode cert & provisioning from secrets
+        run: |
+          echo "${{ secrets.CERT_P12 }}" | base64 --decode > cert.p12
+          echo "${{ secrets.PROVISIONING }}" | base64 --decode > app.mobileprovision
+
+      # ③ 安装 zsign（预编译 macOS arm64）
+      - name: Build zsign
+        run: |
+          curl -L -o zsign.tar.gz https://github.com/zhlynn/zsign/releases/download/v1.1.1/zsign-macos-arm64.tar.gz
+          tar xzf zsign.tar.gz
+          ZSIGN=$(find "$PWD" -type f -name zsign | head -1)
+          echo "zsign binary: $ZSIGN"
+          chmod +x "$ZSIGN"
+          echo "$(dirname "$ZSIGN")" >> "$GITHUB_PATH"
+
+      # ④ 用企业证书签 .app（zsign 直接签目录）
+      - name: Sign .app in place
+        run: |
+          APP=$(find build -name "Primuse.app" -type d | head -1)
+          echo "Signing app: $APP"
+          zsign -f \
+            -k cert.p12 \
+            -p "${{ secrets.CERT_PASSWORD }}" \
+            -m app.mobileprovision \
+            -b "$BUNDLE_ID" \
+            "$APP"
+
+      # ⑤ 打包 IPA
+      - name: Package ipa
+        run: |
+          APP=$(find build -name "Primuse.app" -type d | head -1)
+          rm -rf Payload Primuse.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r -y Primuse.ipa Payload
+          rm -rf Payload
+          ls -la Primuse.ipa
+          echo "ipa size: $(stat -f%z Primuse.ipa) bytes"
+
+      # ⑥ 上传
+      - name: Upload signed ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Primuse-signed-ipa
+          path: Primuse.ipa
+          if-no-files-found: error
