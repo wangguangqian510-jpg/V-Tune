@@ -23,6 +23,7 @@ struct LibraryView: View {
     @State private var urlString = ""
     @State private var importError: String?
     @State private var trackToAdd: Track?
+    @State private var showingSettings = false
 
     private var filtered: [Track] {
         let base = store.tracks
@@ -74,6 +75,11 @@ struct LibraryView: View {
         }
         .sheet(isPresented: $showingPlaylistImport) {
             ImportPlaylistSheet().environmentObject(store)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+                .environmentObject(store)
+                .environmentObject(engine)
         }
     }
 
@@ -176,10 +182,8 @@ struct LibraryView: View {
 
     private var toolbarItems: some ToolbarContent {
         ToolbarItem(placement: .navigationBarLeading) {
-            NavigationLink {
-                SettingsView()
-                    .environmentObject(store)
-                    .environmentObject(engine)
+            Button {
+                showingSettings = true
             } label: {
                 Image(systemName: "gearshape")
             }
