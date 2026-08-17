@@ -30,6 +30,12 @@ final class PlayerEngine: ObservableObject {
     }
 
     private var jukebox: Jukebox?
+    /// 持有 TrackStore 弱引用，用于在播放前确保队列与最新曲库（含导入）保持同步。
+    private weak var storeRef: TrackStore?
+
+    func attach(_ store: TrackStore) {
+        storeRef = store
+    }
 
     init() {
         setupRemoteCommands()
@@ -59,7 +65,19 @@ final class PlayerEngine: ObservableObject {
 
     func play(index: Int? = nil) {
         if let index = index { currentIndex = index }
+        ensureQueueSynced()
         jukebox?.play(atIndex: currentIndex)
+    }
+
+    /// 播放前确保 Jukebox 队列与当前曲库一致。导入新曲后队列可能滞后，
+    /// 否则按全局索引 play 会因越界被静默丢弃，表现为「点了放不了」。
+    private func ensureQueueSynced() {
+        guard let store = storeRef else { return }
+        if jukebox == nil || self.tracks.map(\.id) != store.tracks.map(\.id) {
+            let target = currentIndex
+            load(store.tracks)
+            currentIndex = target
+        }
     }
 
     func togglePlay() {
@@ -89,7 +107,8 @@ final class PlayerEngine: ObservableObject {
         isPlaying = (jukebox.state == .playing)
         currentIndex = jukebox.playIndex
         if jukebox.state == .failed {
-            lastError = "当前曲目无法播放，请检查网络链接或本地文件是否有效"
+            let detail = jukebox.currentItem?.lastLoadError ?? "未知原因"
+            lastError = "播放失败：\(detail)\n请检查网络链接是否有效、或本地文件是否存在。"
         } else {
             lastError = nil
         }

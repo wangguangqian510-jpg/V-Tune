@@ -52,6 +52,8 @@ open class JukeboxItem: NSObject {
 
     weak var delegate: JukeboxItemDelegate?
     private var didLoad = false
+    /// 最近一次加载失败的原因，供 UI 显示真实错误。
+    var lastLoadError: String?
     private var timer: Timer?
     private let observedValue = "timedMetadata"
 
@@ -134,7 +136,9 @@ open class JukeboxItem: NSObject {
         var error: NSError?
         let playableStatus = asset.statusOfValue(forKey: "playable", error: &error)
         if playableStatus != .loaded {
-            print("[JukeboxItem] asset not playable: \(error?.localizedDescription ?? "unknown error")")
+            let msg = error?.localizedDescription ?? "资源不可播放（playable 未加载）"
+            lastLoadError = msg
+            print("[JukeboxItem] asset not playable: \(msg)")
             return false
         }
         asset.statusOfValue(forKey: "duration", error: &error)
@@ -142,9 +146,11 @@ open class JukeboxItem: NSObject {
             if error.code == -1022 {
                 fatalError("\n\n***** Jukebox fatal error *****\nIt looks like the asset cannot be loaded from the HTTP URL: \"\(url)\".\nEnable NSAppTransportSecurity -> NSAllowsArbitraryLoads in your Info.plist for HTTP streams.\n")
             }
+            lastLoadError = error.localizedDescription
             print("[JukeboxItem] duration load error: \(error.localizedDescription)")
             return false
         }
+        lastLoadError = nil
         return true
     }
 

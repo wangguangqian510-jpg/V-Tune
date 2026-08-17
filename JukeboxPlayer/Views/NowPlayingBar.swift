@@ -16,8 +16,13 @@ struct NowPlayingBar: View {
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(engine.title).font(.subheadline.bold()).lineLimit(1)
-                Text(engine.artist.isEmpty ? "未知艺术家" : engine.artist)
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                if let error = engine.lastError {
+                    Text("⚠️ \(error)")
+                        .font(.caption).foregroundStyle(.red).lineLimit(3)
+                } else {
+                    Text(engine.artist.isEmpty ? "未知艺术家" : engine.artist)
+                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                }
             }
 
             Spacer(minLength: 0)

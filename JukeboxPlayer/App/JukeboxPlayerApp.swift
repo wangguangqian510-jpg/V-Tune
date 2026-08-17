@@ -10,9 +10,10 @@ struct JukeboxPlayerApp: App {
             ContentView()
                 .environmentObject(engine)
                 .environmentObject(store)
-        .onAppear {
-            engine.load(store.tracks)
-        }
+            .onAppear {
+                engine.attach(store)
+                engine.load(store.tracks)
+            }
         .onChange(of: store.catalogVersion) { _ in
             engine.load(store.tracks)
         }

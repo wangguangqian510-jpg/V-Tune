@@ -50,6 +50,7 @@ struct SettingsView: View {
             }
             Section("关于") {
                 HStack { Text("版本"); Spacer(); Text(appVersion) }
+                HStack { Text("构建"); Spacer(); Text(appBuild) }
                 HStack { Text("Bundle ID"); Spacer(); Text(Bundle.main.bundleIdentifier ?? "") }
             }
         }
@@ -78,4 +79,7 @@ struct SettingsView: View {
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
         return "\(v) (\(b))"
     }
+
+    /// 每次提交新构建时手动更新，便于在反馈时确认装的是哪个版本。
+    private var appBuild: String { "2026-08-17 #31" }
 }
