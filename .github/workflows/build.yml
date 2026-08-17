@@ -58,6 +58,7 @@ jobs:
             -k cert.p12 \
             -p "${{ secrets.CERT_PASSWORD }}" \
             -m app.mobileprovision \
+            -e JukeboxPlayer/Resources/JukeboxPlayer.entitlements \
             -b "$BUNDLE_ID" \
             "$APP"
 
