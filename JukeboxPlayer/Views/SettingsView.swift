@@ -43,21 +43,6 @@ struct SettingsView: View {
                 }
                 .disabled(storage.importedFiles == 0)
             }
-            Section("音效（EQ）") {
-                Toggle("启用均衡器", isOn: $engine.eqEnabled)
-                if engine.eqEnabled {
-                    Picker("预设", selection: $engine.eqPreset) {
-                        ForEach(Array(EQAudioTap.presets.keys.sorted()), id: \.self) { name in
-                            Text(name)
-                        }
-                    }
-                    .pickerStyle(.menu)
-                    Text("预设：低音增强（LowShelf +10dB）/ 人声（Peaking +6dB）/ 明亮（HighShelf +8dB）/ 摇滚。关闭时不影响基础播放。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             Section("导入设置") {
                 Toggle("导入时复制进 App（关 = 引用原文件，省空间）", isOn: $store.importByCopy)
                 Text("默认开启复制：导入最稳，重签名/轻松签旁载环境也能正常播放（代价是占 2 倍空间）。关闭后改「引用原文件」省空间，但该模式依赖系统安全书签，在旁载重签名 App 里可能解析失败、导入后播不了。")
