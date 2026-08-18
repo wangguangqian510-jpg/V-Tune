@@ -10,6 +10,18 @@ struct PlaylistListView: View {
 
     var body: some View {
         List {
+            // 行内「新建歌单」入口：避免与曲库页右上角导入 + 相邻导致误触
+            Button {
+                showingNewAlert = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "plus.circle.fill").foregroundStyle(.accentColor)
+                    Text("新建歌单").font(.headline)
+                }
+                .padding(.vertical, 6)
+            }
+            .buttonStyle(.plain)
+
             ForEach(store.playlists) { playlist in
                 NavigationLink {
                     PlaylistDetailView(playlist: playlist, trackToAdd: $trackToAdd)
@@ -39,14 +51,7 @@ struct PlaylistListView: View {
                 VStack(spacing: 8) {
                     Image(systemName: "music.note.list").font(.system(size: 40)).foregroundStyle(.secondary)
                     Text("还没有歌单").font(.headline)
-                    Text("点右上角 + 新建歌单").font(.subheadline).foregroundStyle(.secondary)
-                }
-            }
-        }
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button { showingNewAlert = true } label: {
-                    Image(systemName: "plus")
+                    Text("点上方「新建歌单」按钮").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
         }
