@@ -15,7 +15,7 @@ struct PlaylistListView: View {
                 showingNewAlert = true
             } label: {
                 HStack(spacing: 12) {
-                    Image(systemName: "plus.circle.fill").foregroundStyle(.accentColor)
+                    Image(systemName: "plus.circle.fill").foregroundStyle(Color.accentColor)
                     Text("新建歌单").font(.headline)
                 }
                 .padding(.vertical, 6)
