@@ -80,7 +80,8 @@ final class TrackStore: ObservableObject {
     private var favoriteIDs: Set<UUID> = []
     /// 被用户「删除/隐藏」的示例曲 id（示例曲不可真删文件，只能隐藏），跨启动持久化。
     private var hiddenSampleIDs: Set<UUID> = []
-    /// 导入模式：false=引用原文件（不复制，省空间）；true=复制到 App（最稳）。默认引用。
+    /// 导入模式：false=引用原文件（不复制，省空间，但重签名/旁载环境可能解析失败）；
+    /// true=复制到 App 沙盒（最稳，默认）。默认复制，保证导入开箱即用；引用模式在设置里可手动开启。
     var importByCopy: Bool {
         didSet { UserDefaults.standard.set(importByCopy, forKey: importByCopyKey) }
     }
@@ -91,7 +92,9 @@ final class TrackStore: ObservableObject {
     private let importLogKey = "JukeboxImportLog_v1"
 
     init() {
-        let byCopy = UserDefaults.standard.bool(forKey: importByCopyKey)
+        // UserDefaults.bool 对未设置的 key 返回 false，故用 object(forKey:) 区分「从未设置」与「显式关掉」，
+        // 默认 true（复制到 App 沙盒，开箱即用最稳）；仅当用户在设置里显式开启「引用原文件」才为 false。
+        let byCopy = (UserDefaults.standard.object(forKey: importByCopyKey) as? Bool) ?? true
         importByCopy = byCopy
         loadRecords()
         loadPlaylists()
