@@ -191,7 +191,6 @@ final class PlayerEngine: ObservableObject {
             player.rate = playbackRate
             isPlaying = true
         }
-        updateNowPlaying()
     }
 
     /// 循环切换播放模式：顺序 → 列表循环 → 单曲循环 → 随机
@@ -241,7 +240,7 @@ final class PlayerEngine: ObservableObject {
                     self.sleepRemaining = 0
                     self.player?.pause()
                     self.isPlaying = false
-                    self.updateNowPlaying()
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
                 }
             }
         } else {
@@ -338,7 +337,13 @@ final class PlayerEngine: ObservableObject {
             .sink { [weak self] status in
                 guard let self = self else { return }
                 self.isPlaying = (status == .playing)
-                self.updateNowPlaying()
+                // 暂停（锁屏点暂停 / 中断 / 睡眠到点）时清空锁屏卡片 = 实现「后台关闭」；
+                // 缓冲中(.waiting)保持卡片，避免刚点播放就闪退。
+                if status == .paused {
+                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+                } else {
+                    self.updateNowPlaying()
+                }
             }
             .store(in: &cancellables)
 
@@ -409,7 +414,7 @@ final class PlayerEngine: ObservableObject {
         album = ""
         artwork = nil
         lyrics = nil
-        updateNowPlaying()
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 
     /// 异步提取内嵌封面（音频 artwork）或 MP4 视频首帧，赋值 engine.artwork。
@@ -495,6 +500,14 @@ final class PlayerEngine: ObservableObject {
                 return .success
             }
             return .commandFailed
+        }
+        // 「停止」指令：耳机线控 / CarPlay / 系统媒体键的停止键触发时，
+        // 暂停并清空锁屏卡片（即「后台关闭」）。
+        center.stopCommand.addTarget { [weak self] _ in
+            Task { @MainActor in
+                if self?.isPlaying == true { self?.togglePlay() }
+            }
+            return .success
         }
     }
 
