@@ -117,6 +117,7 @@ private struct LyricsService {
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var store: TrackStore
     @State private var showQueue = false
     @State private var showLyrics = false
     /// 图形化 EQ 滑块展开状态
@@ -144,9 +145,7 @@ struct NowPlayingView: View {
     @State private var scrubTime: Double = 0
     var body: some View {
         ZStack {
-            LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
-                           startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
+            backgroundLayer
             VStack(spacing: 24) {
                 header
                 if engine.isVideo {
@@ -199,7 +198,6 @@ struct NowPlayingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
-            .gesture(dismissSwipe)
         .foregroundStyle(.white)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
@@ -208,7 +206,31 @@ struct NowPlayingView: View {
             if showLyrics { lyricsSheet }
         if showOnlineSearch { onlineSearchSheet }
         }
+        .simultaneousGesture(dismissSwipe)
     }
+    /// 播放页背景：自定义图片优先 → 专辑封面模糊 → 封面色渐变兜底。
+    private var backgroundLayer: some View {
+        let image: UIImage? = {
+            if store.backgroundModeEnum == .custom, let img = store.loadCustomBackground() {
+                return img
+            }
+            return engine.artwork
+        }()
+        return Group {
+            if let img = image {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: 45, opaque: false)
+                    .overlay(Color.black.opacity(0.35))
+            } else {
+                LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
+                               startPoint: .top, endPoint: .bottom)
+            }
+        }
+        .ignoresSafeArea()
+    }
+
     // MARK: Header
     private var header: some View {
         HStack {
@@ -227,13 +249,22 @@ struct NowPlayingView: View {
         }
     }
 
-    /// 水平滑动返回：在播放页空白/黑胶区域左右滑动即可回到主页。
+    /// 水平滑动返回：在播放页顶部（封面/信息/歌词）或底部（队列）区域左右滑动即可回到主页。
+    /// 挂在 ZStack 上以 simultaneousGesture 运行：与中部进度条/音量条的横滑互不冲突（中部横带不触发），
+    /// 既能全屏响应，也不会吞掉拖动进度。
     private var dismissSwipe: some Gesture {
-        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+        DragGesture(minimumDistance: 20, coordinateSpace: .global)
             .onEnded { value in
                 let w = value.translation.width
                 let h = value.translation.height
-                guard abs(w) > abs(h), abs(w) > 80 else { return }
+                guard abs(w) > abs(h), abs(w) > 70 else { return }
+                // 子面板（队列/歌词/搜歌词）打开时，滑动只应操作面板，不应关掉整个播放页。
+                guard !showQueue, !showLyrics, !showOnlineSearch else { return }
+                let screenH = UIScreen.main.bounds.height
+                let y = value.startLocation.y
+                // 进度条/音量条所在的中部横带不触发，避免与拖动进度互相冲突。
+                let inSliderBand = y > screenH * 0.52 && y < screenH * 0.82
+                guard !inSliderBand else { return }
                 dismiss()
             }
     }
@@ -279,7 +310,7 @@ struct NowPlayingView: View {
                     }
                 }
             )
-            .tint(.white)
+            .tint(store.accentColor)
             HStack {
                 Text(formatTime(engine.isScrubbing ? scrubTime : engine.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
                 Spacer()
@@ -291,17 +322,17 @@ struct NowPlayingView: View {
     private var controls: some View {
         HStack(spacing: 28) {
             Button { engine.cyclePlaybackMode() } label: {
-                Image(systemName: modeIcon).font(.title3).foregroundStyle(.white)
+                Image(systemName: modeIcon).font(.title3).foregroundStyle(store.accentColor)
             }
             Button { engine.previous() } label: {
-                Image(systemName: "backward.fill").font(.title).foregroundStyle(.white)
+                Image(systemName: "backward.fill").font(.title).foregroundStyle(store.accentColor)
             }
             Button { engine.togglePlay() } label: {
                 Image(systemName: engine.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.system(size: 64)).foregroundStyle(.white)
+                    .font(.system(size: 64)).foregroundStyle(store.accentColor)
             }
             Button { engine.next() } label: {
-                Image(systemName: "forward.fill").font(.title).foregroundStyle(.white)
+                Image(systemName: "forward.fill").font(.title).foregroundStyle(store.accentColor)
             }
         }
     }
@@ -317,7 +348,7 @@ struct NowPlayingView: View {
     private var volume: some View {
         HStack(spacing: 10) {
             Image(systemName: "speaker.fill").foregroundStyle(.white.opacity(0.7))
-            Slider(value: $engine.volume, in: 0...1).tint(.white)
+            Slider(value: $engine.volume, in: 0...1).tint(store.accentColor)
             Image(systemName: "speaker.wave.2.fill").foregroundStyle(.white.opacity(0.7))
         }
     }
