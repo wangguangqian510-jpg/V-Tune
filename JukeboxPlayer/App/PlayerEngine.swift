@@ -5,7 +5,6 @@ import SwiftUI
 import MediaPlayer
 import AVFoundation
 import AudioToolbox
-
 /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
 enum PlaybackMode: String, CaseIterable {
     case order
@@ -13,7 +12,6 @@ enum PlaybackMode: String, CaseIterable {
     case single
     case shuffle
 }
-
 /// 播放引擎：基于 AVPlayer 直连（本地文件与远程 URL 走同一条路），
 /// 桥接到 SwiftUI（ObservableObject），并接入 MPRemoteCommandCenter（锁屏 / 控制中心 / 耳机线控）。
 ///
@@ -23,7 +21,6 @@ enum PlaybackMode: String, CaseIterable {
 /// - 远程音频（如 SoundHelix 直链）与本地文件走完全相同的 AVPlayer 路径，能否出声只取决于网络/文件可达。
 @MainActor
 final class PlayerEngine: ObservableObject {
-
     @Published private(set) var tracks: [Track] = []
     @Published private(set) var currentIndex: Int = 0
     @Published private(set) var isPlaying: Bool = false
@@ -40,36 +37,28 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var lastError: String?
     /// 用户正在拖动进度条时为 true：期间周期观察器不回写 currentTime，避免与滑块互相打架。
     @Published var isScrubbing: Bool = false
-
     @Published var volume: Float = 1.0 {
         didSet { player?.volume = volume }
     }
-
     /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
     @Published var playbackMode: PlaybackMode = .order
-
     // MARK: - 播放增强：睡眠定时 / 播放速度 / 歌词偏移
-
     /// 睡眠定时剩余秒数（0 = 未设置），UI 用于倒计时显示。
     @Published private(set) var sleepRemaining: Int = 0
     private var sleepTimer: Timer?
-
     /// 播放速度 0.5×–2×，应用到 AVPlayer.rate。
     @Published var playbackRate: Float = 1.0 {
         didSet { player?.rate = playbackRate }
     }
-
     /// 歌词时间轴整体偏移（秒，可正可负），校准 LRC 与音频不同步。
     @Published var lyricsOffset: Double = 0 {
         didSet { UserDefaults.standard.set(lyricsOffset, forKey: lyricsOffsetKey) }
     }
     private let lyricsOffsetKey = "JukeboxLyricsOffset_v1"
-
     // MARK: - EQ 音效（默认关闭，避免影响基础播放稳定性）
     private let eqEnabledKey = "JukeboxEQEnabled_v1"
     private let eqBandsKey = "JukeboxEQBands_v1"
     private let eqPresetKey = "JukeboxEQPreset_v1"
-
     @Published var eqEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(eqEnabled, forKey: eqEnabledKey)
@@ -100,28 +89,24 @@ final class PlayerEngine: ObservableObject {
     @Published var eqDiagnostic: String = "均衡器已关闭"
     private let eqTap = EQAudioTap()
     private var processingTap: MTAudioProcessingTap?
-
     /// 选中一个预设：填充 eqBands 并立即应用。
     func selectPreset(_ name: String) {
         guard let b = EQAudioTap.presets[name] else { return }
         eqPreset = name
         eqBands = b   // 触发 didSet -> 持久化 + applyEQ
     }
-
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
     /// 暴露底层 AVPlayer 给视频播放界面（VideoPlayer）复用，避免重复创建播放器。
     var avPlayer: AVPlayer? { player }
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
-
     init() {
         setupAudioSession()
         setupRemoteCommands()
         setupNotifications()
         loadPersistedState()
     }
-
     /// 加载持久化的 EQ / 歌词偏移状态。睡眠定时每次启动清零，不持久化。
     private func loadPersistedState() {
         if let saved = UserDefaults.standard.array(forKey: eqBandsKey) as? [Double], saved.count == EQAudioTap.bandCount {
@@ -133,17 +118,13 @@ final class PlayerEngine: ObservableObject {
         eqEnabled = UserDefaults.standard.bool(forKey: eqEnabledKey)
         lyricsOffset = UserDefaults.standard.object(forKey: lyricsOffsetKey) as? Double ?? 0
     }
-
     // MARK: - 播放列表
-
     /// 更新导航用的曲目列表。仅当 id 集合变化时才更新，保持正在播放的状态不被打断。
     func load(_ newTracks: [Track]) {
         let sameIDs = newTracks.map(\.id) == tracks.map(\.id)
         if sameIDs { return }
-
         let previousID = tracks[safe: currentIndex]?.id
         tracks = newTracks
-
         if let prev = previousID, let idx = newTracks.firstIndex(where: { $0.id == prev }) {
             currentIndex = idx
         } else {
@@ -155,16 +136,12 @@ final class PlayerEngine: ObservableObject {
         }
         // 不重建 player：当前曲目若仍存在，AVPlayer 仍在播同一份 URL。
     }
-
     var hasTrack: Bool { player != nil }
-
     var currentCover: [Color] {
         if let track = tracks[safe: currentIndex] { return track.cover }
         return [.gray, .gray]
     }
-
     // MARK: - 控制
-
     func play(index: Int? = nil) {
         if let index = index {
             // 点到当前正在播放的同一首：不重建 item，只切换播放/暂停，避免列表点歌从头播放。
@@ -177,7 +154,6 @@ final class PlayerEngine: ObservableObject {
         guard tracks.indices.contains(currentIndex) else { return }
         setupAndPlay(tracks[currentIndex])
     }
-
     func togglePlay() {
         guard let player = player else {
             play(index: currentIndex)
@@ -192,14 +168,12 @@ final class PlayerEngine: ObservableObject {
             isPlaying = true
         }
     }
-
     /// 循环切换播放模式：顺序 → 列表循环 → 单曲循环 → 随机
     func cyclePlaybackMode() {
         let order: [PlaybackMode] = [.order, .loop, .single, .shuffle]
         guard let i = order.firstIndex(of: playbackMode) else { playbackMode = .order; return }
         playbackMode = order[(i + 1) % order.count]
     }
-
     func next() {
         guard !tracks.isEmpty else { return }
         let i: Int
@@ -211,20 +185,17 @@ final class PlayerEngine: ObservableObject {
         }
         play(index: i)
     }
-
     func previous() {
         guard !tracks.isEmpty else { return }
         let i = (currentIndex - 1 + tracks.count) % tracks.count
         play(index: i)
     }
-
     func seek(to second: Double) {
         guard let player = player else { return }
         let cm = CMTime(seconds: max(0, second), preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         player.seek(to: cm, toleranceBefore: .zero, toleranceAfter: .zero) { _ in }
         currentTime = second
     }
-
     /// 设置睡眠定时：minutes=nil 取消，到点自动暂停。
     func setSleep(minutes: Int?) {
         sleepTimer?.invalidate()
@@ -247,16 +218,13 @@ final class PlayerEngine: ObservableObject {
             sleepRemaining = 0
         }
     }
-
     // MARK: - 播放器装配
-
     private func setupAndPlay(_ track: Track) {
         cleanupObservers()
         // 必须先停掉旧 player，否则 applyEQToCurrentItem 会触发 replaceCurrentItem，
         // 在旧 tap 仍在渲染时迁移到新 item 容易导致 MTAudioProcessingTap 闪退。
         player = nil
         playerItem = nil
-
         currentTime = 0
         duration = 0
         title = track.title
@@ -271,7 +239,6 @@ final class PlayerEngine: ObservableObject {
         isLoading = true
         lastError = nil
         isVideo = false
-
         let asset = AVURLAsset(url: track.url)
         let item = AVPlayerItem(asset: asset)
         // 检测是否为视频文件（MP4/MOV 等），供视频播放界面切换
@@ -286,7 +253,6 @@ final class PlayerEngine: ObservableObject {
         if #available(iOS 16.0, *) {
             player?.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
         }
-
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] t in
@@ -299,7 +265,6 @@ final class PlayerEngine: ObservableObject {
                 if s > self.duration { self.duration = s }
             }
         }
-
         // 时长兜底：部分本地文件 item.duration 在 readyToPlay 时仍是 indefinite，
         // 这里额外监听 duration 一旦变有限值就修正，避免进度条总程只有 1 秒。
         item.publisher(for: \.duration)
@@ -309,7 +274,6 @@ final class PlayerEngine: ObservableObject {
                 if secs.isFinite, secs > 0 { self?.duration = secs }
             }
             .store(in: &cancellables)
-
         // 状态观察
         item.publisher(for: \.status)
             .receive(on: DispatchQueue.main)
@@ -329,7 +293,6 @@ final class PlayerEngine: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-
         // 同步系统播放状态：VideoPlayer / 切后台 / 锁屏 / 线控 导致的暂停，
         // 会及时反映到 isPlaying，避免播放/暂停按钮显示反了。
         player?.publisher(for: \.timeControlStatus)
@@ -346,11 +309,9 @@ final class PlayerEngine: ObservableObject {
                 }
             }
             .store(in: &cancellables)
-
         // 播放结束 / 失败
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFinish), name: .AVPlayerItemDidPlayToEndTime, object: item)
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFail), name: .AVPlayerItemFailedToPlayToEndTime, object: item)
-
         player?.play()
         player?.rate = playbackRate
         isPlaying = true
@@ -360,7 +321,6 @@ final class PlayerEngine: ObservableObject {
         // 通知曲库记录「最近播放」
         NotificationCenter.default.post(name: .trackPlayed, object: nil, userInfo: ["id": track.id])
     }
-
     @objc private func playerDidFinish(_ notification: Notification) {
         switch playbackMode {
         case .order:
@@ -379,16 +339,13 @@ final class PlayerEngine: ObservableObject {
             play(index: Int.random(in: 0..<max(tracks.count, 1)))
         }
     }
-
     @objc private func playerDidFail(_ notification: Notification) {
         isLoading = false
         if let err = notification.userInfo?[AVPlayerItemFailedToPlayToEndTimeErrorKey] as? Error {
             lastError = err.localizedDescription
         }
     }
-
     // MARK: - 清理
-
     private func cleanupObservers() {
         if let o = timeObserver { player?.removeTimeObserver(o); timeObserver = nil }
         cancellables.removeAll()
@@ -397,7 +354,6 @@ final class PlayerEngine: ObservableObject {
             NotificationCenter.default.removeObserver(self, name: .AVPlayerItemFailedToPlayToEndTime, object: item)
         }
     }
-
     /// 完全停止播放并清空状态（当前曲目被移除等场景）。
     private func stopAndClear() {
         cleanupObservers()
@@ -416,7 +372,6 @@ final class PlayerEngine: ObservableObject {
         lyrics = nil
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
-
     /// 异步提取内嵌封面（音频 artwork）或 MP4 视频首帧，赋值 engine.artwork。
     private func loadArtwork(for asset: AVAsset) {
         Task { @MainActor [weak self] in
@@ -438,9 +393,7 @@ final class PlayerEngine: ObservableObject {
             }
         }
     }
-
     // MARK: - 锁屏信息
-
     private func updateNowPlaying() {
         var info: [String: Any] = [:]
         info[MPMediaItemPropertyTitle] = title
@@ -454,9 +407,7 @@ final class PlayerEngine: ObservableObject {
         }
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
     }
-
     // MARK: - 音频会话
-
     private func setupAudioSession() {
         do {
             // 显式允许蓝牙（A2DP 耳机/音箱）路由，否则部分设备连上蓝牙仍走扬声器
@@ -469,9 +420,7 @@ final class PlayerEngine: ObservableObject {
             #endif
         }
     }
-
     // MARK: - 远程控制（锁屏 / 控制中心）
-
     private func setupRemoteCommands() {
         let center = MPRemoteCommandCenter.shared()
         center.playCommand.addTarget { [weak self] _ in
@@ -510,14 +459,11 @@ final class PlayerEngine: ObservableObject {
             return .success
         }
     }
-
     // MARK: - 通知监听
-
     private func setupNotifications() {
         NotificationCenter.default.addObserver(self, selector: #selector(handleInterruption), name: AVAudioSession.interruptionNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(handleRouteChange), name: AVAudioSession.routeChangeNotification, object: nil)
     }
-
     @objc private func handleInterruption(_ notification: Notification) {
         guard let info = notification.userInfo,
               let typeValue = info[AVAudioSessionInterruptionTypeKey] as? UInt,
@@ -534,7 +480,6 @@ final class PlayerEngine: ObservableObject {
             break
         }
     }
-
     @objc private func handleRouteChange(_ notification: Notification) {
         guard let info = notification.userInfo,
               let reasonValue = info[AVAudioSessionRouteChangeReasonKey] as? UInt,
@@ -548,11 +493,8 @@ final class PlayerEngine: ObservableObject {
             }
         }
     }
-
     // MARK: - 歌词（粘贴 / 导入 / 内置示例，按曲目持久化）
-
     private func lyricsKey(for id: UUID) -> String { "JukeboxLyrics_\(id.uuidString)" }
-
     /// 设置当前播放曲目的歌词（粘贴或导入 LRC/纯文本），按曲目 id 持久化到 UserDefaults。
     /// 空字符串表示清除。
     func setLyricsForCurrent(_ text: String) {
@@ -566,7 +508,6 @@ final class PlayerEngine: ObservableObject {
             }
         }
     }
-
     /// 内置示例 LRC，用于没有歌词的歌曲验证「歌词偏移」功能。
     func loadSampleLyricsForCurrent() {
         let sample = """
@@ -582,9 +523,7 @@ final class PlayerEngine: ObservableObject {
         """
         setLyricsForCurrent(sample)
     }
-
     // MARK: - EQ 音效（MTAudioProcessingTap，默认关闭）
-
     /// 根据开关/预设，给当前 playerItem 挂上或卸下 EQ 音频混合。
     /// 关键点：
     /// - 必须先把 audioMix 挂到 AVPlayerItem，再交给 AVPlayer，否则 tap 的 prepare 可能永远不触发。
@@ -594,7 +533,6 @@ final class PlayerEngine: ObservableObject {
     ///   单纯调整增益（拖动滑块）走 updateEQBandsOnly，不 replace，避免播放卡死。
     private func applyEQToCurrentItem() {
         guard let item = playerItem else { return }
-
         guard eqEnabled else {
             item.audioMix = nil
             processingTap = nil
@@ -607,10 +545,9 @@ final class PlayerEngine: ObservableObject {
         if bands.allSatisfy({ $0 == 0 }) {
             let filled = EQAudioTap.presets[eqPreset] ?? EQAudioTap.presets["低音"] ?? Array(repeating: 0, count: EQAudioTap.bandCount)
             bands = filled
-            // 同步到 eqBands 让 UI 显示预设值；didSet 走 updateEQBandsOnly，此时 audioMix 已挂好不会 replace
-            eqBands = filled
+            // 同步到 UI：异步设置，避免在本函数内触发 eqBands.didSet -> updateEQBandsOnly -> applyEQToCurrentItem 递归。
+            DispatchQueue.main.async { [weak self] in self?.eqBands = filled }
         }
-
         eqTap.setBands(bands)
         guard let tap = createEQTap() else {
             item.audioMix = nil
@@ -620,7 +557,6 @@ final class PlayerEngine: ObservableObject {
             return
         }
         processingTap = tap
-
         // 本地文件通常能同步取到音轨；远程/未加载完成的 fallback 到异步加载后再试一次。
         let audioTracks = item.asset.tracks(withMediaType: .audio)
         if audioTracks.isEmpty {
@@ -640,7 +576,6 @@ final class PlayerEngine: ObservableObject {
             }
             return
         }
-
         var params: [AVAudioMixInputParameters] = []
         for track in audioTracks {
             // 用 init(track:) 而非默认 init + 手动 trackID，
@@ -652,11 +587,9 @@ final class PlayerEngine: ObservableObject {
         let mix = AVMutableAudioMix()
         mix.inputParameters = params
         item.audioMix = mix
-
         replaceCurrentItemIfNeeded()
         refreshEQDiagnostic()
     }
-
     /// 当 player 已在播放时，audioMix 变化需要 replaceCurrentItem 才会被重新采纳。
     private func replaceCurrentItemIfNeeded() {
         guard let player = player, let item = playerItem else { return }
@@ -673,7 +606,6 @@ final class PlayerEngine: ObservableObject {
             isPlaying = true
         }
     }
-
     /// 拖动 10 段滑块时只把新增益喂给已存在的 tap，**不重建 audioMix、不 replaceCurrentItem**。
     /// MTAudioProcessingTap 的设计允许直接在渲染线程用新系数（内部有锁），无需重新挂接。
     /// 仅当 EQ 已开启但当前 item 还没挂上 tap（首次开启 / 切歌后）时才补一次完整挂接。
@@ -683,7 +615,6 @@ final class PlayerEngine: ObservableObject {
             applyEQToCurrentItem()
         }
     }
-
     /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
     func refreshEQDiagnostic() {
         let s = eqTap.snapshot()
@@ -699,7 +630,6 @@ final class PlayerEngine: ObservableObject {
             eqDiagnostic = "⚠️ EQ 未挂接（无 audioMix / \(trackCount)轨）· \(s.format)"
         }
     }
-
     /// 创建 MTAudioProcessingTap 并绑定到 eqTap。eqTap 由 PlayerEngine 强引用，存储指针用 passUnretained，finalize 不释放。
     private func createEQTap() -> MTAudioProcessingTap? {
         let eq = self.eqTap
@@ -736,17 +666,13 @@ final class PlayerEngine: ObservableObject {
         return nil
     }
 }
-
 // MARK: - Helpers
-
 extension Collection {
     subscript(safe index: Index) -> Element? {
         indices.contains(index) ? self[index] : nil
     }
 }
-
 // MARK: - EQ 处理核心（10 段 Graphic EQ，全 Peaking）
-
 /// 10 段图形均衡器：31/62/125/250/500/1k/2k/4k/8k/16k，每段 Peaking（Q≈1.0，听感顺滑）。
 /// 通过 MTAudioProcessingTap 接入 AVPlayer，渲染线程与主线程共享状态，已加 NSLock 保护。
 final class EQAudioTap: @unchecked Sendable {
@@ -760,18 +686,15 @@ final class EQAudioTap: @unchecked Sendable {
     /// 增加「默认」全 0 平直曲线，作为首次开启 EQ 的安全起点。
     static let presets: [String: [Double]] = [
         "默认":   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        "重低音": [18, 18, 15, 10, 0, 0, 0, 0, 0, 0],
-        "低音":   [12, 10, 6, 2, 0, 0, 0, 0, 0, 0],
-        "人声":   [0, 0, 0, 0, 5, 9, 9, 5, 0, 0],
-        "明亮":   [0, 0, 0, 0, 0, 0, 0, 4, 8, 12],
-        "流行":   [8, 6, 0, -3, -4, 0, 2, 4, 6, 9],
-        "古典":   [6, 4, 2, 0, -3, -3, 0, 3, 5, 7],
-        "摇滚":   [9, 7, 4, 1, -1, -1, 2, 4, 6, 7],
-        "测试":   [-30, -30, -30, -30, -30, -30, -30, -30, -30, -30],
+        "重低音": [12, 10, 6, 2, 0, 0, 0, 0, 0, 0],
+        "低音":   [8, 6, 3, 1, 0, 0, 0, 0, 0, 0],
+        "人声":   [0, 0, 0, 2, 4, 6, 6, 3, 0, 0],
+        "明亮":   [0, 0, 0, 0, 0, 0, 2, 5, 8, 10],
+        "流行":   [5, 4, 0, -2, -3, 0, 2, 3, 5, 6],
+        "古典":   [4, 3, 2, 0, -2, -2, 0, 2, 4, 5],
+        "摇滚":   [6, 5, 3, 1, 0, 0, 2, 3, 5, 6],
     ]
-
     private struct Coeffs { var b0: Float = 0; var b1: Float = 0; var b2: Float = 0; var a1: Float = 0; var a2: Float = 0 }
-
     private let lock = NSLock()
     private var filters: [[Coeffs]] = []   // [band][channel]
     private var z1: [[Float]] = []         // [channel][band]
@@ -784,7 +707,6 @@ final class EQAudioTap: @unchecked Sendable {
     private var valid: Bool = false
     private var formatDesc: String = "未初始化"
     private var processedFrames: Int64 = 0
-
     func setBands(_ newBands: [Double]) {
         lock.lock()
         var b = newBands
@@ -794,7 +716,6 @@ final class EQAudioTap: @unchecked Sendable {
         recompute()
         lock.unlock()
     }
-
     func configure(sampleRate: Double, channels: Int, formatFlags: UInt32) {
         lock.lock()
         self.sampleRate = sampleRate
@@ -809,7 +730,6 @@ final class EQAudioTap: @unchecked Sendable {
         recompute()
         lock.unlock()
     }
-
     private func recompute() {
         let q: Double = 1.0
         var newFilters: [[Coeffs]] = []
@@ -826,9 +746,7 @@ final class EQAudioTap: @unchecked Sendable {
         z1 = Array(repeating: Array(repeating: 0, count: EQAudioTap.bandCount), count: channels)
         z2 = Array(repeating: Array(repeating: 0, count: EQAudioTap.bandCount), count: channels)
     }
-
     // MARK: - RBJ 系数（Peaking，全频段统一用）
-
     private func peaking(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
         let A = pow(10, gainDB / 40)
         let w0 = 2 * .pi * freq / sampleRate
@@ -843,18 +761,14 @@ final class EQAudioTap: @unchecked Sendable {
             a2: Float((1 - alpha / A) / a0)
         )
     }
-
     /// 对 AudioBufferList 做 in-place 处理。非 Float32 或格式不支持时直接跳过，避免读错内存。
     func process(bufferList: UnsafeMutablePointer<AudioBufferList>, numberFrames: Int) {
         guard numberFrames > 0 else { return }
         lock.lock()
         defer { lock.unlock() }
         guard valid else { return }
-
         processedFrames += Int64(numberFrames)
-
         let abl = UnsafeMutableAudioBufferListPointer(bufferList)
-
         if isNonInterleaved {
             let nch = min(channels, abl.count)
             for ch in 0..<nch {
@@ -868,7 +782,12 @@ final class EQAudioTap: @unchecked Sendable {
                         let y = c.b0 * x + z1v
                         z1v = c.b1 * x - c.a1 * y + z2v
                         z2v = c.b2 * x - c.a2 * y
-                        data[i] = y
+                        // NaN/Inf 保护：状态异常时重置滤波器，避免异常值扩散导致音频引擎闪退。
+                        guard y.isFinite, z1v.isFinite, z2v.isFinite else {
+                            z1v = 0; z2v = 0; data[i] = 0; continue
+                        }
+                        // 限制输出幅度在合理范围，防止极端增益导致系统音频渲染异常。
+                        data[i] = max(-4.0, min(4.0, y))
                     }
                     z1[ch][band] = z1v
                     z2[ch][band] = z2v
@@ -890,6 +809,11 @@ final class EQAudioTap: @unchecked Sendable {
                         y = c.b0 * x + z1v
                         z1v = c.b1 * x - c.a1 * y + z2v
                         z2v = c.b2 * x - c.a2 * y
+                        // NaN/Inf 保护与幅度限制，防止异常样本导致闪退。
+                        guard y.isFinite, z1v.isFinite, z2v.isFinite else {
+                            z1v = 0; z2v = 0; y = 0; continue
+                        }
+                        y = max(-4.0, min(4.0, y))
                         z1[ch][band] = z1v
                         z2[ch][band] = z2v
                     }
@@ -898,14 +822,12 @@ final class EQAudioTap: @unchecked Sendable {
             }
         }
     }
-
     /// 供播放页诊断用：返回当前处理格式、已处理帧数、是否生效。
     func snapshot() -> (format: String, frames: Int64, valid: Bool, active: Bool) {
         lock.lock(); defer { lock.unlock() }
         return (formatDesc, processedFrames, valid, processedFrames > 0)
     }
 }
-
 // MARK: - 通知
 extension Notification.Name {
     /// 曲目开始播放时发送（userInfo["id"] = Track.ID），供曲库记录「最近播放」。
