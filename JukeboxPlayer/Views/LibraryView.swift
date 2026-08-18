@@ -26,7 +26,7 @@ struct LibraryView: View {
     @State private var trackToAdd: Track?
 
     private var filtered: [Track] {
-        let base = store.tracks
+        let base = store.libraryTracks
         if searchText.isEmpty { return base }
         return base.filter {
             $0.title.localizedCaseInsensitiveContains(searchText) ||
@@ -133,7 +133,7 @@ struct LibraryView: View {
             .onDelete(perform: delete)
         }
         .listStyle(.plain)
-        .overlay { if filtered.isEmpty { emptyHint("没有匹配的歌曲") } }
+        .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
     }
 
     // MARK: 我喜欢的列表
