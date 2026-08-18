@@ -1,11 +1,9 @@
 import SwiftUI
-
 /// 列表底部的迷你播放条，点击展开全屏播放页。
 struct NowPlayingBar: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var store: TrackStore
     @State private var expanded = false
-
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: 8)
@@ -13,27 +11,30 @@ struct NowPlayingBar: View {
                                      startPoint: .topLeading,
                                      endPoint: .bottomTrailing))
                 .frame(width: 44, height: 44)
-
-            VStack(alignment: .leading, spacing: 2) {
+                            .overlay {
+                    if let img = engine.artwork {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                }
+                        VStack(alignment: .leading, spacing: 2) {
                 Text(engine.title).font(.subheadline.bold()).lineLimit(1)
                 Text(engine.artist.isEmpty ? "未知艺术家" : engine.artist)
                     .font(.caption).foregroundStyle(.secondary).lineLimit(1)
             }
-
             Spacer(minLength: 0)
-
             Button { engine.previous() } label: {
                 Image(systemName: "backward.fill").font(.title3)
             }
             .buttonStyle(.plain)
-
             Button { engine.togglePlay() } label: {
                 Image(systemName: engine.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title2)
                     .frame(width: 28)
             }
             .buttonStyle(.plain)
-
             Button { engine.next() } label: {
                 Image(systemName: "forward.fill").font(.title3)
             }
