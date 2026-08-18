@@ -11,6 +11,8 @@ struct NowPlayingView: View {
     @State private var showLyrics = false
     /// 图形化 EQ 滑块展开状态
     @State private var showGraphicEQ = false
+    /// MP4 视频全屏播放
+    @State private var videoFullscreen = false
     /// 睡眠定时自定义输入
     @State private var showSleepAlert = false
     @State private var customSleepText = ""
@@ -30,11 +32,41 @@ struct NowPlayingView: View {
             VStack(spacing: 24) {
                 header
                 if engine.isVideo {
-                    VideoPlayer(player: engine.avPlayer)
-                        .aspectRatio(16/9, contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                        .clipShape(RoundedRectangle(cornerRadius: 16))
-                        .shadow(radius: 20, y: 10)
+                    ZStack(alignment: .topTrailing) {
+                        VideoPlayer(player: engine.avPlayer)
+                            .aspectRatio(16/9, contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 16))
+                            .shadow(radius: 20, y: 10)
+                        Button {
+                            videoFullscreen = true
+                        } label: {
+                            Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                .font(.title3)
+                                .padding(8)
+                                .background(.black.opacity(0.45), in: Circle())
+                                .foregroundStyle(.white)
+                        }
+                        .padding(10)
+                    }
+                    .fullScreenCover(isPresented: $videoFullscreen) {
+                        ZStack(alignment: .topLeading) {
+                            VideoPlayer(player: engine.avPlayer)
+                                .background(.black)
+                            Button {
+                                videoFullscreen = false
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.largeTitle)
+                                    .foregroundStyle(.white)
+                                    .padding()
+                                    .background(.black.opacity(0.35), in: Circle())
+                            }
+                            .padding(.top, 8)
+                        }
+                        .background(.black)
+                        .ignoresSafeArea()
+                    }
                 } else {
                     artwork
                 }
@@ -209,31 +241,35 @@ struct NowPlayingView: View {
     }
 
     /// 图形化 EQ：10 段竖向滑块（横向滚动），绑定 engine.eqBands。
+    /// 改进：列宽加大、滑块行程加长更好拖；dB 读数独立成行且固定高度，永不被滑块拇指遮挡。
     private var graphicEQ: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 18) {
                 ForEach(0..<EQAudioTap.bandCount, id: \.self) { i in
-                    VStack(spacing: 2) {
+                    VStack(spacing: 6) {
+                        // dB 读数独立成行：固定高度，滑块拉到顶端也不会盖住数字
                         Text("\(Int(engine.eqBands[i]))")
-                            .font(.system(size: 9))
-                            .foregroundStyle(.white.opacity(0.7))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(engine.eqBands[i] == 0 ? .white.opacity(0.45) : .yellow)
+                            .frame(height: 14)
                         Slider(value: Binding(
                             get: { engine.eqBands[i] },
                             set: { engine.eqBands[i] = $0 }
                         ), in: -20...20)
                         .rotationEffect(.degrees(-90))
-                        .frame(width: 120, height: 28)
+                        .frame(width: 34, height: 175)
                         .tint(.white)
                         Text(EQAudioTap.freqLabels[i])
                             .font(.system(size: 9))
                             .foregroundStyle(.white.opacity(0.7))
                     }
-                    .frame(width: 30)
+                    .frame(width: 46)
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
         }
-        .frame(height: 150)
+        .frame(height: 210)
     }
 
     // MARK: 播放增强（睡眠 / 速度 / AirPlay）
@@ -271,8 +307,13 @@ struct NowPlayingView: View {
                 .foregroundStyle(.white)
             }
             // AirPlay 投送
-            RoutePickerView()
-                .frame(width: 44, height: 30)
+            VStack(spacing: 2) {
+                RoutePickerView()
+                    .frame(width: 44, height: 30)
+                Text("AirPlay")
+                    .font(.system(size: 9))
+            }
+            .foregroundStyle(.white)
         }
         .font(.title3)
         .alert("自定义睡眠定时", isPresented: $showSleepAlert) {
