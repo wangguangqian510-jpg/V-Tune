@@ -1,12 +1,15 @@
 import SwiftUI
 import UIKit
 import Combine
+import AVKit
 
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.dismiss) private var dismiss
     @State private var showQueue = false
     @State private var showLyrics = false
+    /// 图形化 EQ 滑块展开状态
+    @State private var showGraphicEQ = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
 
@@ -23,6 +26,7 @@ struct NowPlayingView: View {
                 progress
                 controls
                 volume
+                playbackExtras
                 eqPanel
                 Spacer(minLength: 0)
                 queueToggle
@@ -154,13 +158,31 @@ struct NowPlayingView: View {
                 .tint(.white)
                 .font(.subheadline)
             if engine.eqEnabled {
-                Picker("预设", selection: $engine.eqPreset) {
-                    ForEach(Array(EQAudioTap.presets.keys.sorted()), id: \.self) { name in
-                        Text(name)
+                HStack {
+                    Menu {
+                        ForEach(Array(EQAudioTap.presets.keys.sorted()), id: \.self) { name in
+                            Button(name) { engine.selectPreset(name) }
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text("预设：\(engine.eqPreset)")
+                            Image(systemName: "chevron.up.chevron.down")
+                        }
+                        .font(.subheadline)
+                        .foregroundStyle(.white)
+                    }
+                    Spacer()
+                    Button {
+                        withAnimation { showGraphicEQ.toggle() }
+                    } label: {
+                        Image(systemName: showGraphicEQ ? "waveform.circle.fill" : "waveform.circle")
+                            .font(.title3)
+                            .foregroundStyle(.white)
                     }
                 }
-                .pickerStyle(.segmented)
-                .colorScheme(.dark)
+                if showGraphicEQ {
+                    graphicEQ
+                }
                 Text(engine.eqDiagnostic)
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.65))
@@ -168,6 +190,80 @@ struct NowPlayingView: View {
             }
         }
         .padding(.horizontal, 4)
+    }
+
+    /// 图形化 EQ：10 段竖向滑块（横向滚动），绑定 engine.eqBands。
+    private var graphicEQ: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(0..<EQAudioTap.bandCount, id: \.self) { i in
+                    VStack(spacing: 2) {
+                        Text("\(Int(engine.eqBands[i]))")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.7))
+                        Slider(value: Binding(
+                            get: { engine.eqBands[i] },
+                            set: { engine.eqBands[i] = $0 }
+                        ), in: -20...20)
+                        .rotationEffect(.degrees(-90))
+                        .frame(width: 120, height: 28)
+                        .tint(.white)
+                        Text(EQAudioTap.freqLabels[i])
+                            .font(.system(size: 9))
+                            .foregroundStyle(.white.opacity(0.7))
+                    }
+                    .frame(width: 30)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .frame(height: 150)
+    }
+
+    // MARK: 播放增强（睡眠 / 速度 / AirPlay）
+    private var playbackExtras: some View {
+        HStack(spacing: 18) {
+            // 睡眠定时
+            Menu {
+                ForEach([15, 30, 45, 60, 90], id: \.self) { m in
+                    Button("\(m) 分钟") { engine.setSleep(minutes: m) }
+                }
+                Divider()
+                Button("关闭") { engine.setSleep(minutes: nil) }
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "moon.zzz.fill")
+                    if engine.sleepRemaining > 0 {
+                        Text(formatSleep(engine.sleepRemaining))
+                            .font(.system(size: 9))
+                    }
+                }
+                .foregroundStyle(.white)
+            }
+            // 播放速度
+            Menu {
+                ForEach([0.5, 0.75, 1.0, 1.25, 1.5, 2.0], id: \.self) { r in
+                    Button(String(format: "%.2g×", r)) { engine.playbackRate = Float(r) }
+                }
+            } label: {
+                VStack(spacing: 2) {
+                    Image(systemName: "goforward")
+                    Text(String(format: "%.2g×", engine.playbackRate))
+                        .font(.system(size: 9))
+                }
+                .foregroundStyle(.white)
+            }
+            // AirPlay 投送
+            RoutePickerView()
+                .frame(width: 44, height: 30)
+        }
+        .font(.title3)
+    }
+
+    private func formatSleep(_ s: Int) -> String {
+        let m = s / 60
+        let sec = s % 60
+        return sec == 0 ? "\(m)m" : "\(m):\(String(format: "%02d", sec))"
     }
 
     // MARK: Queue
@@ -227,8 +323,19 @@ struct NowPlayingView: View {
                 HStack {
                     Text("歌词").font(.headline).foregroundStyle(.white)
                     Spacer()
-                    Button { showLyrics = false } label: {
-                        Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.white.opacity(0.8))
+                    HStack(spacing: 10) {
+                        Button { engine.lyricsOffset -= 0.5 } label: {
+                            Image(systemName: "minus.circle").foregroundStyle(.white.opacity(0.8))
+                        }
+                        Text(String(format: "%+.1fs", engine.lyricsOffset))
+                            .font(.caption).foregroundStyle(.white.opacity(0.7))
+                            .frame(minWidth: 44)
+                        Button { engine.lyricsOffset += 0.5 } label: {
+                            Image(systemName: "plus.circle").foregroundStyle(.white.opacity(0.8))
+                        }
+                        Button { showLyrics = false } label: {
+                            Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.white.opacity(0.8))
+                        }
                     }
                 }
                 .padding()
@@ -260,6 +367,17 @@ struct NowPlayingView: View {
         let total = Int(t)
         return "\(total / 60):\(String(format: "%02d", total % 60))"
     }
+}
+
+// MARK: - AirPlay 投送按钮
+private struct RoutePickerView: UIViewRepresentable {
+    func makeUIView(context: Context) -> AVRoutePickerView {
+        let v = AVRoutePickerView()
+        v.tintColor = .white
+        v.activeTintColor = .systemBlue
+        return v
+    }
+    func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
 
 // MARK: - 黑胶唱片视图
@@ -340,9 +458,10 @@ private struct LyricsView: View {
     @State private var lastIndex: Int = 0
 
     private func index(at t: Double) -> Int {
+        let tt = max(0, t + engine.lyricsOffset)
         var idx = 0
         for (i, l) in lines.enumerated() {
-            if l.time <= t { idx = i } else { break }
+            if l.time <= tt { idx = i } else { break }
         }
         return idx
     }
