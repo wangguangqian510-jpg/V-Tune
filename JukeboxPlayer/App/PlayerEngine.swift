@@ -89,6 +89,10 @@ final class PlayerEngine: ObservableObject {
             currentIndex = idx
         } else {
             currentIndex = newTracks.isEmpty ? 0 : min(currentIndex, newTracks.count - 1)
+            // 当前播放的曲目被从曲库移除，停止播放并清理状态，避免「删了还在响」。
+            if previousID != nil {
+                stopAndClear()
+            }
         }
         // 不重建 player：当前曲目若仍存在，AVPlayer 仍在播同一份 URL。
     }
@@ -271,6 +275,25 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    /// 完全停止播放并清空状态（当前曲目被移除等场景）。
+    private func stopAndClear() {
+        cleanupObservers()
+        player?.pause()
+        player = nil
+        playerItem = nil
+        processingTap = nil
+        isPlaying = false
+        isLoading = false
+        currentTime = 0
+        duration = 0
+        title = "未在播放"
+        artist = ""
+        album = ""
+        artwork = nil
+        lyrics = nil
+        updateNowPlaying()
+    }
+
     // MARK: - 锁屏信息
 
     private func updateNowPlaying() {
@@ -404,16 +427,18 @@ final class PlayerEngine: ObservableObject {
         // 本地文件通常能同步取到音轨；远程/未加载完成的 fallback 到异步加载后再试一次。
         let audioTracks = item.asset.tracks(withMediaType: .audio)
         if audioTracks.isEmpty {
+            eqDiagnostic = "⏳ 正在等待音轨加载…"
             Task { @MainActor [weak self] in
                 guard let self = self, self.playerItem === item else { return }
                 do {
                     let tracks = try await item.asset.loadTracks(withMediaType: .audio)
-                    guard !tracks.isEmpty else { return }
+                    guard !tracks.isEmpty else {
+                        self.eqDiagnostic = "⚠️ 该曲目无音频轨，EQ 无法挂接"
+                        return
+                    }
                     self.applyEQToCurrentItem()
                 } catch {
-                    #if DEBUG
-                    print("EQ 异步加载音轨失败: \(error)")
-                    #endif
+                    self.eqDiagnostic = "⚠️ 加载音轨失败：\(error.localizedDescription)"
                 }
             }
             return
@@ -421,8 +446,9 @@ final class PlayerEngine: ObservableObject {
 
         var params: [AVAudioMixInputParameters] = []
         for track in audioTracks {
-            let p = AVMutableAudioMixInputParameters()
-            p.trackID = track.trackID
+            // 用 init(track:) 而非默认 init + 手动 trackID，
+            // 确保 inputParameters 与 asset 音轨正确关联，tap 才能被触发。
+            let p = AVMutableAudioMixInputParameters(track: track)
             p.audioTapProcessor = tap
             params.append(p)
         }
@@ -514,11 +540,10 @@ extension Collection {
 final class EQAudioTap: @unchecked Sendable {
     /// 预设名 -> [低频增益, 中频增益, 高频增益]（单位 dB）
     static let presets: [String: [Double]] = [
-        "低音": [15, 0, 0],
-        "人声": [0, 10, 4],
-        "明亮": [0, 0, 12],
-        "摇滚": [10, 4, 8],
-        "强劲": [12, 8, 12],
+        "低音":  [18, 0, 0],
+        "人声":  [0, 12, 4],
+        "明亮":  [0, 0, 15],
+        "强劲":  [15, 6, 12],
     ]
 
     private enum BandType { case lowShelf, peaking, highShelf }
