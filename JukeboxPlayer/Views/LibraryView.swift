@@ -3,7 +3,6 @@ import UniformTypeIdentifiers
 
 enum LibTab: String, CaseIterable, Identifiable {
     case songs = "歌曲"
-    case recent = "最近"
     case artists = "歌手"
     case albums = "专辑"
     case playlists = "歌单"
@@ -42,7 +41,6 @@ struct LibraryView: View {
 
             switch tab {
             case .songs:     songList
-            case .recent:    recentList
             case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
             case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
             case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
@@ -55,7 +53,7 @@ struct LibraryView: View {
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie],
+            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video],
             allowsMultipleSelection: true
         ) { result in handleFileImport(result) }
         .sheet(isPresented: $showingDocumentPicker) {
@@ -130,7 +128,7 @@ struct LibraryView: View {
                     onTap: { play(track, from: filtered) },
                     onAddToPlaylist: { trackToAdd = $0 }
                 )
-                .deleteDisabled(false)
+                .deleteDisabled(!track.isRemovable)
             }
             .onDelete(perform: delete)
         }
@@ -156,29 +154,6 @@ struct LibraryView: View {
         .overlay {
             if store.favoriteTracks.isEmpty {
                 emptyHint("还没有收藏\n在歌曲右侧点 ♡ 即可收藏")
-            }
-        }
-    }
-
-    // MARK: 最近播放列表
-
-    private var recentList: some View {
-        List {
-            ForEach(store.recentTracks) { track in
-                TrackRow(
-                    track: track,
-                    isCurrent: isCurrent(track),
-                    isPlaying: engine.isPlaying,
-                    onTap: { play(track, from: store.recentTracks) },
-                    onAddToPlaylist: { trackToAdd = $0 }
-                )
-                .deleteDisabled(false)
-            }
-        }
-        .listStyle(.plain)
-        .overlay {
-            if store.recentTracks.isEmpty {
-                emptyHint("还没有播放记录\n播放一首歌就会出现在这里")
             }
         }
     }
@@ -273,7 +248,7 @@ struct LibraryView: View {
     }
 }
 
-// MARK: - UIDocumentPicker 包装（asCopy: true：系统拷贝进 App 沙盒，重签名/轻松签环境最稳）
+// MARK: - UIDocumentPicker 包装（asCopy: true 让系统拷贝到可读临时目录，绕过重签名/沙盒权限问题）
 
 struct DocumentPicker: UIViewControllerRepresentable {
     @EnvironmentObject var store: TrackStore
@@ -285,11 +260,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 正在呈现")
-        // asCopy: true → 系统把选中的文件拷贝进 App 自己的沙盒目录（App 拥有、无需安全作用域），
-        // 在重签名/轻松签旁载环境下最稳，导入后可直接播放。空间换稳定。
-        // 想省空间可在「设置 → 导入设置」切到「引用原文件」（存书签、不复制），
-        // 但该模式依赖 security-scoped bookmark，在旁载重签名 App 里可能解析失败。
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie], asCopy: true)
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video], asCopy: true)
         picker.allowsMultipleSelection = true
         picker.delegate = context.coordinator
         return picker
