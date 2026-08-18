@@ -48,13 +48,21 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: - EQ 音效（默认关闭，避免影响基础播放稳定性）
     @Published var eqEnabled: Bool = false {
+        didSet {
+            // 开启时若还是「关闭」占位预设，自动切到有听感差异的预设，避免「开了却没变化」。
+            if eqEnabled && !EQAudioTap.presets.keys.contains(eqPreset) {
+                eqPreset = "低音增强"
+            }
+            applyEQToCurrentItem()
+        }
+    }
+    @Published var eqPreset: String = "低音增强" {
         didSet { applyEQToCurrentItem() }
     }
-    @Published var eqPreset: String = "关闭" {
-        didSet { applyEQToCurrentItem() }
-    }
+    /// EQ 诊断文字（播放页展示用，确认 tap 是否真的在处理音频）
+    @Published var eqDiagnostic: String = "均衡器已关闭"
     private let eqTap = EQAudioTap()
-    private var processingTap: Unmanaged<MTAudioProcessingTap>?
+    private var processingTap: MTAudioProcessingTap?
 
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
@@ -368,18 +376,38 @@ final class PlayerEngine: ObservableObject {
         guard let item = playerItem else { return }
         guard eqEnabled, let bands = EQAudioTap.presets[eqPreset] else {
             item.audioMix = nil
+            processingTap = nil
+            refreshEQDiagnostic()
             return
         }
         eqTap.setBands(bands)
         guard let tap = createEQTap() else {
             item.audioMix = nil
+            processingTap = nil
+            refreshEQDiagnostic()
             return
         }
+        processingTap = tap
         let params = AVMutableAudioMixInputParameters()
         params.audioTapProcessor = tap
         let mix = AVMutableAudioMix()
         mix.inputParameters = [params]
         item.audioMix = mix
+        refreshEQDiagnostic()
+    }
+
+    /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
+    func refreshEQDiagnostic() {
+        let s = eqTap.snapshot()
+        if !eqEnabled {
+            eqDiagnostic = "均衡器已关闭"
+        } else if s.frames > 0 {
+            eqDiagnostic = "✅ EQ 已生效 · 已处理 \(s.frames) 帧 · \(s.format)"
+        } else if let item = playerItem, item.audioMix != nil {
+            eqDiagnostic = "⏳ EQ 已挂接，等待音频数据 · \(s.format)"
+        } else {
+            eqDiagnostic = "⚠️ EQ 未挂接（格式/曲目不支持）· \(s.format)"
+        }
     }
 
     /// 创建 MTAudioProcessingTap 并绑定到 eqTap。eqTap 由 PlayerEngine 强引用，存储指针用 passUnretained，finalize 不释放。
@@ -432,7 +460,6 @@ extension Collection {
 final class EQAudioTap: @unchecked Sendable {
     /// 预设名 -> [低频增益, 中频增益, 高频增益]（单位 dB）
     static let presets: [String: [Double]] = [
-        "关闭":     [0, 0, 0],
         "低音增强": [10, 0, 0],
         "人声":     [0, 6, 2],
         "明亮":     [0, 0, 8],
@@ -452,6 +479,8 @@ final class EQAudioTap: @unchecked Sendable {
     private var isFloat: Bool = false
     private var isNonInterleaved: Bool = true
     private var valid: Bool = false
+    private var formatDesc: String = "未初始化"
+    private var processedFrames: Int64 = 0
 
     func setBands(_ newBands: [Double]) {
         lock.lock()
@@ -468,7 +497,9 @@ final class EQAudioTap: @unchecked Sendable {
         // kAudioFormatFlagIsNonInterleaved = 1 << 5
         self.isFloat = (formatFlags & (1 << 0)) != 0
         self.isNonInterleaved = (formatFlags & (1 << 5)) != 0
-        self.valid = self.isFloat && (self.isNonInterleaved || channels == 1)
+        // 只要浮点就处理（非交错/交错都能处理）；非浮点格式跳过，避免读错内存。
+        self.valid = self.isFloat
+        self.formatDesc = "\(self.isFloat ? "浮点" : "整型")\(self.isNonInterleaved ? "非交错" : "交错") \(self.channels)ch / \(Int(self.sampleRate))Hz"
         recompute()
         lock.unlock()
     }
@@ -556,6 +587,8 @@ final class EQAudioTap: @unchecked Sendable {
         defer { lock.unlock() }
         guard valid else { return }
 
+        processedFrames += Int64(numberFrames)
+
         let abl = UnsafeMutableAudioBufferListPointer(bufferList)
 
         if isNonInterleaved {
@@ -600,5 +633,11 @@ final class EQAudioTap: @unchecked Sendable {
                 }
             }
         }
+    }
+
+    /// 供播放页诊断用：返回当前处理格式、已处理帧数、是否生效。
+    func snapshot() -> (format: String, frames: Int64, valid: Bool, active: Bool) {
+        lock.lock(); defer { lock.unlock() }
+        return (formatDesc, processedFrames, valid, processedFrames > 0)
     }
 }
