@@ -128,6 +128,13 @@ final class TrackStore: ObservableObject {
 
     var favoriteTracks: [Track] { tracks.filter { $0.isFavorite } }
 
+    /// 首页「歌曲」页应展示的曲目：未加入任何歌单的曲目（即尚未被归档的曲目）。
+    /// 用户选择「移动到歌单」后，曲目从首页消失，但仍可在对应歌单、歌手、专辑、我喜欢页找到。
+    var libraryTracks: [Track] {
+        let playlistIDs = Set(playlists.flatMap { $0.trackIDs })
+        return tracks.filter { !playlistIDs.contains($0.id) }
+    }
+
     /// 最近播放的曲目（按播放时间倒序）。
     var recentTracks: [Track] {
         recentIDs.compactMap { id in tracks.first(where: { $0.id == id }) }
