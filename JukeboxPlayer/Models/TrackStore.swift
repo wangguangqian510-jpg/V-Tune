@@ -297,7 +297,7 @@ final class TrackStore: ObservableObject {
                 id: existingID, title: title, artist: artist, album: album,
                 source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
                 lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
-            saveRecords(); refresh(); catalogVersion += 1; addToImportPlaylist(existingID)
+            saveRecords(); refresh(); catalogVersion += 1
             reportImportResult("已更新（去重）：\(title)")
             return
         }
@@ -342,7 +342,6 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
-        addToImportPlaylist(id)
     }
 
     /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
@@ -577,7 +576,6 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
-        addToImportPlaylist(id)
     }
 
     /// 引用原文件模式：存安全书签，不复制文件，播放时直接读用户原文件。
@@ -599,24 +597,9 @@ final class TrackStore: ObservableObject {
         saveRecords()
         refresh()
         catalogVersion += 1
-        addToImportPlaylist(id)
     }
 
     // MARK: - 自动归入歌单
-
-    /// 把导入的曲目自动加入「导入的歌曲」歌单，保证「歌单」页不为空。
-    private func addToImportPlaylist(_ id: UUID) {
-        if let idx = playlists.firstIndex(where: { $0.name == "导入的歌曲" }) {
-            if !playlists[idx].trackIDs.contains(id) {
-                playlists[idx].trackIDs.append(id)
-                savePlaylists()
-            }
-        } else {
-            let playlist = Playlist(name: "导入的歌曲", trackIDs: [id])
-            playlists.append(playlist)
-            savePlaylists()
-        }
-    }
 
     private func uniqueURL(in directory: URL, for source: URL) -> URL {
         var dest = directory.appendingPathComponent(source.lastPathComponent)
