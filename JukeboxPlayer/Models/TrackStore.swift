@@ -700,7 +700,7 @@ final class TrackStore: ObservableObject {
 
         guard let enumerator = fileManager.enumerator(
             at: folderURL,
-            includingPropertiesForKeys: [.isRegularFileKey, .pathExtensionKey, .fileSizeKey],
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
             options: [.skipsHiddenFiles, .skipsPackageDescendants]
         ) else {
             reportImportResult("导入失败：无法读取所选文件夹")
