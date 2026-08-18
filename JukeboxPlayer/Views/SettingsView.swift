@@ -60,6 +60,9 @@ struct SettingsView: View {
 
             Section("导入设置") {
                 Toggle("导入时复制进 App（关 = 引用原文件，省空间）", isOn: $store.importByCopy)
+                Text("默认开启复制：导入最稳，重签名/轻松签旁载环境也能正常播放（代价是占 2 倍空间）。关闭后改「引用原文件」省空间，但该模式依赖系统安全书签，在旁载重签名 App 里可能解析失败、导入后播不了。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 HStack { Text("引用原文件（不复制）"); Spacer(); Text("\(storage.referencedCount)") }
                 HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
                 Button {
@@ -98,7 +101,7 @@ struct SettingsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("正确导入方式：").bold()
                     Text("1. 应用内：曲库页右上角 + → 从 Files 导入（批量）")
-                    Text("2. 默认「引用原文件」：不复制，只占一份空间；原文件勿删/移动，否则该曲播不了")
+                    Text("2. 默认「复制进 App」：导入最稳，重签名/轻松签环境也能播（占 2 倍空间）。想省空间可在上方开关切到「引用原文件」，但旁载重签名 App 可能解析失败")
                     Text("3. 文件 App：长按 MP3 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（不是顶部分享图标）")
                 }
                 .font(.caption)
