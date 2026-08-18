@@ -42,7 +42,7 @@ struct AddToPlaylistSheet: View {
                     }
                 }
             }
-            .navigationTitle("添加到歌单")
+            .navigationTitle("移动到歌单")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
