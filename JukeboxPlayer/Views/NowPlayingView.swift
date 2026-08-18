@@ -434,6 +434,7 @@ struct NowPlayingView: View {
                 }
             }
         }
+    }
 
     private func formatTime(_ t: Double) -> String {
         guard t.isFinite, t > 0 else { return "0:00" }
