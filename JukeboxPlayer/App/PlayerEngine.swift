@@ -80,6 +80,9 @@ final class PlayerEngine: ObservableObject {
 
     @Published private(set) var lyrics: String?
 
+    /// 锁屏歌词：记录上一次推送到 MPNowPlayingInfoCenter 的歌词行，只在变化时刷新。
+    private var lastLyricLine: String = ""
+
     /// 当前曲目是否为视频文件（MP4/MOV 等），由 setupAndPlay 检测，用于切换视频播放界面。
 
     @Published var isVideo: Bool = false
@@ -490,6 +493,8 @@ final class PlayerEngine: ObservableObject {
 
         lyrics = track.lyrics
 
+        lastLyricLine = ""
+
         // 覆盖：用户后期粘贴/导入的歌词（按曲目 id 持久化）优先于内嵌歌词
 
         if let custom = UserDefaults.standard.string(forKey: lyricsKey(for: track.id)), !custom.isEmpty {
@@ -554,7 +559,23 @@ final class PlayerEngine: ObservableObject {
 
                 // 触发一连串零容差 seek 把 AVPlayer 搞到卡死（表现为「拖一下只播 2 秒就停」）。
 
-                if !self.isScrubbing { self.currentTime = s }
+                if !self.isScrubbing {
+
+                    self.currentTime = s
+
+                    // 歌词行变化时同步锁屏信息，使锁屏/控制中心显示当前行。
+
+                    let line = self.currentLyricLine(at: s)
+
+                    if line != self.lastLyricLine {
+
+                        self.lastLyricLine = line
+
+                        self.updateNowPlaying()
+
+                    }
+
+                }
 
                 if s > self.duration { self.duration = s }
 
@@ -922,7 +943,9 @@ final class PlayerEngine: ObservableObject {
         info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
 
         if let lyrics = lyrics, !lyrics.isEmpty {
-            info[MPMediaItemPropertyLyrics] = Self.plainLyrics(lyrics)
+            // 锁屏/控制中心优先显示当前歌词行；无时间轴时回退到纯文本。
+            let line = currentLyricLine(at: currentTime)
+            info[MPMediaItemPropertyLyrics] = line.isEmpty ? Self.plainLyrics(lyrics) : line
         }
         if let art = artwork {
             info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(image: art)
