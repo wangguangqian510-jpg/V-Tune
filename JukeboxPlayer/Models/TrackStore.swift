@@ -273,10 +273,10 @@ final class TrackStore: ObservableObject {
         guard let p = customBackgroundPath else { return nil }
         return UIImage(contentsOfFile: p)
     }
-    private func resizeImage(_ image: UIImage, toMax max: CGFloat) -> UIImage {
+    private func resizeImage(_ image: UIImage, toMax maxDim: CGFloat) -> UIImage {
         let longer = max(image.size.width, image.size.height)
-        guard longer > max else { return image }
-        let scale = max / longer
+        guard longer > maxDim else { return image }
+        let scale = maxDim / longer
         let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
         return UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
