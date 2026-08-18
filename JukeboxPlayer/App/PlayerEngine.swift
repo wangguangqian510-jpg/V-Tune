@@ -11,6 +11,7 @@ import MediaPlayer
 import AVFoundation
 
 import AudioToolbox
+import ActivityKit
 
 /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
 
@@ -24,6 +25,19 @@ enum PlaybackMode: String, CaseIterable {
 
     case shuffle
 
+}
+
+/// 灵动岛 / Live Activity 属性（主 App 与 Widget 扩展共用一份定义）。
+@available(iOS 16.1, *)
+struct JukeboxLiveActivityAttributes: ActivityAttributes {
+    public struct ContentState: Codable, Hashable {
+        var isPlaying: Bool
+        var elapsed: Double
+        var duration: Double
+        var currentLine: String
+    }
+    var title: String
+    var artist: String
 }
 
 /// 播放引擎：基于 AVPlayer 直连（本地文件与远程 URL 走同一条路），
@@ -205,6 +219,12 @@ final class PlayerEngine: ObservableObject {
     private var timeObserver: Any?
 
     private var cancellables = Set<AnyCancellable>()
+
+    /// 灵动岛 Live Activity 的 id（iOS 16.1+；UI 由 Widget 扩展提供）。
+    private var liveActivityID: String? = nil
+
+    /// 灵动岛定时刷新（每 5 秒同步一次进度/歌词行，避免高频推送）。
+    private var liveActivityTimer: Timer?
 
     init() {
 
@@ -620,9 +640,16 @@ final class PlayerEngine: ObservableObject {
 
                     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
 
+                    if #available(iOS 16.1, *) { self.updateLiveActivity() }
+
                 } else {
 
                     self.updateNowPlaying()
+
+                    if #available(iOS 16.1, *) {
+                        self.startLiveActivityIfNeeded()
+                        self.updateLiveActivity()
+                    }
 
                 }
 
@@ -643,6 +670,11 @@ final class PlayerEngine: ObservableObject {
         isPlaying = true
 
         updateNowPlaying()
+
+        if #available(iOS 16.1, *) {
+            startLiveActivityIfNeeded()
+            startLiveActivityTimer()
+        }
 
         // 异步提取内嵌封面 / MP4 视频首帧，作为黑胶中心图
 
@@ -754,6 +786,9 @@ final class PlayerEngine: ObservableObject {
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
 
+        liveActivityTimer?.invalidate()
+        liveActivityTimer = nil
+        if #available(iOS 16.1, *) { endLiveActivity() }
     }
 
     /// 异步提取内嵌封面（音频 artwork）或 MP4 视频首帧，赋值 engine.artwork。
@@ -796,6 +831,76 @@ final class PlayerEngine: ObservableObject {
 
         }
 
+    }
+
+    // MARK: - 灵动岛 / Live Activity（主 App 侧启动与更新；灵动岛 UI 由 Widget 扩展提供，见 JukeboxWidget.swift）
+
+    /// 当前时间对应的歌词行（用于灵动岛展示），无歌词返回空串。
+    private func currentLyricLine(at time: Double) -> String {
+        guard let lrc = lyrics, !lrc.isEmpty else { return "" }
+        var bestLine = ""
+        var bestTime = -1.0
+        for raw in lrc.split(separator: "\n") {
+            var s = String(raw)
+            guard let open = s.firstIndex(of: "["),
+                  let close = s[s.index(after: open)...].firstIndex(of: "]") else { continue }
+            let tag = s[s.index(after: open)..<close]
+            let parts = tag.split(separator: ":")
+            guard parts.count >= 2,
+                  let m = Double(parts[0]),
+                  let sec = Double(parts[1]) else { continue }
+            let t = m * 60 + sec
+            let text = s[s.index(after: close)...].trimmingCharacters(in: .whitespaces)
+            if t <= time, t > bestTime { bestTime = t; bestLine = text }
+        }
+        return bestLine
+    }
+
+    @available(iOS 16.1, *)
+    private var jukeboxActivityState: JukeboxLiveActivityAttributes.ContentState {
+        JukeboxLiveActivityAttributes.ContentState(
+            isPlaying: isPlaying,
+            elapsed: currentTime,
+            duration: duration,
+            currentLine: currentLyricLine(at: currentTime))
+    }
+
+    @available(iOS 16.1, *)
+    private func startLiveActivityIfNeeded() {
+        guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        if liveActivityID != nil { updateLiveActivity(); return }
+        let attrs = JukeboxLiveActivityAttributes(title: title, artist: artist)
+        do {
+            let activity = try Activity.request(attributes: attrs, contentState: jukeboxActivityState, pushType: nil)
+            liveActivityID = activity.id
+        } catch {
+            #if DEBUG
+            print("Live Activity 启动失败（缺 Widget 扩展或系统不支持）：\(error)")
+            #endif
+        }
+    }
+
+    @available(iOS 16.1, *)
+    private func updateLiveActivity() {
+        guard let id = liveActivityID,
+              let activity = Activity<JukeboxLiveActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
+        Task { await activity.update(using: jukeboxActivityState) }
+    }
+
+    @available(iOS 16.1, *)
+    private func endLiveActivity() {
+        guard let id = liveActivityID,
+              let activity = Activity<JukeboxLiveActivityAttributes>.activities.first(where: { $0.id == id }) else { return }
+        Task { await activity.end(dismissalPolicy: .immediate) }
+        liveActivityID = nil
+    }
+
+    @available(iOS 16.1, *)
+    private func startLiveActivityTimer() {
+        liveActivityTimer?.invalidate()
+        liveActivityTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.updateLiveActivity() }
+        }
     }
 
     // MARK: - 锁屏信息
