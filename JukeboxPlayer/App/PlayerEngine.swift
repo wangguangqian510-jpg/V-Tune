@@ -479,14 +479,16 @@ final class PlayerEngine: ObservableObject {
     /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
     func refreshEQDiagnostic() {
         let s = eqTap.snapshot()
+        let mixAttached = playerItem?.audioMix != nil
+        let trackCount = playerItem?.asset.tracks(withMediaType: .audio).count ?? 0
         if !eqEnabled {
             eqDiagnostic = "均衡器已关闭"
         } else if s.frames > 0 {
             eqDiagnostic = "✅ EQ 已生效 · 已处理 \(s.frames) 帧 · \(s.format)"
-        } else if let item = playerItem, item.audioMix != nil {
-            eqDiagnostic = "⏳ EQ 已挂接，等待音频数据 · \(s.format)"
+        } else if mixAttached {
+            eqDiagnostic = "⏳ EQ 已挂接(\(trackCount)轨)，等待音频数据 · \(s.format)"
         } else {
-            eqDiagnostic = "⚠️ EQ 未挂接（格式/曲目不支持）· \(s.format)"
+            eqDiagnostic = "⚠️ EQ 未挂接（无 audioMix / \(trackCount)轨）· \(s.format)"
         }
     }
 
@@ -519,7 +521,9 @@ final class PlayerEngine: ObservableObject {
             }
         )
         var tap: MTAudioProcessingTap?
-        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, 0, &tap)
+        // 用 PreEffects 标志创建 tap，确保在系统其他效果处理之前拿到解码后 PCM。
+        // 实测传 0 在某些 iOS/重签名环境下会导致 prepare/process 不被调用。
+        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PreEffects, &tap)
         if status == noErr { return tap }
         return nil
     }
