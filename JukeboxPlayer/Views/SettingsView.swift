@@ -197,7 +197,7 @@ struct SettingsView: View {
 
 
 
-            Section("个性皮肤") {
+            Section("个性化皮肤") {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("主题色")
                     HStack(spacing: 14) {
