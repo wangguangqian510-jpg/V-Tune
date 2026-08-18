@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 
 /// 持久化记录：存标题、路径、来源等，不存 Color（Color 不便于编码）。
 struct TrackRecord: Codable {
@@ -91,6 +92,11 @@ final class TrackStore: ObservableObject {
     @Published private(set) var importLog: [ImportLogEntry] = []
     private let importLogKey = "JukeboxImportLog_v1"
 
+    /// 最近播放记录（曲目 id，倒序，最多 50），用于「最近播放」页。
+    @Published private(set) var recentIDs: [UUID] = []
+    private let recentKey = "JukeboxRecentIDs_v1"
+    private var cancellables = Set<AnyCancellable>()
+
     init() {
         // UserDefaults.bool 对未设置的 key 返回 false，故用 object(forKey:) 区分「从未设置」与「显式关掉」，
         // 默认 true（复制到 App 沙盒，开箱即用最稳）；仅当用户在设置里显式开启「引用原文件」才为 false。
@@ -101,12 +107,29 @@ final class TrackStore: ObservableObject {
         loadFavorites()
         loadHiddenSamples()
         loadImportLog()
+        loadRecent()
         refresh()
+        setupObservers()
+    }
+
+    /// 监听播放引擎的「曲目开始播放」通知，记录最近播放。
+    private func setupObservers() {
+        NotificationCenter.default.publisher(for: .trackPlayed)
+            .sink { [weak self] n in
+                guard let id = n.userInfo?["id"] as? UUID else { return }
+                Task { @MainActor in self?.recordRecent(id) }
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - 派生数据
 
     var favoriteTracks: [Track] { tracks.filter { $0.isFavorite } }
+
+    /// 最近播放的曲目（按播放时间倒序）。
+    var recentTracks: [Track] {
+        recentIDs.compactMap { id in tracks.first(where: { $0.id == id }) }
+    }
 
     func tracks(in playlist: Playlist) -> [Track] {
         let set = Set(playlist.trackIDs)
@@ -157,6 +180,9 @@ final class TrackStore: ObservableObject {
             $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
         tracks = visibleSamples() + userTracks
+        // 清理已不存在的最近播放记录，避免指向已删除曲目
+        let existing = Set(tracks.map(\.id))
+        recentIDs = recentIDs.filter { existing.contains($0) }
     }
 
     /// 过滤掉被用户隐藏的示例曲
@@ -635,6 +661,25 @@ final class TrackStore: ObservableObject {
         guard let data = UserDefaults.standard.data(forKey: importLogKey),
               let list = try? JSONDecoder().decode([ImportLogEntry].self, from: data) else { return }
         importLog = list
+    }
+
+    private func recordRecent(_ id: UUID) {
+        recentIDs.removeAll { $0 == id }
+        recentIDs.insert(id, at: 0)
+        if recentIDs.count > 50 { recentIDs.removeLast() }
+        saveRecent()
+    }
+
+    private func saveRecent() {
+        if let data = try? JSONEncoder().encode(recentIDs) {
+            UserDefaults.standard.set(data, forKey: recentKey)
+        }
+    }
+
+    private func loadRecent() {
+        guard let data = UserDefaults.standard.data(forKey: recentKey),
+              let list = try? JSONDecoder().decode([UUID].self, from: data) else { return }
+        recentIDs = list
     }
 
     private func saveImportLog() {
