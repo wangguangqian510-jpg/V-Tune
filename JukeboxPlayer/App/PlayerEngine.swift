@@ -953,7 +953,7 @@ final class PlayerEngine: ObservableObject {
             info[MPMediaItemPropertyLyrics] = lockText
         }
         let lockImage = Self.compositeLyrics(onto: artwork, text: lockText)
-        info[MPMediaItemPropertyArtwork] = MPMediaItemPropertyArtwork(boundsSize: lockImage.size) { _ in lockImage }
+        info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: lockImage.size) { _ in lockImage }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
@@ -988,7 +988,7 @@ final class PlayerEngine: ObservableObject {
                           UIColor.black.withAlphaComponent(0.8).cgColor] as CFArray
             if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
                                      colors: colors, locations: [0.5, 1.0]) {
-                ctx.drawLinearGradient(grad,
+                ctx.cgContext.drawLinearGradient(grad,
                                        start: CGPoint(x: size.width / 2, y: size.height * 0.5),
                                        end: CGPoint(x: size.width / 2, y: size.height),
                                        options: [])
