@@ -2,6 +2,9 @@ import SwiftUI
 
 import PhotosUI
 
+/// 纯 String 常量：避免 SWIFT_EMIT_LOC_STRINGS 把 Section/Text 标题抽进本地化目录导致二进制里缺失。
+private let skinSectionTitle = "个性化皮肤"
+
 
 
 /// 设置页展示的存储与曲库概况。
@@ -198,7 +201,7 @@ struct SettingsView: View {
 
 
             Section {
-                Text(verbatim: "个性化皮肤")
+                Text(verbatim: skinSectionTitle)
                     .font(.headline)
                 VStack(alignment: .leading, spacing: 8) {
                     Text("主题色")
