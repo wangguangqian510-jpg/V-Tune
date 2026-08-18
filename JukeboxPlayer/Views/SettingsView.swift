@@ -1,5 +1,7 @@
 import SwiftUI
 
+import PhotosUI
+
 
 
 /// 设置页展示的存储与曲库概况。
@@ -59,6 +61,8 @@ struct SettingsView: View {
     @State private var showingCleared = false
 
     @State private var clearResult: String?
+
+    @State private var showPhotoPicker = false
 
 
 
@@ -193,6 +197,45 @@ struct SettingsView: View {
 
 
 
+            Section("个性皮肤") {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("主题色")
+                    HStack(spacing: 14) {
+                        ForEach(AccentColor.allCases) { c in
+                            Circle()
+                                .fill(c.color)
+                                .frame(width: 28, height: 28)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(store.accentColorName == c.rawValue ? Color.white : Color.clear, lineWidth: 3)
+                                )
+                                .onTapGesture { store.accentColorName = c.rawValue }
+                        }
+                    }
+                }
+                Picker("背景", selection: $store.backgroundMode) {
+                    ForEach(BackgroundMode.allCases) { m in
+                        Text(m.displayName).tag(m.rawValue)
+                    }
+                }
+                if store.backgroundModeEnum == .custom {
+                    Button { showPhotoPicker = true } label: {
+                        Label("选择背景图片", systemImage: "photo")
+                    }
+                    if store.loadCustomBackground() != nil {
+                        Button(role: .destructive) {
+                            store.clearCustomBackground()
+                        } label: {
+                            Label("清除背景图片", systemImage: "trash")
+                        }
+                    }
+                }
+                Text("自定义背景图会复制到 App 沙盒（与导入音频一致，卸载即删除）。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+
             if store.importDiagnosticsEnabled {
 
                 Section("导入记录") {
@@ -287,6 +330,10 @@ struct SettingsView: View {
 
         }
 
+        .sheet(isPresented: $showPhotoPicker) {
+            PhotoPicker(onPick: { img in _ = store.setCustomBackground(img) })
+        }
+
     }
 
 
@@ -309,5 +356,38 @@ struct SettingsView: View {
 
     }
 
+}
+
+/// 从系统相册选择一张图片作为播放页背景（PHPicker，iOS 14+，无需相册授权）。
+struct PhotoPicker: UIViewControllerRepresentable {
+    var onPick: (UIImage) -> Void
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    func makeCoordinator() -> Coordinator { Coordinator(self) }
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: PhotoPicker
+        init(_ parent: PhotoPicker) { self.parent = parent }
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            picker.dismiss(animated: true)
+            guard let provider = results.first?.itemProvider,
+                  provider.canLoadObject(ofClass: UIImage.self) else { return }
+            provider.loadObject(ofClass: UIImage.self) { object, _ in
+                if let image = object as? UIImage {
+                    DispatchQueue.main.async { self.parent.onPick(image) }
+                }
+            }
+        }
+    }
 }
 
