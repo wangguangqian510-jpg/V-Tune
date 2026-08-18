@@ -480,6 +480,10 @@ final class PlayerEngine: ObservableObject {
 
         artwork = track.artwork
 
+        if track.artwork == nil {
+            Task { await self.fetchOnlineArtwork(title: track.title, artist: track.artist) }
+        }
+
         isLoading = true
 
         lastError = nil
@@ -813,13 +817,41 @@ final class PlayerEngine: ObservableObject {
         info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
 
         if let lyrics = lyrics, !lyrics.isEmpty {
-
-            info[MPMediaItemPropertyLyrics] = lyrics
-
+            info[MPMediaItemPropertyLyrics] = Self.plainLyrics(lyrics)
+        }
+        if let art = artwork {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(image: art)
         }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
+    }
+
+    /// 把带时间轴的 LRC 转成纯文本（去掉 [mm:ss.xx] 行首时间戳），用于锁屏歌词显示（锁屏不支持逐行高亮）。
+    private static func plainLyrics(_ lrc: String) -> String {
+        lrc.split(separator: "\n").map { line in
+            var s = line
+            while let open = s.firstIndex(of: "["), let close = s[s.index(after: open)...].firstIndex(of: "]") {
+                s.removeSubrange(open...close)
+            }
+            return s.trimmingCharacters(in: .whitespaces)
+        }.filter { !$0.isEmpty }.joined(separator: "\n")
+    }
+
+    /// 内嵌封面为空时，异步拉取在线专辑图（iTunes Search API，免费无需密钥）兜底，解决「部分歌曲识别不到头像」。
+    private func fetchOnlineArtwork(title: String, artist: String) async {
+        let term = "\(artist) \(title)".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        guard let url = URL(string: "https://itunes.apple.com/search?term=\(term)&entity=song&limit=1") else { return }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return }
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let results = json["results"] as? [[String: Any]],
+              let first = results.first,
+              let artUrlStr = first["artworkUrl100"] as? String,
+              let artUrl = URL(string: artUrlStr.replacingOccurrences(of: "100x100", with: "300x300")) else { return }
+        guard let (imgData, _) = try? await URLSession.shared.data(from: artUrl),
+              let img = UIImage(data: imgData) else { return }
+        self.artwork = img
+        updateNowPlaying()
     }
 
     // MARK: - 音频会话
