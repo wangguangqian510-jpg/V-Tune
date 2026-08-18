@@ -71,7 +71,7 @@ private struct LyricsService {
                            URLQueryItem(name: "artist", value: artist)]
         guard let url = comp.url else { return nil }
         var req = URLRequest(url: url, timeoutInterval: 15)
-        req.setValue("JukeboxPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("YueYing/1.0", forHTTPHeaderField: "User-Agent")
         let (data, _) = try await URLSession.shared.data(for: req)
         return String(data: data, encoding: .utf8)
     }
@@ -103,7 +103,7 @@ private struct LyricsService {
             throw NSError(domain: "Lyrics", code: -3, userInfo: [NSLocalizedDescriptionKey: "无效 ID"])
         }
         var req = URLRequest(url: url, timeoutInterval: 15)
-        req.setValue("JukeboxPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        req.setValue("YueYing/1.0", forHTTPHeaderField: "User-Agent")
         let (data, _) = try await URLSession.shared.data(for: req)
         guard let d = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(domain: "Lyrics", code: -2, userInfo: [NSLocalizedDescriptionKey: "解析失败"])
@@ -199,6 +199,7 @@ struct NowPlayingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
+            .gesture(dismissSwipe)
         .foregroundStyle(.white)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
@@ -215,8 +216,6 @@ struct NowPlayingView: View {
                 Image(systemName: "chevron.down").font(.title3).foregroundStyle(.white)
             }
             Spacer()
-            Text("正在播放").font(.headline)
-            Spacer()
             HStack(spacing: 20) {
                 Button { showLyrics.toggle() } label: {
                     Image(systemName: "text.quote").font(.title3).foregroundStyle(.white)
@@ -226,6 +225,17 @@ struct NowPlayingView: View {
                 }
             }
         }
+    }
+
+    /// 水平滑动返回：在播放页空白/黑胶区域左右滑动即可回到主页。
+    private var dismissSwipe: some Gesture {
+        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+            .onEnded { value in
+                let w = value.translation.width
+                let h = value.translation.height
+                guard abs(w) > abs(h), abs(w) > 80 else { return }
+                dismiss()
+            }
     }
     // MARK: Artwork (黑胶旋转)
     private var artwork: some View {
