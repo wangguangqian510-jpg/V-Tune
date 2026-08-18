@@ -213,6 +213,9 @@ struct SettingsView: View {
                         }
                     }
                 }
+                Text("主题色会同步到播放页的按钮与进度条")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker("背景", selection: $store.backgroundMode) {
                     ForEach(BackgroundMode.allCases) { m in
                         Text(m.displayName).tag(m.rawValue)
