@@ -51,6 +51,8 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var isPlaying: Bool = false
 
     @Published private(set) var currentTime: Double = 0
+    /// 实时播放进度（直接读 AVPlayer，供黑胶旋转用），不受 currentTime 发布节流影响。
+    var liveCurrentTime: Double { player?.currentTime().seconds ?? 0 }
 
     @Published private(set) var duration: Double = 0
 
@@ -476,7 +478,7 @@ final class PlayerEngine: ObservableObject {
 
         }
 
-        artwork = nil
+        artwork = track.artwork
 
         isLoading = true
 
@@ -640,7 +642,7 @@ final class PlayerEngine: ObservableObject {
 
         // 异步提取内嵌封面 / MP4 视频首帧，作为黑胶中心图
 
-        loadArtwork(for: asset)
+        if track.artwork == nil { loadArtwork(for: asset) }
 
         // 通知曲库记录「最近播放」
 
