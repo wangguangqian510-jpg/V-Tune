@@ -170,11 +170,9 @@ final class TrackStore: ObservableObject {
 
     /// true=复制到 App 沙盒（最稳，默认）。默认复制，保证导入开箱即用；引用模式在设置里可手动开启。
 
-    var importByCopy: Bool {
-
-        didSet { UserDefaults.standard.set(importByCopy, forKey: importByCopyKey) }
-
-    }
+    /// 导入模式：强制复制到 App 沙盒（最稳，重签名/旁载环境可靠）。
+    /// 引用原文件（不复制）模式已废弃：重签名侧载 App 中书签解析经常失败，导致导入空白/进度无、刷新时记录消失像被全删。
+    var importByCopy: Bool = true
 
     /// 当前已 startAccessing 的引用原文件 URL（保持作用域，供 AVPlayer 播放），refresh 时整体刷新。
 
