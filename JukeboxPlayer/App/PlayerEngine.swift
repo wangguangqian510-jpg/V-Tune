@@ -173,9 +173,10 @@ final class PlayerEngine: ObservableObject {
         let asset = AVURLAsset(url: track.url)
         let item = AVPlayerItem(asset: asset)
         playerItem = item
+        // EQ 必须先在 AVPlayerItem 上挂好 audioMix，再交给 AVPlayer，否则 tap 可能永远不触发 prepare。
+        applyEQToCurrentItem()
         player = AVPlayer(playerItem: item)
         player?.volume = volume
-        applyEQToCurrentItem()
 
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -210,8 +211,7 @@ final class PlayerEngine: ObservableObject {
                     let d = CMTimeGetSeconds(item.duration)
                     if d.isFinite, d > 0 { self.duration = d }
                     self.isLoading = false
-                    // item ready 后再确保 audioMix/EQ 挂上，避免 item 创建后过早设置不生效
-                    self.applyEQToCurrentItem()
+                    // EQ 已在 setupAndPlay 中提前挂接；这里不再重复 replace，避免播放中断。
                 case .failed:
                     self.isLoading = false
                     self.lastError = item.error?.localizedDescription ?? "播放失败"
@@ -371,29 +371,79 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: - EQ 音效（MTAudioProcessingTap，默认关闭）
 
-    /// 根据开关/预设，给当前 playerItem 挂上或卸下 EQ 音频混合。eqEnabled 关闭时直接卸下。
+    /// 根据开关/预设，给当前 playerItem 挂上或卸下 EQ 音频混合。
+    /// 关键点：
+    /// - 必须先把 audioMix 挂到 AVPlayerItem，再交给 AVPlayer，否则 tap 的 prepare 可能永远不触发。
+    /// - 如果 player 已经在播，需要 replaceCurrentItem 才能让新的 audioMix 生效。
+    /// - AVMutableAudioMixInputParameters 必须绑定到 asset 的真实音轨 trackID，默认 trackID=0 不会生效。
     private func applyEQToCurrentItem() {
         guard let item = playerItem else { return }
+
         guard eqEnabled, let bands = EQAudioTap.presets[eqPreset] else {
             item.audioMix = nil
             processingTap = nil
+            replaceCurrentItemIfNeeded()
             refreshEQDiagnostic()
             return
         }
+
         eqTap.setBands(bands)
         guard let tap = createEQTap() else {
             item.audioMix = nil
             processingTap = nil
+            replaceCurrentItemIfNeeded()
             refreshEQDiagnostic()
             return
         }
         processingTap = tap
-        let params = AVMutableAudioMixInputParameters()
-        params.audioTapProcessor = tap
+
+        // 本地文件通常能同步取到音轨；远程/未加载完成的 fallback 到异步加载后再试一次。
+        let audioTracks = item.asset.tracks(withMediaType: .audio)
+        if audioTracks.isEmpty {
+            Task { @MainActor [weak self] in
+                guard let self = self, self.playerItem === item else { return }
+                do {
+                    let tracks = try await item.asset.loadTracks(withMediaType: .audio)
+                    guard !tracks.isEmpty else { return }
+                    self.applyEQToCurrentItem()
+                } catch {
+                    #if DEBUG
+                    print("EQ 异步加载音轨失败: \(error)")
+                    #endif
+                }
+            }
+            return
+        }
+
+        var params: [AVAudioMixInputParameters] = []
+        for track in audioTracks {
+            let p = AVMutableAudioMixInputParameters()
+            p.trackID = track.trackID
+            p.audioTapProcessor = tap
+            params.append(p)
+        }
         let mix = AVMutableAudioMix()
-        mix.inputParameters = [params]
+        mix.inputParameters = params
         item.audioMix = mix
+
+        replaceCurrentItemIfNeeded()
         refreshEQDiagnostic()
+    }
+
+    /// 当 player 已在播放时，audioMix 变化需要 replaceCurrentItem 才会被重新采纳。
+    private func replaceCurrentItemIfNeeded() {
+        guard let player = player, let item = playerItem else { return }
+        let wasPlaying = isPlaying
+        let ct = currentTime
+        player.replaceCurrentItem(with: nil)
+        player.replaceCurrentItem(with: item)
+        if ct > 0 {
+            player.seek(to: CMTime(seconds: ct, preferredTimescale: CMTimeScale(NSEC_PER_SEC)), toleranceBefore: .zero, toleranceAfter: .zero) { _ in }
+        }
+        if wasPlaying {
+            player.play()
+            isPlaying = true
+        }
     }
 
     /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
