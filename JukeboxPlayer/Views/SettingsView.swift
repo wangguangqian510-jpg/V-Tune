@@ -135,95 +135,113 @@ struct SettingsView: View {
 
             Section("导入诊断") {
 
-                Button {
+                Toggle("记录导入诊断日志", isOn: $store.importDiagnosticsEnabled)
 
-                    store.noteImport("(测试)", ok: true, message: "日志功能正常；若此处有记录而导入后没有，说明导入入口未触发")
+                if store.importDiagnosticsEnabled {
 
-                } label: {
+                    Button {
 
-                    Label("测试写入一条导入记录", systemImage: "doc.text.magnifyingglass")
+                        store.noteImport("(测试)", ok: true, message: "日志功能正常；若此处有记录而导入后没有，说明导入入口未触发")
+
+                    } label: {
+
+                        Label("测试写入一条导入记录", systemImage: "doc.text.magnifyingglass")
+
+                    }
+
+                    HStack {
+
+                        Text("文档类型注册")
+
+                        Spacer()
+
+                        Text(docTypesRegistered ? "已注册" : "未注册")
+
+                            .foregroundStyle(docTypesRegistered ? .green : .red)
+
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+
+                        Text("正确导入方式：").bold()
+
+                        Text("1. 应用内：曲库页右上角 + → 从 Files 导入（批量）")
+
+                        Text("2. 导入强制「复制进 App」：重签名/轻松签环境最稳可靠（原始文件可保留在 Files 自行管理）")
+
+                        Text("3. 歌词：播放页点「歌词」→「在线搜」，按歌名/歌手自动拉取")
+
+                        Text("4. 文件 App 分享：长按音频/视频文件 → 共享 → 选 乐影")
+
+                    }
+
+                    .font(.caption)
+
+                    .foregroundStyle(.secondary)
+
+                } else {
+
+                    Text("开启后才会记录每次导入的触发/成功/失败详情，并显示导入记录。日常导入建议关闭以减少打扰。")
+
+                        .font(.caption)
+
+                        .foregroundStyle(.secondary)
 
                 }
-
-                HStack {
-
-                    Text("文档类型注册")
-
-                    Spacer()
-
-                    Text(docTypesRegistered ? "已注册" : "未注册")
-
-                        .foregroundStyle(docTypesRegistered ? .green : .red)
-
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-
-                    Text("正确导入方式：").bold()
-
-                    Text("1. 应用内：曲库页右上角 + → 从 Files 导入（批量）")
-
-                    Text("2. 导入强制「复制进 App」：重签名/轻松签环境最稳可靠（代价约 2 倍空间，原始文件可保留在 Files 自行管理）。引用原文件模式已废弃")
-
-                    Text("3. 歌词：播放页点「歌词」→「在线搜」，按歌名/歌手自动拉取，无需手动准备 .lrc 文件")
-
-                    Text("4. 文件 App 分享：长按 音频/视频 文件 → 共享/更多 → 选 Jukebox。注意：轻松签/非 App Store 安装的 App 可能不出现在系统分享列表，此时请改用应用内导入")
-
-                }
-
-                .font(.caption)
-
-                .foregroundStyle(.secondary)
 
             }
 
 
 
-            Section("导入记录") {
+            if store.importDiagnosticsEnabled {
 
-                if store.importLog.isEmpty {
+                Section("导入记录") {
 
-                    Text("暂无导入记录（导入一次后会在此显示触发/成功/失败与报错原文）").foregroundStyle(.secondary)
+                    if store.importLog.isEmpty {
 
-                } else {
+                        Text("暂无导入记录（导入一次后会在此显示触发/成功/失败与报错原文）").foregroundStyle(.secondary)
 
-                    ForEach(store.importLog) { entry in
+                    } else {
 
-                        VStack(alignment: .leading, spacing: 4) {
+                        ForEach(store.importLog) { entry in
 
-                            HStack {
+                            VStack(alignment: .leading, spacing: 4) {
 
-                                Image(systemName: entry.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
+                                HStack {
 
-                                    .foregroundStyle(entry.ok ? .green : .red)
+                                    Image(systemName: entry.ok ? "checkmark.circle.fill" : "xmark.circle.fill")
 
-                                Text(entry.fileName)
+                                        .foregroundStyle(entry.ok ? .green : .red)
 
-                                    .font(.subheadline)
+                                    Text(entry.fileName)
 
-                                    .lineLimit(1)
+                                        .font(.subheadline)
 
-                                Spacer()
+                                        .lineLimit(1)
 
-                                Text(entry.time, style: .time)
+                                    Spacer()
 
-                                    .font(.caption2)
+                                    Text(entry.time, style: .time)
+
+                                        .font(.caption2)
+
+                                        .foregroundStyle(.secondary)
+
+                                }
+
+                                Text(entry.message)
+
+                                    .font(.caption)
 
                                     .foregroundStyle(.secondary)
 
+                                    .fixedSize(horizontal: false, vertical: true)
+
                             }
 
-                            Text(entry.message)
-
-                                .font(.caption)
-
-                                .foregroundStyle(.secondary)
-
-                                .fixedSize(horizontal: false, vertical: true)
+                            .padding(.vertical, 2)
 
                         }
-
-                        .padding(.vertical, 2)
 
                     }
 
