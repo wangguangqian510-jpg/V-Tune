@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Combine
 
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
@@ -22,14 +23,18 @@ struct NowPlayingView: View {
                 progress
                 controls
                 volume
+                eqPanel
                 Spacer(minLength: 0)
                 queueToggle
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
-            .foregroundStyle(.white)
+        .foregroundStyle(.white)
+        .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
+            engine.refreshEQDiagnostic()
+        }
 
-            if showQueue { queueSheet }
+        if showQueue { queueSheet }
             if showLyrics { lyricsSheet }
         }
     }
@@ -140,6 +145,29 @@ struct NowPlayingView: View {
             Slider(value: $engine.volume, in: 0...1).tint(.white)
             Image(systemName: "speaker.wave.2.fill").foregroundStyle(.white.opacity(0.7))
         }
+    }
+
+    // MARK: EQ 音效面板（移到播放页，方便边听边调）
+    private var eqPanel: some View {
+        VStack(spacing: 10) {
+            Toggle("均衡器 EQ", isOn: $engine.eqEnabled)
+                .tint(.white)
+                .font(.subheadline)
+            if engine.eqEnabled {
+                Picker("预设", selection: $engine.eqPreset) {
+                    ForEach(Array(EQAudioTap.presets.keys.sorted()), id: \.self) { name in
+                        Text(name)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .colorScheme(.dark)
+                Text(engine.eqDiagnostic)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.65))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(.horizontal, 4)
     }
 
     // MARK: Queue
