@@ -34,6 +34,8 @@ final class PlayerEngine: ObservableObject {
     @Published private(set) var album: String = ""
     @Published private(set) var artwork: UIImage?
     @Published private(set) var lyrics: String?
+    /// 当前曲目是否为视频文件（MP4/MOV 等），由 setupAndPlay 检测，用于切换视频播放界面。
+    @Published var isVideo: Bool = false
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var lastError: String?
     /// 用户正在拖动进度条时为 true：期间周期观察器不回写 currentTime，避免与滑块互相打架。
@@ -80,10 +82,12 @@ final class PlayerEngine: ObservableObject {
         }
     }
     /// 当前生效的 10 段增益（dB），由预设填充或被图形化滑块修改。
+    /// 关键修复：didSet 只把新增益喂给已存在的 tap（不重建 audioMix / 不 replaceCurrentItem），
+    /// 否则拖动 10 段滑块会连续触发 replaceCurrentItem，把 AVPlayer 反复替换导致卡死/静音。
     @Published var eqBands: [Double] = Array(repeating: 0, count: EQAudioTap.bandCount) {
         didSet {
             UserDefaults.standard.set(eqBands, forKey: eqBandsKey)
-            applyEQToCurrentItem()
+            updateEQBandsOnly()
         }
     }
     /// UI 选中的预设名（仅用于展示；选预设会填充 eqBands）。
@@ -104,6 +108,8 @@ final class PlayerEngine: ObservableObject {
 
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
+    /// 暴露底层 AVPlayer 给视频播放界面（VideoPlayer）复用，避免重复创建播放器。
+    var avPlayer: AVPlayer? { player }
     private var timeObserver: Any?
     private var cancellables = Set<AnyCancellable>()
 
@@ -249,12 +255,19 @@ final class PlayerEngine: ObservableObject {
         artist = track.artist
         album = track.album
         lyrics = track.lyrics
+        // 覆盖：用户后期粘贴/导入的歌词（按曲目 id 持久化）优先于内嵌歌词
+        if let custom = UserDefaults.standard.string(forKey: lyricsKey(for: track.id)), !custom.isEmpty {
+            lyrics = custom
+        }
         artwork = nil
         isLoading = true
         lastError = nil
+        isVideo = false
 
         let asset = AVURLAsset(url: track.url)
         let item = AVPlayerItem(asset: asset)
+        // 检测是否为视频文件（MP4/MOV 等），供视频播放界面切换
+        isVideo = !asset.tracks(withMediaType: .video).isEmpty
         playerItem = item
         // EQ 必须先在 AVPlayerItem 上挂好 audioMix，再交给 AVPlayer，否则 tap 可能永远不触发 prepare。
         applyEQToCurrentItem()
@@ -499,6 +512,40 @@ final class PlayerEngine: ObservableObject {
         }
     }
 
+    // MARK: - 歌词（粘贴 / 导入 / 内置示例，按曲目持久化）
+
+    private func lyricsKey(for id: UUID) -> String { "JukeboxLyrics_\(id.uuidString)" }
+
+    /// 设置当前播放曲目的歌词（粘贴或导入 LRC/纯文本），按曲目 id 持久化到 UserDefaults。
+    /// 空字符串表示清除。
+    func setLyricsForCurrent(_ text: String) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        lyrics = trimmed.isEmpty ? nil : trimmed
+        if let id = tracks[safe: currentIndex]?.id {
+            if trimmed.isEmpty {
+                UserDefaults.standard.removeObject(forKey: lyricsKey(for: id))
+            } else {
+                UserDefaults.standard.set(trimmed, forKey: lyricsKey(for: id))
+            }
+        }
+    }
+
+    /// 内置示例 LRC，用于没有歌词的歌曲验证「歌词偏移」功能。
+    func loadSampleLyricsForCurrent() {
+        let sample = """
+        [00:00.00]Jukebox 示例歌词
+        [00:04.00]这是一段内置的 LRC
+        [00:08.00]用来测试歌词偏移 ±0.5s
+        [00:12.00]点击 +/- 调整时间轴
+        [00:16.00]看歌词是否同步滚动
+        [00:20.00]music ♪ ~ ♪
+        [00:24.00]如果偏了就再微调
+        [00:28.00]直到对上演唱的节奏
+        [00:32.00]Enjoy your music
+        """
+        setLyricsForCurrent(sample)
+    }
+
     // MARK: - EQ 音效（MTAudioProcessingTap，默认关闭）
 
     /// 根据开关/预设，给当前 playerItem 挂上或卸下 EQ 音频混合。
@@ -506,6 +553,8 @@ final class PlayerEngine: ObservableObject {
     /// - 必须先把 audioMix 挂到 AVPlayerItem，再交给 AVPlayer，否则 tap 的 prepare 可能永远不触发。
     /// - 如果 player 已经在播，需要 replaceCurrentItem 才能让新的 audioMix 生效。
     /// - AVMutableAudioMixInputParameters 必须绑定到 asset 的真实音轨 trackID，默认 trackID=0 不会生效。
+    /// - 注意：本方法只在「开关切换 / 切歌 / 音轨首次就绪」时被调用（会 replaceCurrentItem）。
+    ///   单纯调整增益（拖动滑块）走 updateEQBandsOnly，不 replace，避免播放卡死。
     private func applyEQToCurrentItem() {
         guard let item = playerItem else { return }
 
@@ -519,8 +568,10 @@ final class PlayerEngine: ObservableObject {
         // 开启但增益全 0（理论上 selectPreset 已填，这里是兜底）：自动补一个预设，避免「开了却没变化」。
         var bands = eqBands
         if bands.allSatisfy({ $0 == 0 }) {
-            bands = EQAudioTap.presets[eqPreset] ?? EQAudioTap.presets["低音"] ?? Array(repeating: 0, count: EQAudioTap.bandCount)
-            eqBands = bands
+            let filled = EQAudioTap.presets[eqPreset] ?? EQAudioTap.presets["低音"] ?? Array(repeating: 0, count: EQAudioTap.bandCount)
+            bands = filled
+            // 同步到 eqBands 让 UI 显示预设值；didSet 走 updateEQBandsOnly，此时 audioMix 已挂好不会 replace
+            eqBands = filled
         }
 
         eqTap.setBands(bands)
@@ -581,7 +632,18 @@ final class PlayerEngine: ObservableObject {
         }
         if wasPlaying {
             player.play()
+            player.rate = playbackRate   // 关键：replaceCurrentItem 会重置 rate，必须恢复用户设定的速度
             isPlaying = true
+        }
+    }
+
+    /// 拖动 10 段滑块时只把新增益喂给已存在的 tap，**不重建 audioMix、不 replaceCurrentItem**。
+    /// MTAudioProcessingTap 的设计允许直接在渲染线程用新系数（内部有锁），无需重新挂接。
+    /// 仅当 EQ 已开启但当前 item 还没挂上 tap（首次开启 / 切歌后）时才补一次完整挂接。
+    private func updateEQBandsOnly() {
+        eqTap.setBands(eqBands)
+        if eqEnabled, playerItem?.audioMix == nil {
+            applyEQToCurrentItem()
         }
     }
 
