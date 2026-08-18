@@ -1,7 +1,6 @@
 import Foundation
 import SwiftUI
 import Combine
-
 /// 持久化记录：存标题、路径、来源等，不存 Color（Color 不便于编码）。
 struct TrackRecord: Codable {
     let id: UUID
@@ -19,7 +18,6 @@ struct TrackRecord: Codable {
     /// 导入去重指纹（源文件名|文件大小），仅 imported 用；相同指纹视为同一文件，不再新增记录
     let fingerprint: String?
 }
-
 /// 歌单 JSON 导入时的可预期错误。
 enum ImportError: LocalizedError {
     case invalidFormat
@@ -35,7 +33,6 @@ enum ImportError: LocalizedError {
         }
     }
 }
-
 /// 导入尝试的持久化日志记录（成功/失败 + 原文），供「设置 -> 导入记录」展示，
 /// 用于在无 Xcode 环境下定位「导入失败但无提示」的静默问题。
 struct ImportLogEntry: Codable, Identifiable {
@@ -45,7 +42,6 @@ struct ImportLogEntry: Codable, Identifiable {
     let ok: Bool
     let message: String
 }
-
 /// 管理示例曲 + 用户导入的本地/远程音频 + 歌单 + 收藏。
 /// 本地音频复制到 App Documents 目录，元数据用 JSON 存 UserDefaults。
 @MainActor
@@ -55,16 +51,13 @@ final class TrackStore: ObservableObject {
     /// 仅在「曲库结构」变化（导入/删除）时自增，用于触发播放引擎重载；
     /// 收藏态变化不计入，避免一点收藏就打断播放。
     @Published private(set) var catalogVersion: Int = 0
-
     /// 导入结果提示（成功/失败），供 UI 弹窗。Release 构建下 #if DEBUG 的 print 会被裁掉，
     /// 必须走 UI 提示，否则「分享导入失败」会静默吞掉，表现成「进 App 主页无事发生」。
     @Published private(set) var importNotice: String?
-
     /// 导入成功/失败时由导入逻辑写入提示。
     func reportImportResult(_ message: String) { importNotice = message }
     /// UI 弹窗关闭时清除提示。
     func dismissImportNotice() { importNotice = nil }
-
     /// 记录一次导入尝试（成功/失败），持久化供「导入记录」页查看。
     func noteImport(_ fileName: String, ok: Bool, message: String) {
         let entry = ImportLogEntry(time: Date(), fileName: fileName, ok: ok, message: message)
@@ -72,7 +65,6 @@ final class TrackStore: ObservableObject {
         if importLog.count > 50 { importLog.removeLast() }
         saveImportLog()
     }
-
     private let fileManager = FileManager.default
     private let recordsKey = "JukeboxTrackRecords_v1"
     private let playlistsKey = "JukeboxPlaylists_v1"
@@ -93,12 +85,10 @@ final class TrackStore: ObservableObject {
     /// 导入尝试日志（最新在前），持久化到 UserDefaults，供「设置 -> 导入记录」展示。
     @Published private(set) var importLog: [ImportLogEntry] = []
     private let importLogKey = "JukeboxImportLog_v1"
-
     /// 最近播放记录（曲目 id，倒序，最多 50），用于「最近播放」页。
     @Published private(set) var recentIDs: [UUID] = []
     private let recentKey = "JukeboxRecentIDs_v1"
     private var cancellables = Set<AnyCancellable>()
-
     init() {
         // UserDefaults.bool 对未设置的 key 返回 false，故用 object(forKey:) 区分「从未设置」与「显式关掉」，
         // 默认 true（复制到 App 沙盒，开箱即用最稳）；仅当用户在设置里显式开启「引用原文件」才为 false。
@@ -113,7 +103,6 @@ final class TrackStore: ObservableObject {
         refresh()
         setupObservers()
     }
-
     /// 监听播放引擎的「曲目开始播放」通知，记录最近播放。
     private func setupObservers() {
         NotificationCenter.default.publisher(for: .trackPlayed)
@@ -123,52 +112,77 @@ final class TrackStore: ObservableObject {
             }
             .store(in: &cancellables)
     }
-
     // MARK: - 派生数据
-
     var favoriteTracks: [Track] { tracks.filter { $0.isFavorite } }
-
     /// 首页「歌曲」页应展示的曲目：未加入任何歌单的曲目（即尚未被归档的曲目）。
     /// 用户选择「移动到歌单」后，曲目从首页消失，但仍可在对应歌单、歌手、专辑、我喜欢页找到。
     var libraryTracks: [Track] {
         let playlistIDs = Set(playlists.flatMap { $0.trackIDs })
         return tracks.filter { !playlistIDs.contains($0.id) }
     }
-
     /// 最近播放的曲目（按播放时间倒序）。
     var recentTracks: [Track] {
         recentIDs.compactMap { id in tracks.first(where: { $0.id == id }) }
     }
-
     func tracks(in playlist: Playlist) -> [Track] {
         let set = Set(playlist.trackIDs)
         return tracks.filter { set.contains($0.id) }
     }
-
     // MARK: - 重建曲库
-
     /// 重新扫描本地文件 + 重建播放列表。收藏状态从 favoriteIDs 回填。
     func refresh() {
         // 释放上一次 refresh 时持有的安全作用域，避免长期累积
         for u in accessedReferencedURLs { u.stopAccessingSecurityScopedResource() }
         accessedReferencedURLs.removeAll()
-
         guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             tracks = visibleSamples()
             return
         }
-
-        // 清理 dangling：imported 记录指向的文件已不存在（如重复导入产生的坏记录）则移除，
+        // 清理 dangling：
+        // - imported 记录指向的文件已不存在（如重复导入产生的坏记录）
+        // - referenced 记录的书签失效或原文件已被删除
         // 解决「列表出现重复且无法播放」的残留。
-        var removedDangling = false
-        for (id, rec) in records where rec.source == .imported {
-            let u = docs.appendingPathComponent(rec.urlString)
-            if !fileManager.fileExists(atPath: u.path) {
-                records.removeValue(forKey: id)
-                removedDangling = true
+        var removedIDs: [UUID] = []
+        for (id, rec) in records {
+            switch rec.source {
+            case .imported:
+                let u = docs.appendingPathComponent(rec.urlString)
+                if !fileManager.fileExists(atPath: u.path) {
+                    records.removeValue(forKey: id)
+                    removedIDs.append(id)
+                }
+            case .referenced:
+                guard let bm = rec.bookmark else {
+                    records.removeValue(forKey: id)
+                    removedIDs.append(id)
+                    continue
+                }
+                var stale = false
+                do {
+                    let resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    if stale || !fileManager.fileExists(atPath: resolved.path) {
+                        records.removeValue(forKey: id)
+                        removedIDs.append(id)
+                    }
+                } catch {
+                    records.removeValue(forKey: id)
+                    removedIDs.append(id)
+                }
+            case .remote, .sample:
+                break
             }
         }
-        if removedDangling { saveRecords() }
+        if !removedIDs.isEmpty { saveRecords() }
+
+        // 同步清理歌单里已不存在的曲目 id（引用原文件被外部删除后会留下 dangling id）。
+        let validIDs = Set(records.values.map(\.id))
+        var playlistsChanged = false
+        for i in playlists.indices {
+            let before = playlists[i].trackIDs.count
+            playlists[i].trackIDs.removeAll { !validIDs.contains($0) }
+            if playlists[i].trackIDs.count != before { playlistsChanged = true }
+        }
+        if playlistsChanged { savePlaylists() }
 
         var userTracks: [Track] = []
         for record in records.values {
@@ -196,7 +210,6 @@ final class TrackStore: ObservableObject {
                 break
             }
         }
-
         userTracks.sort {
             $0.title.localizedStandardCompare($1.title) == .orderedAscending
         }
@@ -205,12 +218,10 @@ final class TrackStore: ObservableObject {
         let existing = Set(tracks.map(\.id))
         recentIDs = recentIDs.filter { existing.contains($0) }
     }
-
     /// 过滤掉被用户隐藏的示例曲
     private func visibleSamples() -> [Track] {
         Track.samples.filter { !hiddenSampleIDs.contains($0.id) }
     }
-
     private func makeTrack(record: TrackRecord, url: URL, source: TrackSource) -> Track {
         Track(
             id: record.id,
@@ -224,9 +235,7 @@ final class TrackStore: ObservableObject {
             lyrics: record.lyrics
         )
     }
-
     // MARK: - 导入
-
     /// 包装层：统一记录导入日志（触发/成功/失败 + 原文），再交给真正实现。
     /// 两条入口（onOpenURL 分享 / fileImporter 应用内）都走这里，日志一处覆盖。
     func importFile(from url: URL) async throws {
@@ -240,7 +249,6 @@ final class TrackStore: ObservableObject {
             throw error
         }
     }
-
     /// 从 Files / Share Sheet 导入一个音频文件。
     /// - 引用模式（默认）：不复制，仅存安全书签，播放时直接读用户 Files 里的原文件（只占一份空间）。
     /// - 复制模式：拷进 App Documents（最稳，离线/后台可靠，但占 2 倍空间，可在设置切换）。
@@ -249,70 +257,80 @@ final class TrackStore: ObservableObject {
         let accessing = url.startAccessingSecurityScopedResource()
         defer { if accessing { url.stopAccessingSecurityScopedResource() } }
 
-        // 引用原文件模式：尝试生成安全书签；成功则不再复制，省一倍空间
-        if !importByCopy {
-            if let bm = try? url.bookmarkData(options: [],
-                                             includingResourceValuesForKeys: nil,
-                                             relativeTo: nil) {
-                let tags = await extractTags(from: url)
-                let baseTitle = (url.lastPathComponent as NSString).deletingPathExtension
-                let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
-                let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
-                let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
-                addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
-                reportImportResult("已引用（不复制）：\(title)")
-                return
-            }
-            // 书签失败（如源不是安全作用域 URL）→ 回退到复制模式
-        }
-
-        // 复制模式：拷进 App Documents
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            throw ImportError.noDocumentDir
-        }
-        let dest = uniqueURL(in: docs, for: url)
-
-        // 优先直接拷贝；失败则用 NSFileCoordinator 在 security-scoped 作用域内拷贝。
-        // 重签名 / 系统分享场景下，直接 copyItem 常因沙盒权限被拒（Operation not permitted），
-        // coordinator 能正确解析安全作用域资源，是接收「分享进 App 的文件」最稳的方式。
-        do {
-            try fileManager.copyItem(at: url, to: dest)
-        } catch {
-            do {
-                try coordinateCopy(from: url, to: dest)
-            } catch {
-                throw ImportError.copyFailed(error.localizedDescription)
-            }
-        }
-
-        // 去重指纹：源文件名 + 文件大小，同一物理文件重复导入不再新增记录（避免列表出现重复且无法播放）。
+        // 统一去重指纹：源文件名 + 文件大小。复制/引用模式通用，避免同一文件反复导入产生多条记录。
         let srcSize = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
         let fingerprint = "\(url.lastPathComponent)|\(srcSize)"
 
-        // 读真实标签（异步，参考成熟播放器的本地导入实现，自写）。
-        let tags = await extractTags(from: dest)
-        let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
+        // 先读标签（在源文件上读，引用/复制都通用）。
+        let tags = await extractTags(from: url)
+        let baseTitle = (url.lastPathComponent as NSString).deletingPathExtension
         let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
         let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        // 查重：已有相同指纹的 imported 记录 → 更新其路径与元数据，不新增。
-        if let existingID = records.first(where: { $0.value.source == .imported && $0.value.fingerprint == fingerprint })?.key {
-            records[existingID] = TrackRecord(
-                id: existingID, title: title, artist: artist, album: album,
-                source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
-                lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+        // 查重：已有相同指纹（不论 imported/referenced）→ 更新路径/书签与元数据，不新增。
+        if let existingID = records.first(where: { $0.value.fingerprint == fingerprint })?.key {
+            if importByCopy {
+                guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                    throw ImportError.noDocumentDir
+                }
+                let dest = uniqueURL(in: docs, for: url)
+                do { try fileManager.copyItem(at: url, to: dest) } catch {
+                    do { try coordinateCopy(from: url, to: dest) } catch {
+                        throw ImportError.copyFailed(error.localizedDescription)
+                    }
+                }
+                records[existingID] = TrackRecord(
+                    id: existingID, title: title, artist: artist, album: album,
+                    source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
+                    lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+            } else {
+                if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                    records[existingID] = TrackRecord(
+                        id: existingID, title: title, artist: artist, album: album,
+                        source: .referenced, urlString: url.lastPathComponent, coverSeed: url.lastPathComponent,
+                        lyrics: lyrics, bookmark: bm, fingerprint: fingerprint)
+                } else {
+                    // 引用书签失败 → 回退复制，并把旧记录转成 imported
+                    guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+                        throw ImportError.noDocumentDir
+                    }
+                    let dest = uniqueURL(in: docs, for: url)
+                    do { try fileManager.copyItem(at: url, to: dest) } catch { try coordinateCopy(from: url, to: dest) }
+                    records[existingID] = TrackRecord(
+                        id: existingID, title: title, artist: artist, album: album,
+                        source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
+                        lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+                }
+            }
             saveRecords(); refresh(); catalogVersion += 1
             reportImportResult("已更新（去重）：\(title)")
             return
         }
 
+        // 无重复：按当前模式新增记录
+        if !importByCopy {
+            if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint)
+                reportImportResult("已引用（不复制）：\(title)")
+                return
+            }
+            // 书签失败 → 回退复制
+        }
+
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            throw ImportError.noDocumentDir
+        }
+        let dest = uniqueURL(in: docs, for: url)
+        do { try fileManager.copyItem(at: url, to: dest) } catch {
+            do { try coordinateCopy(from: url, to: dest) } catch {
+                throw ImportError.copyFailed(error.localizedDescription)
+            }
+        }
         addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint)
         reportImportResult("已导入：\(title)")
     }
-
     /// 用 NSFileCoordinator 在作用域内拷贝文件，兼容 security-scoped 资源
     /// （直接 copyItem 在跨 App 分享 / 重签名环境常因沙盒权限失败）。
     private func coordinateCopy(from source: URL, to dest: URL) throws {
@@ -328,7 +346,6 @@ final class TrackStore: ObservableObject {
         }
         if let e = coordinatorError ?? innerError { throw e }
     }
-
     /// 添加一个远程音频 URL。
     func importRemoteURL(_ urlString: String) {
         guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true else { return }
@@ -350,14 +367,12 @@ final class TrackStore: ObservableObject {
         refresh()
         catalogVersion += 1
     }
-
     /// 导入一个「歌单 JSON」：包含多首带直链音频 URL 的曲目。
     /// 策略：先按常见字段名提取曲目数组；若一条都提取不到，则全树递归扫描所有疑似音频的 http(s) URL 兜底，
     /// 最大限度兼容各种 JSON 结构。导入后自动建歌单（JSON 含 name/title 则用之命名，否则「导入歌单」）。
     /// 抛错仅发生在「完全没有任何可导入音频链接」时。
     func importPlaylist(from data: Data) throws -> Int {
         let parsed = try JSONSerialization.jsonObject(with: data)
-
         var playlistName: String?
         var items: [[String: Any]] = []
         if let dict = parsed as? [String: Any] {
@@ -369,7 +384,6 @@ final class TrackStore: ObservableObject {
         } else if let arr = parsed as? [[String: Any]] {
             items = arr
         }
-
         var ids: [UUID] = []
         if !items.isEmpty {
             ids = importItems(items)
@@ -384,7 +398,6 @@ final class TrackStore: ObservableObject {
                 saveRecords(); refresh(); catalogVersion += 1
             }
         }
-
         if ids.isEmpty { throw ImportError.noTracks }
         let name = (playlistName?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "导入歌单"
         let playlist = Playlist(name: name, trackIDs: ids)
@@ -393,7 +406,6 @@ final class TrackStore: ObservableObject {
         catalogVersion += 1
         return ids.count
     }
-
     private func importItems(_ items: [[String: Any]]) -> [UUID] {
         var ids: [UUID] = []
         for item in items {
@@ -410,7 +422,6 @@ final class TrackStore: ObservableObject {
         }
         return ids
     }
-
     /// 新增一条远程曲目记录，返回其 id（不负责 save/refresh，由调用方统一处理）。
     private func addRemoteTrack(urlString: String, title: String?, artist: String?, album: String?) -> UUID {
         let id = UUID()
@@ -433,7 +444,6 @@ final class TrackStore: ObservableObject {
         records[id] = record
         return id
     }
-
     /// 递归遍历整棵 JSON，收集所有「疑似音频」的 http(s) 字符串（兜底解析用）。
     private func collectAudioURLs(_ value: Any) -> [String] {
         var out: [String] = []
@@ -449,7 +459,6 @@ final class TrackStore: ObservableObject {
         dfs(value)
         return out
     }
-
     private func isAudioURL(_ s: String) -> Bool {
         guard s.hasPrefix("http://") || s.hasPrefix("https://") else { return false }
         let pathExt = (URL(string: s)?.pathExtension ?? "").lowercased()
@@ -460,7 +469,6 @@ final class TrackStore: ObservableObject {
         // 无扩展名也接受（很多直链音频不带扩展名），仅排除已知的图片/文档后缀
         return true
     }
-
     /// 在字典里按候选键名取字符串，兼容「字符串」「{name:..}」「[..]」三种形态。
     private func firstString(_ dict: [String: Any], keys: [String]) -> String? {
         for key in keys {
@@ -471,7 +479,6 @@ final class TrackStore: ObservableObject {
         }
         return nil
     }
-
     /// 删除/隐藏一条曲目：
     /// - 示例曲：不删文件，仅加入隐藏集合（持久化），下次刷新不再出现；
     /// - 引用原文件：不动用户原文件，仅移除记录并释放安全作用域；
@@ -487,6 +494,7 @@ final class TrackStore: ObservableObject {
         if track.source == .referenced {
             track.url.stopAccessingSecurityScopedResource()
             accessedReferencedURLs.remove(track.url)
+            // 引用记录删除后，安全作用域可能仍被同一 URL 的其他记录使用；refresh 会重新 startAccessing。
         } else if track.isLocalFile {
             try? fileManager.removeItem(at: track.url)
         }
@@ -501,7 +509,6 @@ final class TrackStore: ObservableObject {
         refresh()
         catalogVersion += 1
     }
-
     /// 恢复所有被隐藏的示例曲
     func restoreSamples() {
         hiddenSampleIDs.removeAll()
@@ -509,15 +516,12 @@ final class TrackStore: ObservableObject {
         refresh()
         catalogVersion += 1
     }
-
     /// 释放所有已持有的引用原文件安全作用域（App 退出/进入后台前调用）
     func stopAllAccess() {
         for u in accessedReferencedURLs { u.stopAccessingSecurityScopedResource() }
         accessedReferencedURLs.removeAll()
     }
-
     // MARK: - 收藏（我喜欢）
-
     func toggleFavorite(_ track: Track) {
         if favoriteIDs.contains(track.id) {
             favoriteIDs.remove(track.id)
@@ -527,9 +531,7 @@ final class TrackStore: ObservableObject {
         saveFavorites()
         refresh()
     }
-
     // MARK: - 歌单（播放列表）
-
     @discardableResult
     func createPlaylist(name: String) -> Playlist {
         let playlist = Playlist(name: name)
@@ -537,18 +539,15 @@ final class TrackStore: ObservableObject {
         savePlaylists()
         return playlist
     }
-
     func deletePlaylist(_ id: UUID) {
         playlists.removeAll { $0.id == id }
         savePlaylists()
     }
-
     func renamePlaylist(_ id: UUID, name: String) {
         guard let i = playlists.firstIndex(where: { $0.id == id }) else { return }
         playlists[i].name = name
         savePlaylists()
     }
-
     func addTrack(_ track: Track, to playlistID: UUID) {
         guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         if !playlists[i].trackIDs.contains(track.id) {
@@ -556,15 +555,12 @@ final class TrackStore: ObservableObject {
             savePlaylists()
         }
     }
-
     func removeTrack(_ trackID: UUID, from playlistID: UUID) {
         guard let i = playlists.firstIndex(where: { $0.id == playlistID }) else { return }
         playlists[i].trackIDs.removeAll { $0 == trackID }
         savePlaylists()
     }
-
     // MARK: - 私有辅助
-
     private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?) {
         let id = UUID()
         let record = TrackRecord(
@@ -584,9 +580,8 @@ final class TrackStore: ObservableObject {
         refresh()
         catalogVersion += 1
     }
-
     /// 引用原文件模式：存安全书签，不复制文件，播放时直接读用户原文件。
-    private func addReferencedRecord(bookmark: Data, fileName: String, title: String, artist: String, album: String, lyrics: String?) {
+    private func addReferencedRecord(bookmark: Data, fileName: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?) {
         let id = UUID()
         let record = TrackRecord(
             id: id,
@@ -598,20 +593,17 @@ final class TrackStore: ObservableObject {
             coverSeed: fileName,
             lyrics: lyrics,
             bookmark: bookmark,
-            fingerprint: nil
+            fingerprint: fingerprint
         )
         records[id] = record
         saveRecords()
         refresh()
         catalogVersion += 1
     }
-
     // MARK: - 自动归入歌单
-
     private func uniqueURL(in directory: URL, for source: URL) -> URL {
         var dest = directory.appendingPathComponent(source.lastPathComponent)
         guard fileManager.fileExists(atPath: dest.path) else { return dest }
-
         let base = (source.lastPathComponent as NSString).deletingPathExtension
         let ext = source.pathExtension
         var counter = 1
@@ -621,9 +613,7 @@ final class TrackStore: ObservableObject {
         } while fileManager.fileExists(atPath: dest.path)
         return dest
     }
-
     // MARK: - 存储空间 / 缓存清理
-
     /// 统计 App 占用空间与曲库概况。
     func storageInfo() -> StorageInfo {
         var info = StorageInfo()
@@ -639,7 +629,6 @@ final class TrackStore: ObservableObject {
         info.totalBytes = info.docsBytes + info.cacheBytes
         return info
     }
-
     /// 删除本机导入的所有本地音频文件，释放空间；网络音频链接与收藏/歌单结构保留。
     /// 返回释放的字节数。
     @discardableResult
@@ -665,7 +654,6 @@ final class TrackStore: ObservableObject {
         catalogVersion += 1
         return freed
     }
-
     private static func directorySize(_ url: URL?) -> Int64 {
         guard let url = url else { return 0 }
         var total: Int64 = 0
@@ -678,83 +666,69 @@ final class TrackStore: ObservableObject {
         }
         return total
     }
-
     // MARK: - 持久化
-
     private func loadImportLog() {
         guard let data = UserDefaults.standard.data(forKey: importLogKey),
               let list = try? JSONDecoder().decode([ImportLogEntry].self, from: data) else { return }
         importLog = list
     }
-
     private func recordRecent(_ id: UUID) {
         recentIDs.removeAll { $0 == id }
         recentIDs.insert(id, at: 0)
         if recentIDs.count > 50 { recentIDs.removeLast() }
         saveRecent()
     }
-
     private func saveRecent() {
         if let data = try? JSONEncoder().encode(recentIDs) {
             UserDefaults.standard.set(data, forKey: recentKey)
         }
     }
-
     private func loadRecent() {
         guard let data = UserDefaults.standard.data(forKey: recentKey),
               let list = try? JSONDecoder().decode([UUID].self, from: data) else { return }
         recentIDs = list
     }
-
     private func saveImportLog() {
         if let data = try? JSONEncoder().encode(importLog) {
             UserDefaults.standard.set(data, forKey: importLogKey)
         }
     }
-
     private func loadRecords() {
         guard let data = UserDefaults.standard.data(forKey: recordsKey),
               let list = try? JSONDecoder().decode([TrackRecord].self, from: data) else { return }
         records = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
     }
-
     private func saveRecords() {
         let list = Array(records.values)
         if let data = try? JSONEncoder().encode(list) {
             UserDefaults.standard.set(data, forKey: recordsKey)
         }
     }
-
     private func loadPlaylists() {
         guard let data = UserDefaults.standard.data(forKey: playlistsKey),
               let list = try? JSONDecoder().decode([Playlist].self, from: data) else { return }
         playlists = list
     }
-
     private func savePlaylists() {
         if let data = try? JSONEncoder().encode(playlists) {
             UserDefaults.standard.set(data, forKey: playlistsKey)
         }
     }
-
     private func loadFavorites() {
         guard let data = UserDefaults.standard.data(forKey: favoritesKey),
               let list = try? JSONDecoder().decode([UUID].self, from: data) else { return }
         favoriteIDs = Set(list)
     }
-
     private func saveFavorites() {
         if let data = try? JSONEncoder().encode(Array(favoriteIDs)) {
             UserDefaults.standard.set(data, forKey: favoritesKey)
         }
     }
-
     private func loadHiddenSamples() {
         guard let data = UserDefaults.standard.data(forKey: hiddenSamplesKey),
               let list = try? JSONDecoder().decode([UUID].self, from: data) else { return }
         hiddenSampleIDs = Set(list)
     }
-
     private func saveHiddenSamples() {
         if let data = try? JSONEncoder().encode(Array(hiddenSampleIDs)) {
             UserDefaults.standard.set(data, forKey: hiddenSamplesKey)
