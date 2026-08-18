@@ -87,7 +87,7 @@ struct SettingsView: View {
                     Text("正确导入方式：").bold()
                     Text("1. 应用内：曲库页右上角 + → 从 Files 导入（批量）")
                     Text("2. 默认「复制进 App」：导入最稳，重签名/轻松签环境也能播（占 2 倍空间）。想省空间可在上方开关切到「引用原文件」，但旁载重签名 App 可能解析失败")
-                    Text("3. 文件 App：长按 MP3 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（不是顶部分享图标）")
+                    Text("3. 文件 App：长按 音频/视频 文件 → 共享/更多 → 选在 Jukebox 中打开或拷贝到 Jukebox（已注册 MP4/MOV/AVI 视频类型，不是顶部分享图标）")
                 }
                 .font(.caption)
                 .foregroundStyle(.secondary)
