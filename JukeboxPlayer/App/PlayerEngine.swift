@@ -73,9 +73,9 @@ final class PlayerEngine: ObservableObject {
     @Published var eqEnabled: Bool = false {
         didSet {
             UserDefaults.standard.set(eqEnabled, forKey: eqEnabledKey)
-            // 开启时若还没任何增益（全 0），自动填一个有明显听感的预设，避免「开了却没变化」。
+            // 开启时若还没任何增益（全 0），自动选择「默认」平直曲线，保证稳定、不改变原始听感。
             if eqEnabled, eqBands.allSatisfy({ $0 == 0 }) {
-                selectPreset("低音")
+                selectPreset("默认")
             } else {
                 applyEQToCurrentItem()
             }
@@ -87,11 +87,13 @@ final class PlayerEngine: ObservableObject {
     @Published var eqBands: [Double] = Array(repeating: 0, count: EQAudioTap.bandCount) {
         didSet {
             UserDefaults.standard.set(eqBands, forKey: eqBandsKey)
+            // 滑块拖动后，自动把 preset 名同步为匹配预设或「自定义」。
+            eqPreset = EQAudioTap.presets.first { $0.value == eqBands }?.key ?? "自定义"
             updateEQBandsOnly()
         }
     }
-    /// UI 选中的预设名（仅用于展示；选预设会填充 eqBands）。
-    @Published var eqPreset: String = "低音" {
+    /// UI 选中的预设名。默认「默认」平直曲线；拖动滑块不匹配任何预设时显示「自定义」。
+    @Published var eqPreset: String = "默认" {
         didSet { UserDefaults.standard.set(eqPreset, forKey: eqPresetKey) }
     }
     /// EQ 诊断文字（播放页展示用，确认 tap 是否真的在处理音频）
@@ -125,9 +127,9 @@ final class PlayerEngine: ObservableObject {
         if let saved = UserDefaults.standard.array(forKey: eqBandsKey) as? [Double], saved.count == EQAudioTap.bandCount {
             eqBands = saved
         }
-        if let saved = UserDefaults.standard.string(forKey: eqPresetKey) {
-            eqPreset = saved
-        }
+        // 以实际保存的 bands 为准反推预设名，避免上次是「自定义」却显示旧预设名。
+        eqPreset = EQAudioTap.presets.first { $0.value == eqBands }?.key
+            ?? (UserDefaults.standard.string(forKey: eqPresetKey) ?? "默认")
         eqEnabled = UserDefaults.standard.bool(forKey: eqEnabledKey)
         lyricsOffset = UserDefaults.standard.object(forKey: lyricsOffsetKey) as? Double ?? 0
     }
@@ -164,7 +166,14 @@ final class PlayerEngine: ObservableObject {
     // MARK: - 控制
 
     func play(index: Int? = nil) {
-        if let index = index { currentIndex = index }
+        if let index = index {
+            // 点到当前正在播放的同一首：不重建 item，只切换播放/暂停，避免列表点歌从头播放。
+            if index == currentIndex, player != nil {
+                togglePlay()
+                return
+            }
+            currentIndex = index
+        }
         guard tracks.indices.contains(currentIndex) else { return }
         setupAndPlay(tracks[currentIndex])
     }
@@ -274,6 +283,10 @@ final class PlayerEngine: ObservableObject {
         player = AVPlayer(playerItem: item)
         player?.volume = volume
         player?.rate = playbackRate
+        // 视频文件切后台/锁屏后继续播放音频（需要 UIBackgroundModes audio 已开启）。
+        if #available(iOS 16.0, *) {
+            player?.audiovisualBackgroundPlaybackPolicy = .continuesIfPossible
+        }
 
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -315,6 +328,17 @@ final class PlayerEngine: ObservableObject {
                 default:
                     break
                 }
+            }
+            .store(in: &cancellables)
+
+        // 同步系统播放状态：VideoPlayer / 切后台 / 锁屏 / 线控 导致的暂停，
+        // 会及时反映到 isPlaying，避免播放/暂停按钮显示反了。
+        player?.publisher(for: \.timeControlStatus)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] status in
+                guard let self = self else { return }
+                self.isPlaying = (status == .playing)
+                self.updateNowPlaying()
             }
             .store(in: &cancellables)
 
@@ -720,7 +744,9 @@ final class EQAudioTap: @unchecked Sendable {
     /// 频段标签（UI 显示用）
     static let freqLabels: [String] = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"]
     /// 预设名 -> 10 个频段增益（dB，顺序对应 freqs）。差异刻意拉满、互不重叠，方便听感对比。
+    /// 增加「默认」全 0 平直曲线，作为首次开启 EQ 的安全起点。
     static let presets: [String: [Double]] = [
+        "默认":   [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
         "重低音": [18, 18, 15, 10, 0, 0, 0, 0, 0, 0],
         "低音":   [12, 10, 6, 2, 0, 0, 0, 0, 0, 0],
         "人声":   [0, 0, 0, 0, 5, 9, 9, 5, 0, 0],
