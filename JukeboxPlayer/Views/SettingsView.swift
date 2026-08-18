@@ -52,7 +52,7 @@ struct SettingsView: View {
                         }
                     }
                     .pickerStyle(.menu)
-                    Text("预设：低音增强 / 人声 / 明亮 / 摇滚。关闭时不影响基础播放。")
+                    Text("预设：低音增强（LowShelf +10dB）/ 人声（Peaking +6dB）/ 明亮（HighShelf +8dB）/ 摇滚。关闭时不影响基础播放。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
