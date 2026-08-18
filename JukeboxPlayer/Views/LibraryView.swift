@@ -53,7 +53,7 @@ struct LibraryView: View {
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
             isPresented: $showingImporter,
-            allowedContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video],
+            allowedContentTypes: [.audio, .flac, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video],
             allowsMultipleSelection: true
         ) { result in handleFileImport(result) }
         .sheet(isPresented: $showingDocumentPicker) {
@@ -260,7 +260,7 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 正在呈现")
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video], asCopy: true)
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .flac, .mp3, .mpeg4Audio, .wav, .mpeg4Movie, .movie, .video], asCopy: true)
         picker.allowsMultipleSelection = true
         picker.delegate = context.coordinator
         return picker
