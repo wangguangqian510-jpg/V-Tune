@@ -4,6 +4,23 @@ import Combine
 import AVKit
 import UniformTypeIdentifiers
 
+extension UTType {
+    /// .lrc 歌词文件：注册为纯文本子类，使系统文件选择器能选中 .lrc
+    static let lrc = UTType(filenameExtension: "lrc", conformingTo: .plainText) ?? .plainText
+}
+
+/// 读取歌词文件，自动探测编码：UTF-8 → GBK/GB18030（中文常见）→ Latin1，
+/// 避免中文 LRC 因 GBK 编码导致 String(contentsOf: .utf8) 返回 nil 而静默导入失败。
+private func readLyricsFile(_ url: URL) -> String? {
+    let gbk = String.Encoding(rawValue: 0x80000632) // kCFStringEncodingGB_18030_2000，覆盖 GBK
+    for enc in [String.Encoding.utf8, gbk, .isoLatin1] {
+        if let s = try? String(contentsOf: url, encoding: enc),
+           !s.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return s
+        }
+    }
+    return nil
+}
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.dismiss) private var dismiss
@@ -22,13 +39,11 @@ struct NowPlayingView: View {
     @State private var showLRCImporter = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
-
     var body: some View {
         ZStack {
             LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
-
             VStack(spacing: 24) {
                 header
                 if engine.isVideo {
@@ -85,12 +100,10 @@ struct NowPlayingView: View {
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
         }
-
         if showQueue { queueSheet }
             if showLyrics { lyricsSheet }
         }
     }
-
     // MARK: Header
     private var header: some View {
         HStack {
@@ -110,17 +123,18 @@ struct NowPlayingView: View {
             }
         }
     }
-
     // MARK: Artwork (黑胶旋转)
     private var artwork: some View {
-        VinylArtwork(cover: engine.currentCover, artwork: engine.artwork)
-            .frame(maxWidth: .infinity)
-            .aspectRatio(1, contentMode: .fit)
-            .rotationEffect(.degrees(engine.currentTime * 20))
-            .animation(.linear, value: engine.currentTime)
-            .shadow(radius: 20, y: 10)
+        // 黑胶旋转：用 TimelineView 每 1/30s 直接读 player.currentTime()（liveCurrentTime），
+        // 不再依赖 engine.currentTime 的发布节流，彻底解决「有的歌曲播放中黑胶不转」的卡顿。
+        TimelineView(.periodic(from: .now, by: 1/30)) { _ in
+            VinylArtwork(cover: engine.currentCover, artwork: engine.artwork)
+                .rotationEffect(.degrees(engine.liveCurrentTime * 20))
+        }
+        .frame(maxWidth: .infinity)
+        .aspectRatio(1, contentMode: .fit)
+        .shadow(radius: 20, y: 10)
     }
-
     // MARK: Info
     private var info: some View {
         VStack(spacing: 6) {
@@ -132,7 +146,6 @@ struct NowPlayingView: View {
             }
         }
     }
-
     // MARK: Progress
     private var progress: some View {
         VStack(spacing: 6) {
@@ -153,7 +166,6 @@ struct NowPlayingView: View {
                 }
             )
             .tint(.white)
-
             HStack {
                 Text(formatTime(engine.isScrubbing ? scrubTime : engine.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
                 Spacer()
@@ -161,7 +173,6 @@ struct NowPlayingView: View {
             }
         }
     }
-
     // MARK: Controls
     private var controls: some View {
         HStack(spacing: 28) {
@@ -180,7 +191,6 @@ struct NowPlayingView: View {
             }
         }
     }
-
     private var modeIcon: String {
         switch engine.playbackMode {
         case .order:   return "list.number"
@@ -189,7 +199,6 @@ struct NowPlayingView: View {
         case .shuffle: return "shuffle"
         }
     }
-
     // MARK: Volume
     private var volume: some View {
         HStack(spacing: 10) {
@@ -198,7 +207,6 @@ struct NowPlayingView: View {
             Image(systemName: "speaker.wave.2.fill").foregroundStyle(.white.opacity(0.7))
         }
     }
-
     // MARK: EQ 音效面板（移到播放页，方便边听边调）
     private var eqPanel: some View {
         VStack(spacing: 10) {
@@ -239,7 +247,6 @@ struct NowPlayingView: View {
         }
         .padding(.horizontal, 4)
     }
-
     /// 图形化 EQ：10 段竖向滑块（横向滚动），绑定 engine.eqBands。
     /// 改进：列宽加大、滑块行程加长更好拖；dB 读数独立成行且固定高度，永不被滑块拇指遮挡。
     private var graphicEQ: some View {
@@ -271,7 +278,6 @@ struct NowPlayingView: View {
         }
         .frame(height: 210)
     }
-
     // MARK: 播放增强（睡眠 / 速度 / AirPlay）
     private var playbackExtras: some View {
         HStack(spacing: 18) {
@@ -328,19 +334,16 @@ struct NowPlayingView: View {
             Text("设定 N 分钟后自动暂停播放")
         }
     }
-
     private func formatSleep(_ s: Int) -> String {
         let m = s / 60
         let sec = s % 60
         return sec == 0 ? "\(m)m" : "\(m):\(String(format: "%02d", sec))"
     }
-
     // MARK: Queue
     private var queueToggle: some View {
         Text("\(modeName) · 共 \(engine.tracks.count) 首 · 第 \(engine.currentIndex + 1) 首")
             .font(.footnote).foregroundStyle(.white.opacity(0.6))
     }
-
     private var modeName: String {
         switch engine.playbackMode {
         case .order:   return "顺序"
@@ -349,7 +352,6 @@ struct NowPlayingView: View {
         case .shuffle: return "随机"
         }
     }
-
     private var queueSheet: some View {
         ZStack(alignment: .topTrailing) {
             Color.black.opacity(0.95).ignoresSafeArea()
@@ -382,7 +384,6 @@ struct NowPlayingView: View {
         }
         .transition(.move(edge: .bottom))
     }
-
     // MARK: Lyrics
     private var lyricsSheet: some View {
         let parsed = engine.lyrics.flatMap { parseLRC($0) }
@@ -466,7 +467,7 @@ struct NowPlayingView: View {
             isPresented: $showLRCImporter,
             // .lrc 不是系统预置类型，直接用 .plainText / .text 保证所有系统都能选到，
             // 进来后再按扩展名过滤，避免 .txt 小说等被误当歌词。
-            allowedContentTypes: [.plainText, .text],
+            allowedContentTypes: [.lrc, .plainText, .text, .utf8PlainText],
             allowsMultipleSelection: false
         ) { result in
             if case .success(let urls) = result, let url = urls.first {
@@ -477,20 +478,18 @@ struct NowPlayingView: View {
                 }
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
-                if let text = try? String(contentsOf: url, encoding: .utf8) {
+                if let text = readLyricsFile(url) {
                     engine.setLyricsForCurrent(text)
                 }
             }
         }
     }
-
     private func formatTime(_ t: Double) -> String {
         guard t.isFinite, t > 0 else { return "0:00" }
         let total = Int(t)
         return "\(total / 60):\(String(format: "%02d", total % 60))"
     }
 }
-
 // MARK: - AirPlay 投送按钮
 private struct RoutePickerView: UIViewRepresentable {
     func makeUIView(context: Context) -> AVRoutePickerView {
@@ -501,13 +500,10 @@ private struct RoutePickerView: UIViewRepresentable {
     }
     func updateUIView(_ uiView: AVRoutePickerView, context: Context) {}
 }
-
 // MARK: - 黑胶唱片视图
-
 private struct VinylArtwork: View {
     let cover: [Color]
     let artwork: UIImage?
-
     var body: some View {
         GeometryReader { geo in
             let size = min(geo.size.width, geo.size.height)
@@ -538,15 +534,12 @@ private struct VinylArtwork: View {
         }
     }
 }
-
 // MARK: - LRC 歌词解析与逐行视图
-
 private struct LRCLine: Identifiable, Equatable {
     let id = UUID()
     let time: Double
     let text: String
 }
-
 /// 解析 LRC 文本（[mm:ss.xx] 或 [mm:ss] 时间标签）。返回 nil 表示不是 LRC 格式（纯文本歌词）。
 private func parseLRC(_ raw: String) -> [LRCLine]? {
     guard let re = try? NSRegularExpression(pattern: "\\[(\\d{1,2}):(\\d{1,2}(?:\\.\\d{1,3})?)\\]") else { return nil }
@@ -570,7 +563,6 @@ private func parseLRC(_ raw: String) -> [LRCLine]? {
     }
     return out.isEmpty ? nil : out.sorted { $0.time < $1.time }
 }
-
 /// LRC 逐行歌词：当前播放行加粗高亮，并自动滚动到屏幕中央。
 /// 用 onReceive(engine.$currentTime) 而非 onChange —— 后者两参数闭包是 iOS 17+ API，
 /// 在部署目标 16.0 下会触发可用性编译错误。
@@ -578,7 +570,6 @@ private struct LyricsView: View {
     let lines: [LRCLine]
     @EnvironmentObject private var engine: PlayerEngine
     @State private var lastIndex: Int = 0
-
     private func index(at t: Double) -> Int {
         let tt = max(0, t + engine.lyricsOffset)
         var idx = 0
@@ -587,7 +578,6 @@ private struct LyricsView: View {
         }
         return idx
     }
-
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
