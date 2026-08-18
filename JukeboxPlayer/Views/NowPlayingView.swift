@@ -464,10 +464,17 @@ struct NowPlayingView: View {
         }
         .fileImporter(
             isPresented: $showLRCImporter,
-            allowedContentTypes: [UTType(filenameExtension: "lrc") ?? .text, .text],
+            // .lrc 不是系统预置类型，直接用 .plainText / .text 保证所有系统都能选到，
+            // 进来后再按扩展名过滤，避免 .txt 小说等被误当歌词。
+            allowedContentTypes: [.plainText, .text],
             allowsMultipleSelection: false
         ) { result in
             if case .success(let urls) = result, let url = urls.first {
+                let ext = url.pathExtension.lowercased()
+                guard ["lrc", "txt"].contains(ext) else {
+                    // 不影响体验：非 lrc/txt 静默忽略即可
+                    return
+                }
                 let secured = url.startAccessingSecurityScopedResource()
                 defer { if secured { url.stopAccessingSecurityScopedResource() } }
                 if let text = try? String(contentsOf: url, encoding: .utf8) {
