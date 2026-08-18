@@ -12,6 +12,14 @@ struct JukeboxPlayerApp: App {
                 .environmentObject(store)
         .onAppear {
             engine.load(store.tracks)
+            // 预触发 iOS 网络权限弹窗：避免用户第一次点远程示例曲时才被打断。
+            // 使用 HEAD 请求，不下载正文；失败不影响本地播放。
+            if let url = URL(string: "https://www.baidu.com") {
+                var req = URLRequest(url: url)
+                req.httpMethod = "HEAD"
+                req.timeoutInterval = 5
+                URLSession.shared.dataTask(with: req) { _, _, _ in }.resume()
+            }
         }
         .onChange(of: store.catalogVersion) { _ in
             engine.load(store.tracks)
