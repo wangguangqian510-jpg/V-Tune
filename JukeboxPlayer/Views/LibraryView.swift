@@ -20,6 +20,7 @@ struct LibraryView: View {
     @State private var showingDocumentPicker = false
     @State private var showingURLAlert = false
     @State private var showingPlaylistImport = false
+    @State private var showingFolderPicker = false
     @State private var showingErrorAlert = false
     @State private var urlString = ""
     @State private var importError: String?
@@ -85,6 +86,11 @@ struct LibraryView: View {
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
         }
+        .fileImporter(
+            isPresented: $showingFolderPicker,
+            allowedContentTypes: [.folder],
+            allowsMultipleSelection: false
+        ) { result in handleFolderImport(result) }
         .sheet(isPresented: $showingPlaylistImport) {
             ImportPlaylistSheet().environmentObject(store)
         }
@@ -214,10 +220,29 @@ struct LibraryView: View {
                 } label: {
                     Label("导入歌单 JSON", systemImage: "square.and.arrow.down.on.square")
                 }
+                Button {
+                    showingFolderPicker = true
+                } label: {
+                    Label("扫描文件夹导入", systemImage: "folder.fill.badge.plus")
+                }
             } label: {
                 Image(systemName: "plus")
             }
         }
+        }
+    }
+
+    private func handleFolderImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .success(let urls):
+            guard let folder = urls.first else { return }
+            Task {
+                let _ = await store.importFolder(at: folder)
+            }
+        case .failure(let error):
+            importError = error.localizedDescription
+            store.noteImport("(文件夹选择器)", ok: false, message: error.localizedDescription)
+            showingErrorAlert = true
         }
     }
 
