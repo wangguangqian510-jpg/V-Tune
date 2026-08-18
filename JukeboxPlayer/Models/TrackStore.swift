@@ -4,6 +4,48 @@ import SwiftUI
 
 import Combine
 
+import UIKit
+
+/// 主题强调色预设。
+enum AccentColor: String, CaseIterable, Identifiable {
+    case white, red, orange, blue, green, purple, pink
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .white:  return "默认白"
+        case .red:    return "红"
+        case .orange: return "橙"
+        case .blue:   return "蓝"
+        case .green:  return "绿"
+        case .purple: return "紫"
+        case .pink:   return "粉"
+        }
+    }
+    var color: Color {
+        switch self {
+        case .white:  return .white
+        case .red:    return .red
+        case .orange: return .orange
+        case .blue:   return .blue
+        case .green:  return .green
+        case .purple: return .purple
+        case .pink:   return .pink
+        }
+    }
+}
+
+/// 播放页背景模式。
+enum BackgroundMode: String, CaseIterable, Identifiable {
+    case albumArt, custom
+    var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .albumArt: return "专辑封面（模糊）"
+        case .custom:   return "自定义图片"
+        }
+    }
+}
+
 /// 持久化记录：存标题、路径、来源等，不存 Color（Color 不便于编码）。
 
 struct TrackRecord: Codable {
@@ -193,6 +235,52 @@ final class TrackStore: ObservableObject {
 
     private let importDiagnosticsEnabledKey = "JukeboxImportDiagnosticsEnabled_v1"
 
+    // MARK: - 个性化皮肤
+    @Published var accentColorName: String = AccentColor.white.rawValue {
+        didSet { UserDefaults.standard.set(accentColorName, forKey: AccentColorKey) }
+    }
+    @Published var backgroundMode: String = BackgroundMode.albumArt.rawValue {
+        didSet { UserDefaults.standard.set(backgroundMode, forKey: BackgroundModeKey) }
+    }
+    /// 自定义背景图在 App 沙盒内的路径（Documents/skin_background.jpg），无则为 nil。
+    @Published var customBackgroundPath: String? = nil {
+        didSet { UserDefaults.standard.set(customBackgroundPath, forKey: CustomBgKey) }
+    }
+    private let AccentColorKey = "YueYingAccentColor_v1"
+    private let BackgroundModeKey = "YueYingBackgroundMode_v1"
+    private let CustomBgKey = "YueYingCustomBackground_v1"
+
+    /// 当前主题色对应的 SwiftUI Color。
+    var accentColor: Color { AccentColor(rawValue: accentColorName)?.color ?? .white }
+    /// 当前背景模式枚举。
+    var backgroundModeEnum: BackgroundMode { BackgroundMode(rawValue: backgroundMode) ?? .albumArt }
+
+    /// 保存用户从相册选择的背景图到 App 沙盒（限制尺寸，避免原图过大），返回是否成功。
+    @discardableResult
+    func setCustomBackground(_ image: UIImage) -> Bool {
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return false }
+        let url = docs.appendingPathComponent("skin_background.jpg")
+        let target = resizeImage(image, toMax: 1280)
+        guard let data = target.jpegData(compressionQuality: 0.8) else { return false }
+        do { try data.write(to: url); customBackgroundPath = url.path; return true } catch { return false }
+    }
+    func clearCustomBackground() {
+        if let p = customBackgroundPath { try? fileManager.removeItem(at: URL(fileURLWithPath: p)) }
+        customBackgroundPath = nil
+    }
+    /// 读取已保存的自定义背景图（沙盒内），无则返回 nil。
+    func loadCustomBackground() -> UIImage? {
+        guard let p = customBackgroundPath else { return nil }
+        return UIImage(contentsOfFile: p)
+    }
+    private func resizeImage(_ image: UIImage, toMax max: CGFloat) -> UIImage {
+        let longer = max(image.size.width, image.size.height)
+        guard longer > max else { return image }
+        let scale = max / longer
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        return UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+    }
+
     /// 最近播放记录（曲目 id，倒序，最多 50），用于「最近播放」页。
 
     @Published private(set) var recentIDs: [UUID] = []
@@ -220,6 +308,9 @@ final class TrackStore: ObservableObject {
         loadHiddenSamples()
 
         importDiagnosticsEnabled = (UserDefaults.standard.object(forKey: importDiagnosticsEnabledKey) as? Bool) ?? false
+        accentColorName = UserDefaults.standard.string(forKey: AccentColorKey) ?? AccentColor.white.rawValue
+        backgroundMode = UserDefaults.standard.string(forKey: BackgroundModeKey) ?? BackgroundMode.albumArt.rawValue
+        customBackgroundPath = UserDefaults.standard.string(forKey: CustomBgKey)
 
         loadImportLog()
 
