@@ -18,10 +18,7 @@ struct ContentView: View {
                     .transition(.move(edge: .bottom))
             }
         }
-        .onOpenURL { url in
-            Task { @MainActor in
-                try? await store.importFile(from: url)
-            }
-        }
+        // 注意：URL 处理统一在 JukeboxPlayerApp.swift 的 .onOpenURL 中完成，
+        // 这里不再重复处理，避免 .lrc 等文件被二次当成音频导入。
     }
 }
