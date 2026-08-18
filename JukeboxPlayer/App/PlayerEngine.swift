@@ -51,12 +51,12 @@ final class PlayerEngine: ObservableObject {
         didSet {
             // 开启时若还是「关闭」占位预设，自动切到有听感差异的预设，避免「开了却没变化」。
             if eqEnabled && !EQAudioTap.presets.keys.contains(eqPreset) {
-                eqPreset = "低音增强"
+                eqPreset = "低音"
             }
             applyEQToCurrentItem()
         }
     }
-    @Published var eqPreset: String = "低音增强" {
+    @Published var eqPreset: String = "低音" {
         didSet { applyEQToCurrentItem() }
     }
     /// EQ 诊断文字（播放页展示用，确认 tap 是否真的在处理音频）
@@ -159,6 +159,10 @@ final class PlayerEngine: ObservableObject {
 
     private func setupAndPlay(_ track: Track) {
         cleanupObservers()
+        // 必须先停掉旧 player，否则 applyEQToCurrentItem 会触发 replaceCurrentItem，
+        // 在旧 tap 仍在渲染时迁移到新 item 容易导致 MTAudioProcessingTap 闪退。
+        player = nil
+        playerItem = nil
 
         currentTime = 0
         duration = 0
@@ -510,10 +514,11 @@ extension Collection {
 final class EQAudioTap: @unchecked Sendable {
     /// 预设名 -> [低频增益, 中频增益, 高频增益]（单位 dB）
     static let presets: [String: [Double]] = [
-        "低音增强": [10, 0, 0],
-        "人声":     [0, 6, 2],
-        "明亮":     [0, 0, 8],
-        "摇滚":     [6, 2, 5],
+        "低音": [15, 0, 0],
+        "人声": [0, 10, 4],
+        "明亮": [0, 0, 12],
+        "摇滚": [10, 4, 8],
+        "强劲": [12, 8, 12],
     ]
 
     private enum BandType { case lowShelf, peaking, highShelf }
