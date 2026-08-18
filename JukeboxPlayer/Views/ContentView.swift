@@ -7,7 +7,7 @@ struct ContentView: View {
     var body: some View {
         NavigationStack {
             LibraryView()
-                .navigationTitle("Jukebox 播放器")
+                .navigationTitle("乐影")
                 .navigationBarTitleDisplayMode(.large)
         }
         .safeAreaInset(edge: .bottom) {
