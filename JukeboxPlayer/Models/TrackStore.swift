@@ -553,7 +553,7 @@ final class TrackStore: ObservableObject {
 
         let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
 
-
+        let artwork = compactArtwork(tags.artwork)
 
         // 查重：已有相同指纹（不论 imported/referenced）→ 更新路径/书签与元数据，不新增。
 
@@ -585,7 +585,7 @@ final class TrackStore: ObservableObject {
 
                     source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
 
-                    lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+                    lyrics: lyrics, bookmark: nil, fingerprint: fingerprint, artwork: artwork)
 
             } else {
 
@@ -597,7 +597,7 @@ final class TrackStore: ObservableObject {
 
                         source: .referenced, urlString: url.lastPathComponent, coverSeed: url.lastPathComponent,
 
-                        lyrics: lyrics, bookmark: bm, fingerprint: fingerprint)
+                        lyrics: lyrics, bookmark: bm, fingerprint: fingerprint, artwork: artwork)
 
                 } else {
 
@@ -619,7 +619,7 @@ final class TrackStore: ObservableObject {
 
                         source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
 
-                        lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+                        lyrics: lyrics, bookmark: nil, fingerprint: fingerprint, artwork: artwork)
 
                 }
 
@@ -641,7 +641,7 @@ final class TrackStore: ObservableObject {
 
             if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
 
-                addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint)
+                addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint, artwork: artwork)
 
                 reportImportResult("已引用（不复制）：\(title)")
 
@@ -673,7 +673,7 @@ final class TrackStore: ObservableObject {
 
         }
 
-        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint)
+        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint, artwork: artwork)
 
         reportImportResult("已导入：\(title)")
 
@@ -1139,7 +1139,7 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?) {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?, artwork: Data? = nil) {
 
         let id = UUID()
 
@@ -1177,7 +1177,7 @@ final class TrackStore: ObservableObject {
 
     /// 引用原文件模式：存安全书签，不复制文件，播放时直接读用户原文件。
 
-    private func addReferencedRecord(bookmark: Data, fileName: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?) {
+    private func addReferencedRecord(bookmark: Data, fileName: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?, artwork: Data? = nil) {
 
         let id = UUID()
 
