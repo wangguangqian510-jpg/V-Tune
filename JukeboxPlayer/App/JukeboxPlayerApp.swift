@@ -31,7 +31,24 @@ struct JukeboxPlayerApp: App {
         // 否则会静默吞错、表现为「分享后进 App 主页无事发生」。
         .onOpenURL { url in
             Task { @MainActor in
+                let ext = url.pathExtension.lowercased()
                 store.noteImport(url.lastPathComponent, ok: true, message: "onOpenURL 触发：\(url.absoluteString)")
+                // 歌词文件（.lrc/.txt）分享进 App：绑定到当前曲目，而不是当媒体导入成坏曲目。
+                if ["lrc", "txt"].contains(ext) {
+                    let secured = url.startAccessingSecurityScopedResource()
+                    defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                    guard let text = try? String(contentsOf: url, encoding: .utf8) else {
+                        store.reportImportResult("歌词文件读取失败：\(url.lastPathComponent)")
+                        return
+                    }
+                    if engine.tracks.indices.contains(engine.currentIndex) {
+                        engine.setLyricsForCurrent(text)
+                        store.reportImportResult("已为当前歌曲绑定歌词：\(url.lastPathComponent)")
+                    } else {
+                        store.reportImportResult("没有正在播放的歌曲，无法绑定歌词（请先播放一首再分享 .lrc）")
+                    }
+                    return
+                }
                 do {
                     try await store.importFile(from: url)
                 } catch {
