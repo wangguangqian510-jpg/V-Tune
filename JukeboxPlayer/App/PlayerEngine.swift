@@ -46,23 +46,61 @@ final class PlayerEngine: ObservableObject {
     /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
     @Published var playbackMode: PlaybackMode = .order
 
+    // MARK: - 播放增强：睡眠定时 / 播放速度 / 歌词偏移
+
+    /// 睡眠定时剩余秒数（0 = 未设置），UI 用于倒计时显示。
+    @Published private(set) var sleepRemaining: Int = 0
+    private var sleepTimer: Timer?
+
+    /// 播放速度 0.5×–2×，应用到 AVPlayer.rate。
+    @Published var playbackRate: Float = 1.0 {
+        didSet { player?.rate = playbackRate }
+    }
+
+    /// 歌词时间轴整体偏移（秒，可正可负），校准 LRC 与音频不同步。
+    @Published var lyricsOffset: Double = 0 {
+        didSet { UserDefaults.standard.set(lyricsOffset, forKey: lyricsOffsetKey) }
+    }
+    private let lyricsOffsetKey = "JukeboxLyricsOffset_v1"
+
     // MARK: - EQ 音效（默认关闭，避免影响基础播放稳定性）
+    private let eqEnabledKey = "JukeboxEQEnabled_v1"
+    private let eqBandsKey = "JukeboxEQBands_v1"
+    private let eqPresetKey = "JukeboxEQPreset_v1"
+
     @Published var eqEnabled: Bool = false {
         didSet {
-            // 开启时若还是「关闭」占位预设，自动切到有听感差异的预设，避免「开了却没变化」。
-            if eqEnabled && !EQAudioTap.presets.keys.contains(eqPreset) {
-                eqPreset = "低音"
+            UserDefaults.standard.set(eqEnabled, forKey: eqEnabledKey)
+            // 开启时若还没任何增益（全 0），自动填一个有明显听感的预设，避免「开了却没变化」。
+            if eqEnabled, eqBands.allSatisfy({ $0 == 0 }) {
+                selectPreset("低音")
+            } else {
+                applyEQToCurrentItem()
             }
+        }
+    }
+    /// 当前生效的 10 段增益（dB），由预设填充或被图形化滑块修改。
+    @Published var eqBands: [Double] = Array(repeating: 0, count: EQAudioTap.bandCount) {
+        didSet {
+            UserDefaults.standard.set(eqBands, forKey: eqBandsKey)
             applyEQToCurrentItem()
         }
     }
+    /// UI 选中的预设名（仅用于展示；选预设会填充 eqBands）。
     @Published var eqPreset: String = "低音" {
-        didSet { applyEQToCurrentItem() }
+        didSet { UserDefaults.standard.set(eqPreset, forKey: eqPresetKey) }
     }
     /// EQ 诊断文字（播放页展示用，确认 tap 是否真的在处理音频）
     @Published var eqDiagnostic: String = "均衡器已关闭"
     private let eqTap = EQAudioTap()
     private var processingTap: MTAudioProcessingTap?
+
+    /// 选中一个预设：填充 eqBands 并立即应用。
+    func selectPreset(_ name: String) {
+        guard let b = EQAudioTap.presets[name] else { return }
+        eqPreset = name
+        eqBands = b   // 触发 didSet -> 持久化 + applyEQ
+    }
 
     private var player: AVPlayer?
     private var playerItem: AVPlayerItem?
@@ -73,6 +111,19 @@ final class PlayerEngine: ObservableObject {
         setupAudioSession()
         setupRemoteCommands()
         setupNotifications()
+        loadPersistedState()
+    }
+
+    /// 加载持久化的 EQ / 歌词偏移状态。睡眠定时每次启动清零，不持久化。
+    private func loadPersistedState() {
+        if let saved = UserDefaults.standard.array(forKey: eqBandsKey) as? [Double], saved.count == EQAudioTap.bandCount {
+            eqBands = saved
+        }
+        if let saved = UserDefaults.standard.string(forKey: eqPresetKey) {
+            eqPreset = saved
+        }
+        eqEnabled = UserDefaults.standard.bool(forKey: eqEnabledKey)
+        lyricsOffset = UserDefaults.standard.object(forKey: lyricsOffsetKey) as? Double ?? 0
     }
 
     // MARK: - 播放列表
@@ -122,6 +173,7 @@ final class PlayerEngine: ObservableObject {
             isPlaying = false
         } else {
             player.play()
+            player.rate = playbackRate
             isPlaying = true
         }
         updateNowPlaying()
@@ -159,6 +211,29 @@ final class PlayerEngine: ObservableObject {
         currentTime = second
     }
 
+    /// 设置睡眠定时：minutes=nil 取消，到点自动暂停。
+    func setSleep(minutes: Int?) {
+        sleepTimer?.invalidate()
+        sleepTimer = nil
+        if let m = minutes {
+            sleepRemaining = m * 60
+            sleepTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                self.sleepRemaining -= 1
+                if self.sleepRemaining <= 0 {
+                    self.sleepTimer?.invalidate()
+                    self.sleepTimer = nil
+                    self.sleepRemaining = 0
+                    self.player?.pause()
+                    self.isPlaying = false
+                    self.updateNowPlaying()
+                }
+            }
+        } else {
+            sleepRemaining = 0
+        }
+    }
+
     // MARK: - 播放器装配
 
     private func setupAndPlay(_ track: Track) {
@@ -185,6 +260,7 @@ final class PlayerEngine: ObservableObject {
         applyEQToCurrentItem()
         player = AVPlayer(playerItem: item)
         player?.volume = volume
+        player?.rate = playbackRate
 
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
         let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
@@ -234,8 +310,13 @@ final class PlayerEngine: ObservableObject {
         NotificationCenter.default.addObserver(self, selector: #selector(playerDidFail), name: .AVPlayerItemFailedToPlayToEndTime, object: item)
 
         player?.play()
+        player?.rate = playbackRate
         isPlaying = true
         updateNowPlaying()
+        // 异步提取内嵌封面 / MP4 视频首帧，作为黑胶中心图
+        loadArtwork(for: asset)
+        // 通知曲库记录「最近播放」
+        NotificationCenter.default.post(name: .trackPlayed, object: nil, userInfo: ["id": track.id])
     }
 
     @objc private func playerDidFinish(_ notification: Notification) {
@@ -292,6 +373,28 @@ final class PlayerEngine: ObservableObject {
         artwork = nil
         lyrics = nil
         updateNowPlaying()
+    }
+
+    /// 异步提取内嵌封面（音频 artwork）或 MP4 视频首帧，赋值 engine.artwork。
+    private func loadArtwork(for asset: AVAsset) {
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            // 1) 内嵌封面（常见音频格式 commonKey=artwork）
+            if let item = asset.commonMetadata.first(where: { $0.commonKey?.rawValue == "artwork" }),
+               let data = item.value as? Data,
+               let img = UIImage(data: data) {
+                self.artwork = img
+                return
+            }
+            // 2) MP4 / 视频文件：取首帧作为封面
+            if !asset.tracks(withMediaType: .video).isEmpty {
+                let gen = AVAssetImageGenerator(asset: asset)
+                gen.appliesPreferredTrackTransform = true
+                if let cg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
+                    self.artwork = UIImage(cgImage: cg)
+                }
+            }
+        }
     }
 
     // MARK: - 锁屏信息
@@ -406,12 +509,18 @@ final class PlayerEngine: ObservableObject {
     private func applyEQToCurrentItem() {
         guard let item = playerItem else { return }
 
-        guard eqEnabled, let bands = EQAudioTap.presets[eqPreset] else {
+        guard eqEnabled else {
             item.audioMix = nil
             processingTap = nil
             replaceCurrentItemIfNeeded()
             refreshEQDiagnostic()
             return
+        }
+        // 开启但增益全 0（理论上 selectPreset 已填，这里是兜底）：自动补一个预设，避免「开了却没变化」。
+        var bands = eqBands
+        if bands.allSatisfy({ $0 == 0 }) {
+            bands = EQAudioTap.presets[eqPreset] ?? EQAudioTap.presets["低音"] ?? Array(repeating: 0, count: EQAudioTap.bandCount)
+            eqBands = bands
         }
 
         eqTap.setBands(bands)
@@ -537,27 +646,36 @@ extension Collection {
     }
 }
 
-// MARK: - EQ 处理核心（LowShelf / Peaking / HighShelf 组合）
+// MARK: - EQ 处理核心（10 段 Graphic EQ，全 Peaking）
 
-/// 3 段 Biquad EQ：低频 LowShelf @100Hz、中频 Peaking @1kHz、高频 HighShelf @8kHz。
+/// 10 段图形均衡器：31/62/125/250/500/1k/2k/4k/8k/16k，每段 Peaking（Q≈1.0，听感顺滑）。
 /// 通过 MTAudioProcessingTap 接入 AVPlayer，渲染线程与主线程共享状态，已加 NSLock 保护。
 final class EQAudioTap: @unchecked Sendable {
-    /// 预设名 -> [低频增益, 中频增益, 高频增益]（单位 dB）
+    /// 频段数（presets 数组长度必须一致）
+    static let bandCount = 10
+    /// 各频段中心频率（Hz）
+    static let freqs: [Double] = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000]
+    /// 频段标签（UI 显示用）
+    static let freqLabels: [String] = ["31", "62", "125", "250", "500", "1k", "2k", "4k", "8k", "16k"]
+    /// 预设名 -> 10 个频段增益（dB，顺序对应 freqs）。差异刻意拉满、互不重叠，方便听感对比。
     static let presets: [String: [Double]] = [
-        "低音":  [18, 0, 0],
-        "人声":  [0, 12, 4],
-        "明亮":  [0, 0, 15],
-        "强劲":  [15, 6, 12],
+        "重低音": [18, 18, 15, 10, 0, 0, 0, 0, 0, 0],
+        "低音":   [12, 10, 6, 2, 0, 0, 0, 0, 0, 0],
+        "人声":   [0, 0, 0, 0, 5, 9, 9, 5, 0, 0],
+        "明亮":   [0, 0, 0, 0, 0, 0, 0, 4, 8, 12],
+        "流行":   [8, 6, 0, -3, -4, 0, 2, 4, 6, 9],
+        "古典":   [6, 4, 2, 0, -3, -3, 0, 3, 5, 7],
+        "摇滚":   [9, 7, 4, 1, -1, -1, 2, 4, 6, 7],
+        "测试":   [-30, -30, -30, -30, -30, -30, -30, -30, -30, -30],
     ]
 
-    private enum BandType { case lowShelf, peaking, highShelf }
     private struct Coeffs { var b0: Float = 0; var b1: Float = 0; var b2: Float = 0; var a1: Float = 0; var a2: Float = 0 }
 
     private let lock = NSLock()
     private var filters: [[Coeffs]] = []   // [band][channel]
     private var z1: [[Float]] = []         // [channel][band]
     private var z2: [[Float]] = []         // [channel][band]
-    private var bands: [Double] = [0, 0, 0]
+    private var bands: [Double] = Array(repeating: 0, count: EQAudioTap.bandCount)
     private var sampleRate: Double = 44100
     private var channels: Int = 2
     private var isFloat: Bool = false
@@ -568,7 +686,10 @@ final class EQAudioTap: @unchecked Sendable {
 
     func setBands(_ newBands: [Double]) {
         lock.lock()
-        bands = newBands
+        var b = newBands
+        if b.count < EQAudioTap.bandCount { b.append(contentsOf: Array(repeating: 0, count: EQAudioTap.bandCount - b.count)) }
+        if b.count > EQAudioTap.bandCount { b = Array(b.prefix(EQAudioTap.bandCount)) }
+        bands = b
         recompute()
         lock.unlock()
     }
@@ -589,31 +710,23 @@ final class EQAudioTap: @unchecked Sendable {
     }
 
     private func recompute() {
-        let freqs = [100.0, 1000.0, 8000.0]
-        let qs = [0.7, 1.0, 0.7]
-        let types: [BandType] = [.lowShelf, .peaking, .highShelf]
-
+        let q: Double = 1.0
         var newFilters: [[Coeffs]] = []
-        for band in 0..<3 {
+        for band in 0..<EQAudioTap.bandCount {
             var chFilters: [Coeffs] = []
             let g = bands.count > band ? bands[band] : 0
+            let f = EQAudioTap.freqs[band]
             for _ in 0..<channels {
-                let c: Coeffs
-                switch types[band] {
-                case .lowShelf:  c = lowShelf(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
-                case .peaking:   c = peaking(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
-                case .highShelf: c = highShelf(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
-                }
-                chFilters.append(c)
+                chFilters.append(peaking(sampleRate: sampleRate, freq: f, gainDB: g, q: q))
             }
             newFilters.append(chFilters)
         }
         filters = newFilters
-        z1 = Array(repeating: Array(repeating: 0, count: 3), count: channels)
-        z2 = Array(repeating: Array(repeating: 0, count: 3), count: channels)
+        z1 = Array(repeating: Array(repeating: 0, count: EQAudioTap.bandCount), count: channels)
+        z2 = Array(repeating: Array(repeating: 0, count: EQAudioTap.bandCount), count: channels)
     }
 
-    // MARK: - RBJ 系数
+    // MARK: - RBJ 系数（Peaking，全频段统一用）
 
     private func peaking(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
         let A = pow(10, gainDB / 40)
@@ -627,40 +740,6 @@ final class EQAudioTap: @unchecked Sendable {
             b2: Float((1 - alpha * A) / a0),
             a1: Float((-2 * cosw0) / a0),
             a2: Float((1 - alpha / A) / a0)
-        )
-    }
-
-    private func lowShelf(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
-        let A = sqrt(pow(10, gainDB / 20))
-        let w0 = 2 * .pi * freq / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / 2 * sqrt((A + 1/A) * (1/q - 1) + 2)
-        let sqrtA2 = 2 * sqrt(A) * alpha
-        let a0 = (A + 1) + (A - 1) * cosw0 + sqrtA2
-        return Coeffs(
-            b0: Float((A * ((A + 1) - (A - 1) * cosw0 + sqrtA2)) / a0),
-            b1: Float((2 * A * ((A - 1) - (A + 1) * cosw0)) / a0),
-            b2: Float((A * ((A + 1) - (A - 1) * cosw0 - sqrtA2)) / a0),
-            a1: Float((-2 * ((A - 1) + (A + 1) * cosw0)) / a0),
-            a2: Float(((A + 1) + (A - 1) * cosw0 - sqrtA2) / a0)
-        )
-    }
-
-    private func highShelf(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
-        let A = sqrt(pow(10, gainDB / 20))
-        let w0 = 2 * .pi * freq / sampleRate
-        let cosw0 = cos(w0)
-        let sinw0 = sin(w0)
-        let alpha = sinw0 / 2 * sqrt((A + 1/A) * (1/q - 1) + 2)
-        let sqrtA2 = 2 * sqrt(A) * alpha
-        let a0 = (A + 1) - (A - 1) * cosw0 + sqrtA2
-        return Coeffs(
-            b0: Float((A * ((A + 1) + (A - 1) * cosw0 + sqrtA2)) / a0),
-            b1: Float((-2 * A * ((A - 1) + (A + 1) * cosw0)) / a0),
-            b2: Float((A * ((A + 1) + (A - 1) * cosw0 - sqrtA2)) / a0),
-            a1: Float((2 * ((A - 1) - (A + 1) * cosw0)) / a0),
-            a2: Float(((A + 1) - (A - 1) * cosw0 - sqrtA2) / a0)
         )
     }
 
@@ -679,7 +758,7 @@ final class EQAudioTap: @unchecked Sendable {
             let nch = min(channels, abl.count)
             for ch in 0..<nch {
                 guard let data = abl[ch].mData?.assumingMemoryBound(to: Float.self) else { continue }
-                for band in 0..<3 {
+                for band in 0..<EQAudioTap.bandCount {
                     let c = filters[band][ch]
                     var z1v = z1[ch][band]
                     var z2v = z2[ch][band]
@@ -702,7 +781,7 @@ final class EQAudioTap: @unchecked Sendable {
                 for ch in 0..<nch {
                     let idx = frame * nch + ch
                     var y = data[idx]
-                    for band in 0..<3 {
+                    for band in 0..<EQAudioTap.bandCount {
                         let c = filters[band][ch]
                         var z1v = z1[ch][band]
                         var z2v = z2[ch][band]
@@ -724,4 +803,10 @@ final class EQAudioTap: @unchecked Sendable {
         lock.lock(); defer { lock.unlock() }
         return (formatDesc, processedFrames, valid, processedFrames > 0)
     }
+}
+
+// MARK: - 通知
+extension Notification.Name {
+    /// 曲目开始播放时发送（userInfo["id"] = Track.ID），供曲库记录「最近播放」。
+    static let trackPlayed = Notification.Name("JukeboxTrackPlayed")
 }
