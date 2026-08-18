@@ -248,7 +248,7 @@ struct LibraryView: View {
     }
 }
 
-// MARK: - UIDocumentPicker 包装（asCopy: true 让系统拷贝到可读临时目录，绕过重签名/沙盒权限问题）
+// MARK: - UIDocumentPicker 包装（asCopy: true：系统拷贝进 App 沙盒，重签名/轻松签环境最稳）
 
 struct DocumentPicker: UIViewControllerRepresentable {
     @EnvironmentObject var store: TrackStore
@@ -260,9 +260,11 @@ struct DocumentPicker: UIViewControllerRepresentable {
 
     func makeUIViewController(context: Context) -> UIDocumentPickerViewController {
         store.noteImport("(UI)", ok: true, message: "UIDocumentPicker 正在呈现")
-        // asCopy: false → 拿到原文件的安全作用域 URL，App 不复制（只存书签），避免占 2 倍空间。
-        // 书签创建失败时会自动回退为复制模式（见 TrackStore.importFileImpl）。
-        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav], asCopy: false)
+        // asCopy: true → 系统把选中的文件拷贝进 App 自己的沙盒目录（App 拥有、无需安全作用域），
+        // 在重签名/轻松签旁载环境下最稳，导入后可直接播放。空间换稳定。
+        // 想省空间可在「设置 → 导入设置」切到「引用原文件」（存书签、不复制），
+        // 但该模式依赖 security-scoped bookmark，在旁载重签名 App 里可能解析失败。
+        let picker = UIDocumentPickerViewController(forOpeningContentTypes: [.audio, .mp3, .mpeg4Audio, .wav], asCopy: true)
         picker.allowsMultipleSelection = true
         picker.delegate = context.coordinator
         return picker
