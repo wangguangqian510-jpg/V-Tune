@@ -681,6 +681,90 @@ final class TrackStore: ObservableObject {
 
     /// （直接 copyItem 在跨 App 分享 / 重签名环境常因沙盒权限失败）。
 
+    // MARK: - 文件夹批量扫描导入
+
+    /// 扫描一个文件夹（含子目录）批量导入音频，强制复制到 App 沙盒，自动去重。
+    /// 对应「识别文件夹内歌曲自动导入」：选一次文件夹，递归把所有音频收进曲库，不造成双倍存储
+    /// （原文件留在用户 Files 里、App 沙盒内是自己的工作副本，符合强制复制策略）。
+    @discardableResult
+    func importFolder(at folderURL: URL) async -> (imported: Int, skipped: Int, failed: Int) {
+        let accessed = folderURL.startAccessingSecurityScopedResource()
+        defer { if accessed { folderURL.stopAccessingSecurityScopedResource() } }
+
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            reportImportResult("导入失败：无法访问 App 文档目录")
+            return (0, 0, 0)
+        }
+
+        let audioExts = Set(["mp3","m4a","aac","wav","flac","ogg","opus","wma","ape","aiff","caf","mp4","mov","m4v","mka","m4b","wv","tta"])
+
+        guard let enumerator = fileManager.enumerator(
+            at: folderURL,
+            includingPropertiesForKeys: [.isRegularFileKey, .pathExtensionKey, .fileSizeKey],
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+        ) else {
+            reportImportResult("导入失败：无法读取所选文件夹")
+            return (0, 0, 0)
+        }
+
+        var imported = 0, skipped = 0, failed = 0
+        var newRecords: [TrackRecord] = []
+
+        for case let fileURL as URL in enumerator {
+            guard (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+            let ext = fileURL.pathExtension.lowercased()
+            guard audioExts.contains(ext) else { continue }
+
+            let srcSize = (try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0
+            let fingerprint = "\(fileURL.lastPathComponent)|\(srcSize)"
+
+            if records.values.contains(where: { $0.fingerprint == fingerprint }) {
+                skipped += 1
+                continue
+            }
+
+            let dest = uniqueURL(in: docs, for: fileURL)
+            do {
+                try fileManager.copyItem(at: fileURL, to: dest)
+            } catch {
+                do { try coordinateCopy(from: fileURL, to: dest) }
+                catch { failed += 1; continue }
+            }
+
+            let tags = await extractTags(from: fileURL)
+            let baseTitle = (fileURL.lastPathComponent as NSString).deletingPathExtension
+            let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+            let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+            let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let artwork = compactArtwork(tags.artwork)
+
+            let rec = TrackRecord(
+                id: UUID(),
+                title: title, artist: artist, album: album,
+                source: .imported,
+                urlString: dest.lastPathComponent,
+                coverSeed: dest.lastPathComponent,
+                lyrics: lyrics,
+                bookmark: nil,
+                fingerprint: fingerprint,
+                artwork: artwork
+            )
+            newRecords.append(rec)
+            imported += 1
+        }
+
+        if !newRecords.isEmpty {
+            for r in newRecords { records[r.id] = r }
+            saveRecords(); refresh(); catalogVersion += 1
+        }
+
+        let msg = "文件夹导入完成：新增 \(imported) 首，跳过重复 \(skipped) 首" + (failed > 0 ? "，失败 \(failed) 首" : "")
+        reportImportResult(msg)
+        noteImport(folderURL.lastPathComponent, ok: imported > 0, message: msg)
+        return (imported, skipped, failed)
+    }
+
     private func coordinateCopy(from source: URL, to dest: URL) throws {
 
         var coordinatorError: NSError?
