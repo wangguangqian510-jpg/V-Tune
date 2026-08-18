@@ -89,14 +89,7 @@ struct SettingsView: View {
             }
 
             Section("导入设置") {
-
-
-
-                    .font(.caption)
-
-                    .foregroundStyle(.secondary)
-
-
+                HStack { Text("导入模式"); Spacer(); Text("复制到 App（强制）").foregroundStyle(.secondary) }
                 HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
 
                 Button {
