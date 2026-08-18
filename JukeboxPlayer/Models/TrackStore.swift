@@ -136,6 +136,8 @@ final class TrackStore: ObservableObject {
 
     func noteImport(_ fileName: String, ok: Bool, message: String) {
 
+        guard importDiagnosticsEnabled else { return }
+
         let entry = ImportLogEntry(time: Date(), fileName: fileName, ok: ok, message: message)
 
         importLog.insert(entry, at: 0)
@@ -184,6 +186,13 @@ final class TrackStore: ObservableObject {
 
     private let importLogKey = "JukeboxImportLog_v1"
 
+    /// 导入诊断日志开关：默认关闭，避免日常导入留下痕迹；开启后才会记录并展示「导入记录」。
+    @Published var importDiagnosticsEnabled: Bool = false {
+        didSet { UserDefaults.standard.set(importDiagnosticsEnabled, forKey: importDiagnosticsEnabledKey) }
+    }
+
+    private let importDiagnosticsEnabledKey = "JukeboxImportDiagnosticsEnabled_v1"
+
     /// 最近播放记录（曲目 id，倒序，最多 50），用于「最近播放」页。
 
     @Published private(set) var recentIDs: [UUID] = []
@@ -209,6 +218,8 @@ final class TrackStore: ObservableObject {
         loadFavorites()
 
         loadHiddenSamples()
+
+        importDiagnosticsEnabled = (UserDefaults.standard.object(forKey: importDiagnosticsEnabledKey) as? Bool) ?? false
 
         loadImportLog()
 
