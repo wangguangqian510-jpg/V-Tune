@@ -202,6 +202,8 @@ final class PlayerEngine: ObservableObject {
                     let d = CMTimeGetSeconds(item.duration)
                     if d.isFinite, d > 0 { self.duration = d }
                     self.isLoading = false
+                    // item ready 后再确保 audioMix/EQ 挂上，避免 item 创建后过早设置不生效
+                    self.applyEQToCurrentItem()
                 case .failed:
                     self.isLoading = false
                     self.lastError = item.error?.localizedDescription ?? "播放失败"
@@ -393,7 +395,7 @@ final class PlayerEngine: ObservableObject {
             prepare: { (tap, maxFrames, processingFormat) in
                 let processor = Unmanaged<EQAudioTap>.fromOpaque(MTAudioProcessingTapGetStorage(tap)).takeUnretainedValue()
                 let asbd = processingFormat.pointee
-                processor.configure(sampleRate: asbd.mSampleRate, channels: Int(asbd.mChannelsPerFrame))
+                processor.configure(sampleRate: asbd.mSampleRate, channels: Int(asbd.mChannelsPerFrame), formatFlags: asbd.mFormatFlags)
             },
             unprepare: { _ in },
             process: { (tap, numberFrames, flags, bufferList, numberFramesOut, flagsOut) in
@@ -423,48 +425,71 @@ extension Collection {
     }
 }
 
-// MARK: - EQ 处理核心（3 段 Biquad 峰值滤波）
+// MARK: - EQ 处理核心（LowShelf / Peaking / HighShelf 组合）
 
-/// 3 段 Biquad 峰值 EQ（低 80Hz / 中 1kHz / 高 10kHz），通过 MTAudioProcessingTap 接入 AVPlayer。
-/// 处理在音频渲染线程进行；主线程切换预设时仅短时与渲染线程重叠，属可接受的轻微抖动，故标 @unchecked Sendable。
+/// 3 段 Biquad EQ：低频 LowShelf @100Hz、中频 Peaking @1kHz、高频 HighShelf @8kHz。
+/// 通过 MTAudioProcessingTap 接入 AVPlayer，渲染线程与主线程共享状态，已加 NSLock 保护。
 final class EQAudioTap: @unchecked Sendable {
-    /// 预设名 -> [低音增益, 中音增益, 高音增益]（单位 dB）
+    /// 预设名 -> [低频增益, 中频增益, 高频增益]（单位 dB）
     static let presets: [String: [Double]] = [
         "关闭":     [0, 0, 0],
-        "低音增强": [8, 0, 2],
-        "人声":     [2, 5, 3],
-        "明亮":     [0, 2, 7],
-        "摇滚":     [5, 3, 4],
+        "低音增强": [10, 0, 0],
+        "人声":     [0, 6, 2],
+        "明亮":     [0, 0, 8],
+        "摇滚":     [6, 2, 5],
     ]
 
+    private enum BandType { case lowShelf, peaking, highShelf }
     private struct Coeffs { var b0: Float = 0; var b1: Float = 0; var b2: Float = 0; var a1: Float = 0; var a2: Float = 0 }
-    private var filters: [[Coeffs]] = []
-    private var z1: [[Float]] = []
-    private var z2: [[Float]] = []
+
+    private let lock = NSLock()
+    private var filters: [[Coeffs]] = []   // [band][channel]
+    private var z1: [[Float]] = []         // [channel][band]
+    private var z2: [[Float]] = []         // [channel][band]
     private var bands: [Double] = [0, 0, 0]
     private var sampleRate: Double = 44100
     private var channels: Int = 2
+    private var isFloat: Bool = false
+    private var isNonInterleaved: Bool = true
+    private var valid: Bool = false
 
     func setBands(_ newBands: [Double]) {
+        lock.lock()
         bands = newBands
         recompute()
+        lock.unlock()
     }
 
-    func configure(sampleRate: Double, channels: Int) {
+    func configure(sampleRate: Double, channels: Int, formatFlags: UInt32) {
+        lock.lock()
         self.sampleRate = sampleRate
         self.channels = max(1, channels)
+        // kAudioFormatFlagIsFloat        = 1 << 0
+        // kAudioFormatFlagIsNonInterleaved = 1 << 5
+        self.isFloat = (formatFlags & (1 << 0)) != 0
+        self.isNonInterleaved = (formatFlags & (1 << 5)) != 0
+        self.valid = self.isFloat && (self.isNonInterleaved || channels == 1)
         recompute()
+        lock.unlock()
     }
 
     private func recompute() {
-        let freqs = [80.0, 1000.0, 10000.0]
-        let q: Double = 1.0
+        let freqs = [100.0, 1000.0, 8000.0]
+        let qs = [0.7, 1.0, 0.7]
+        let types: [BandType] = [.lowShelf, .peaking, .highShelf]
+
         var newFilters: [[Coeffs]] = []
-        for _ in 0..<channels {
+        for band in 0..<3 {
             var chFilters: [Coeffs] = []
-            for i in 0..<3 {
-                let g = bands.count > i ? bands[i] : 0
-                chFilters.append(peaking(sampleRate: sampleRate, freq: freqs[i], gainDB: g, q: q))
+            let g = bands.count > band ? bands[band] : 0
+            for _ in 0..<channels {
+                let c: Coeffs
+                switch types[band] {
+                case .lowShelf:  c = lowShelf(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
+                case .peaking:   c = peaking(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
+                case .highShelf: c = highShelf(sampleRate: sampleRate, freq: freqs[band], gainDB: g, q: qs[band])
+                }
+                chFilters.append(c)
             }
             newFilters.append(chFilters)
         }
@@ -473,41 +498,106 @@ final class EQAudioTap: @unchecked Sendable {
         z2 = Array(repeating: Array(repeating: 0, count: 3), count: channels)
     }
 
-    /// RBJ 峰值滤波器系数（已按 a0 归一化，Transposed Direct Form II）
+    // MARK: - RBJ 系数
+
     private func peaking(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
         let A = pow(10, gainDB / 40)
-        let w0 = 2 * Double.pi * freq / sampleRate
+        let w0 = 2 * .pi * freq / sampleRate
         let cosw0 = cos(w0)
         let alpha = sin(w0) / (2 * q)
-        let b0 = 1 + alpha * A
-        let b1 = -2 * cosw0
-        let b2 = 1 - alpha * A
         let a0 = 1 + alpha / A
-        let a1 = -2 * cosw0
-        let a2 = 1 - alpha / A
-        return Coeffs(b0: Float(b0 / a0), b1: Float(b1 / a0), b2: Float(b2 / a0),
-                      a1: Float(a1 / a0), a2: Float(a2 / a0))
+        return Coeffs(
+            b0: Float((1 + alpha * A) / a0),
+            b1: Float((-2 * cosw0) / a0),
+            b2: Float((1 - alpha * A) / a0),
+            a1: Float((-2 * cosw0) / a0),
+            a2: Float((1 - alpha / A) / a0)
+        )
     }
 
-    /// 对 AudioBufferList 做 in-place 三阶 Biquad 级联处理
+    private func lowShelf(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
+        let A = sqrt(pow(10, gainDB / 20))
+        let w0 = 2 * .pi * freq / sampleRate
+        let cosw0 = cos(w0)
+        let sinw0 = sin(w0)
+        let alpha = sinw0 / 2 * sqrt((A + 1/A) * (1/q - 1) + 2)
+        let sqrtA2 = 2 * sqrt(A) * alpha
+        let a0 = (A + 1) + (A - 1) * cosw0 + sqrtA2
+        return Coeffs(
+            b0: Float((A * ((A + 1) - (A - 1) * cosw0 + sqrtA2)) / a0),
+            b1: Float((2 * A * ((A - 1) - (A + 1) * cosw0)) / a0),
+            b2: Float((A * ((A + 1) - (A - 1) * cosw0 - sqrtA2)) / a0),
+            a1: Float((-2 * ((A - 1) + (A + 1) * cosw0)) / a0),
+            a2: Float(((A + 1) + (A - 1) * cosw0 - sqrtA2) / a0)
+        )
+    }
+
+    private func highShelf(sampleRate: Double, freq: Double, gainDB: Double, q: Double) -> Coeffs {
+        let A = sqrt(pow(10, gainDB / 20))
+        let w0 = 2 * .pi * freq / sampleRate
+        let cosw0 = cos(w0)
+        let sinw0 = sin(w0)
+        let alpha = sinw0 / 2 * sqrt((A + 1/A) * (1/q - 1) + 2)
+        let sqrtA2 = 2 * sqrt(A) * alpha
+        let a0 = (A + 1) - (A - 1) * cosw0 + sqrtA2
+        return Coeffs(
+            b0: Float((A * ((A + 1) + (A - 1) * cosw0 + sqrtA2)) / a0),
+            b1: Float((-2 * A * ((A - 1) + (A + 1) * cosw0)) / a0),
+            b2: Float((A * ((A + 1) + (A - 1) * cosw0 - sqrtA2)) / a0),
+            a1: Float((2 * ((A - 1) - (A + 1) * cosw0)) / a0),
+            a2: Float(((A + 1) - (A - 1) * cosw0 - sqrtA2) / a0)
+        )
+    }
+
+    /// 对 AudioBufferList 做 in-place 处理。非 Float32 或格式不支持时直接跳过，避免读错内存。
     func process(bufferList: UnsafeMutablePointer<AudioBufferList>, numberFrames: Int) {
+        guard numberFrames > 0 else { return }
+        lock.lock()
+        defer { lock.unlock() }
+        guard valid else { return }
+
         let abl = UnsafeMutableAudioBufferListPointer(bufferList)
-        let nch = min(channels, abl.count)
-        for ch in 0..<nch {
-            guard let data = abl[ch].mData?.assumingMemoryBound(to: Float.self) else { continue }
-            for band in 0..<3 {
-                let c = filters[ch][band]
-                var z1v = z1[ch][band]
-                var z2v = z2[ch][band]
-                for i in 0..<numberFrames {
-                    let x = data[i]
-                    let y = c.b0 * x + z1v
-                    z1v = c.b1 * x - c.a1 * y + z2v
-                    z2v = c.b2 * x - c.a2 * y
-                    data[i] = y
+
+        if isNonInterleaved {
+            let nch = min(channels, abl.count)
+            for ch in 0..<nch {
+                guard let data = abl[ch].mData?.assumingMemoryBound(to: Float.self) else { continue }
+                for band in 0..<3 {
+                    let c = filters[band][ch]
+                    var z1v = z1[ch][band]
+                    var z2v = z2[ch][band]
+                    for i in 0..<numberFrames {
+                        let x = data[i]
+                        let y = c.b0 * x + z1v
+                        z1v = c.b1 * x - c.a1 * y + z2v
+                        z2v = c.b2 * x - c.a2 * y
+                        data[i] = y
+                    }
+                    z1[ch][band] = z1v
+                    z2[ch][band] = z2v
                 }
-                z1[ch][band] = z1v
-                z2[ch][band] = z2v
+            }
+        } else {
+            // Interleaved：所有通道交错存放在一个 buffer 里（单声道时与 non-interleaved 等价）
+            guard let data = abl[0].mData?.assumingMemoryBound(to: Float.self) else { return }
+            let nch = channels
+            for frame in 0..<numberFrames {
+                for ch in 0..<nch {
+                    let idx = frame * nch + ch
+                    var y = data[idx]
+                    for band in 0..<3 {
+                        let c = filters[band][ch]
+                        var z1v = z1[ch][band]
+                        var z2v = z2[ch][band]
+                        let x = y
+                        y = c.b0 * x + z1v
+                        z1v = c.b1 * x - c.a1 * y + z2v
+                        z2v = c.b2 * x - c.a2 * y
+                        z1[ch][band] = z1v
+                        z2[ch][band] = z2v
+                    }
+                    data[idx] = y
+                }
             }
         }
     }
