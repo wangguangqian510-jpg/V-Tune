@@ -728,6 +728,57 @@ struct NowPlayingView: View {
         let total = Int(t)
         return "\(total / 60):\(String(format: "%02d", total % 60))"
     }
+
+    private var inlineLyrics: some View {
+        let parsed = engine.lyrics.flatMap { parseLRC($0) }
+        return Group {
+            if let parsed = parsed, !parsed.isEmpty {
+                LyricsView(lines: parsed).environmentObject(engine)
+                    .frame(maxHeight: 140)
+            } else if let lyrics = engine.lyrics, !lyrics.isEmpty {
+                ScrollView {
+                    Text(lyrics)
+                        .font(.body)
+                        .foregroundStyle(.white.opacity(0.9))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.bottom, 40)
+                }
+                .frame(maxHeight: 140)
+            } else {
+                HStack {
+                    Spacer()
+                    Text("暂无歌词 · 点右上角 🌐 在线搜")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                    Spacer()
+                }
+                .frame(height: 40)
+            }
+        }
+    }
+
+    // MARK: 更多设置（收纳 EQ / 睡眠 / 倍速 / 投屏，默认折叠）
+    private var moreSection: some View {
+        VStack(spacing: 12) {
+            Button {
+                withAnimation { showMore.toggle() }
+            } label: {
+                HStack {
+                    Image(systemName: "slider.horizontal.3")
+                    Text("更多设置（EQ / 睡眠 / 倍速 / 投屏）")
+                    Spacer()
+                    Image(systemName: showMore ? "chevron.up" : "chevron.down")
+                }
+                .font(.subheadline)
+                .foregroundStyle(.white)
+            }
+            if showMore {
+                eqPanel
+                playbackExtras
+            }
+        }
+    }
 }
 // MARK: - AirPlay 投送按钮
 private struct RoutePickerView: UIViewRepresentable {
@@ -844,56 +895,6 @@ private struct LyricsView: View {
             .onAppear { proxy.scrollTo(index(at: engine.currentTime), anchor: .center) }
         }
     }
-}
+
     // MARK: 内联歌词（黑胶下方直接显示，随播放高亮当前行）
-    private var inlineLyrics: some View {
-        let parsed = engine.lyrics.flatMap { parseLRC($0) }
-        return Group {
-            if let parsed = parsed, !parsed.isEmpty {
-                LyricsView(lines: parsed).environmentObject(engine)
-                    .frame(maxHeight: 140)
-            } else if let lyrics = engine.lyrics, !lyrics.isEmpty {
-                ScrollView {
-                    Text(lyrics)
-                        .font(.body)
-                        .foregroundStyle(.white.opacity(0.9))
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .padding(.bottom, 40)
-                }
-                .frame(maxHeight: 140)
-            } else {
-                HStack {
-                    Spacer()
-                    Text("暂无歌词 · 点右上角 🌐 在线搜")
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.5))
-                    Spacer()
-                }
-                .frame(height: 40)
-            }
-        }
-    }
-
-    // MARK: 更多设置（收纳 EQ / 睡眠 / 倍速 / 投屏，默认折叠）
-    private var moreSection: some View {
-        VStack(spacing: 12) {
-            Button {
-                withAnimation { showMore.toggle() }
-            } label: {
-                HStack {
-                    Image(systemName: "slider.horizontal.3")
-                    Text("更多设置（EQ / 睡眠 / 倍速 / 投屏）")
-                    Spacer()
-                    Image(systemName: showMore ? "chevron.up" : "chevron.down")
-                }
-                .font(.subheadline)
-                .foregroundStyle(.white)
-            }
-            if showMore {
-                eqPanel
-                playbackExtras
-            }
-        }
-    }
-
+}
