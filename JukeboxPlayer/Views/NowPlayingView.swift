@@ -2,6 +2,7 @@ import SwiftUI
 import UIKit
 import Combine
 import AVKit
+import UniformTypeIdentifiers
 
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
@@ -10,6 +11,13 @@ struct NowPlayingView: View {
     @State private var showLyrics = false
     /// 图形化 EQ 滑块展开状态
     @State private var showGraphicEQ = false
+    /// 睡眠定时自定义输入
+    @State private var showSleepAlert = false
+    @State private var customSleepText = ""
+    /// 歌词：粘贴 / 导入 LRC
+    @State private var showPasteLyrics = false
+    @State private var pasteLyricsText = ""
+    @State private var showLRCImporter = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
 
@@ -21,7 +29,15 @@ struct NowPlayingView: View {
 
             VStack(spacing: 24) {
                 header
-                artwork
+                if engine.isVideo {
+                    VideoPlayer(player: engine.avPlayer)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(radius: 20, y: 10)
+                } else {
+                    artwork
+                }
                 info
                 progress
                 controls
@@ -229,6 +245,7 @@ struct NowPlayingView: View {
                     Button("\(m) 分钟") { engine.setSleep(minutes: m) }
                 }
                 Divider()
+                Button("自定义…") { showSleepAlert = true }
                 Button("关闭") { engine.setSleep(minutes: nil) }
             } label: {
                 VStack(spacing: 2) {
@@ -258,6 +275,17 @@ struct NowPlayingView: View {
                 .frame(width: 44, height: 30)
         }
         .font(.title3)
+        .alert("自定义睡眠定时", isPresented: $showSleepAlert) {
+            TextField("分钟", text: $customSleepText)
+                .keyboardType(.numberPad)
+            Button("取消", role: .cancel) { customSleepText = "" }
+            Button("确定") {
+                if let m = Int(customSleepText), m > 0 { engine.setSleep(minutes: m) }
+                customSleepText = ""
+            }
+        } message: {
+            Text("设定 N 分钟后自动暂停播放")
+        }
     }
 
     private func formatSleep(_ s: Int) -> String {
@@ -339,6 +367,17 @@ struct NowPlayingView: View {
                     }
                 }
                 .padding()
+                // 歌词操作：示例 / 粘贴 / 导入LRC / 清除（无歌词也能立刻验证偏移）
+                HStack(spacing: 14) {
+                    Button { engine.loadSampleLyricsForCurrent() } label: { Label("示例", systemImage: "lightbulb") }
+                    Button { showPasteLyrics = true } label: { Label("粘贴", systemImage: "doc.on.clipboard") }
+                    Button { showLRCImporter = true } label: { Label("导入LRC", systemImage: "square.and.arrow.down") }
+                    Button { engine.setLyricsForCurrent("") } label: { Label("清除", systemImage: "trash") }
+                }
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.85))
+                .padding(.horizontal)
+                .padding(.bottom, 8)
                 if let parsed = parsed, !parsed.isEmpty {
                     LyricsView(lines: parsed).environmentObject(engine)
                 } else if let lyrics = engine.lyrics, !lyrics.isEmpty {
@@ -360,7 +399,41 @@ struct NowPlayingView: View {
             }
         }
         .transition(.move(edge: .bottom))
-    }
+        .sheet(isPresented: $showPasteLyrics) {
+            NavigationView {
+                VStack(spacing: 0) {
+                    TextEditor(text: $pasteLyricsText)
+                        .padding(.horizontal, 8)
+                        .frame(maxHeight: .infinity)
+                }
+                .navigationTitle("粘贴歌词 / LRC")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button("取消") { showPasteLyrics = false }
+                    }
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("保存") {
+                            engine.setLyricsForCurrent(pasteLyricsText)
+                            showPasteLyrics = false
+                        }
+                    }
+                }
+            }
+        }
+        .fileImporter(
+            isPresented: $showLRCImporter,
+            allowedContentTypes: [UTType(filenameExtension: "lrc") ?? .text, .text],
+            allowsMultipleSelection: false
+        ) { result in
+            if case .success(let urls) = result, let url = urls.first {
+                let secured = url.startAccessingSecurityScopedResource()
+                defer { if secured { url.stopAccessingSecurityScopedResource() } }
+                if let text = try? String(contentsOf: url, encoding: .utf8) {
+                    engine.setLyricsForCurrent(text)
+                }
+            }
+        }
 
     private func formatTime(_ t: Double) -> String {
         guard t.isFinite, t > 0 else { return "0:00" }
