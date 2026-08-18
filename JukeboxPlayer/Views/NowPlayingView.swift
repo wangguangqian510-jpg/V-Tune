@@ -21,6 +21,99 @@ private func readLyricsFile(_ url: URL) -> String? {
     }
     return nil
 }
+
+// MARK: - 在线歌词搜索（直连歌词源；原生 App 无 CORS 限制，无需中转代理）
+private struct LyricsCandidate: Identifiable, Equatable {
+    let id = UUID()
+    let title: String
+    let artist: String
+    let album: String
+    let provider: String
+    /// api.lrc.cx 单结果已直接带 LRC；lrclib 若 search 已含 syncedLyrics 也填这里
+    let lrc: String?
+    /// lrclib 需要二次拉取详情时使用的 ID
+    let lrclibId: Int?
+}
+
+private struct LyricsService {
+    /// 在线搜歌词：先试 api.lrc.cx（中文友好，聚合网易云/QQ/酷狗），无结果/无时间轴再试 lrclib（国际，稳定）。
+    static func search(title: String, artist: String) async throws -> [LyricsCandidate] {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let a = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        // 1) api.lrc.cx：直接返回 LRC 正文
+        if let txt = try? await fetchLRCCX(title: t, artist: a),
+           !txt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           txt.range(of: #"\[\d{1,2}:\d{1,2}"#, options: .regularExpression) != nil {
+            return [LyricsCandidate(title: t, artist: a, album: "", provider: "api.lrc.cx", lrc: txt, lrclibId: nil)]
+        }
+        // 2) lrclib：返回候选列表（含 syncedLyrics）
+        if let list = try? await fetchLRCLib(title: t, artist: a), !list.isEmpty {
+            return list
+        }
+        return []
+    }
+
+    /// 取某候选的完整 LRC 文本。
+    static func fetchLyric(_ c: LyricsCandidate) async throws -> String {
+        if let lrc = c.lrc, !lrc.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return lrc
+        }
+        if let id = c.lrclibId {
+            return try await fetchLRCLibByID(id)
+        }
+        throw NSError(domain: "Lyrics", code: -1,
+                      userInfo: [NSLocalizedDescriptionKey: "该候选无可用歌词"])
+    }
+
+    private static func fetchLRCCX(title: String, artist: String) async throws -> String? {
+        guard var comp = URLComponents(string: "https://api.lrc.cx/lyrics") else { return nil }
+        comp.queryItems = [URLQueryItem(name: "title", value: title),
+                           URLQueryItem(name: "artist", value: artist)]
+        guard let url = comp.url else { return nil }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("JukeboxPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        return String(data: data, encoding: .utf8)
+    }
+
+    private static func fetchLRCLib(title: String, artist: String) async throws -> [LyricsCandidate] {
+        guard var comp = URLComponents(string: "https://lrclib.net/api/search") else { return [] }
+        comp.queryItems = [URLQueryItem(name: "track_name", value: title),
+                           URLQueryItem(name: "artist_name", value: artist)]
+        guard let url = comp.url else { return [] }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("JukeboxPlayer/1.0 (https://github.com/wangguangqian510-jpg/moyuxuan)",
+                     forHTTPHeaderField: "User-Agent")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        guard let arr = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return arr.compactMap { d in
+            guard let trackName = d["trackName"] as? String else { return nil }
+            let artistName = (d["artistName"] as? String) ?? ""
+            let album = (d["albumName"] as? String) ?? ""
+            let id = (d["id"] as? Int) ?? 0
+            let synced = d["syncedLyrics"] as? String
+            return LyricsCandidate(title: trackName, artist: artistName, album: album,
+                                  provider: "lrclib", lrc: synced,
+                                  lrclibId: synced == nil ? id : nil)
+        }
+    }
+
+    private static func fetchLRCLibByID(_ id: Int) async throws -> String {
+        guard let url = URL(string: "https://lrclib.net/api/get/\(id)") else {
+            throw NSError(domain: "Lyrics", code: -3, userInfo: [NSLocalizedDescriptionKey: "无效 ID"])
+        }
+        var req = URLRequest(url: url, timeoutInterval: 15)
+        req.setValue("JukeboxPlayer/1.0", forHTTPHeaderField: "User-Agent")
+        let (data, _) = try await URLSession.shared.data(for: req)
+        guard let d = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            throw NSError(domain: "Lyrics", code: -2, userInfo: [NSLocalizedDescriptionKey: "解析失败"])
+        }
+        if let synced = d["syncedLyrics"] as? String, !synced.isEmpty { return synced }
+        if let plain = d["plainLyrics"] as? String, !plain.isEmpty { return plain }
+        throw NSError(domain: "Lyrics", code: -2, userInfo: [NSLocalizedDescriptionKey: "该候选无可用歌词"])
+    }
+}
+
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @Environment(\.dismiss) private var dismiss
@@ -37,6 +130,15 @@ struct NowPlayingView: View {
     @State private var showPasteLyrics = false
     @State private var pasteLyricsText = ""
     @State private var showLRCImporter = false
+    /// 在线搜歌词
+    @State private var showOnlineSearch = false
+    @State private var onlineTitle = ""
+    @State private var onlineArtist = ""
+    @State private var onlineCandidates: [LyricsCandidate] = []
+    @State private var onlineSearching = false
+    @State private var onlineError: String?
+    @State private var onlinePreview: String?
+    @State private var onlineSearched = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
     var body: some View {
@@ -102,6 +204,7 @@ struct NowPlayingView: View {
         }
         if showQueue { queueSheet }
             if showLyrics { lyricsSheet }
+        if showOnlineSearch { onlineSearchSheet }
         }
     }
     // MARK: Header
@@ -414,6 +517,15 @@ struct NowPlayingView: View {
                     Button { engine.loadSampleLyricsForCurrent() } label: { Label("示例", systemImage: "lightbulb") }
                     Button { showPasteLyrics = true } label: { Label("粘贴", systemImage: "doc.on.clipboard") }
                     Button { showLRCImporter = true } label: { Label("导入LRC", systemImage: "square.and.arrow.down") }
+                    Button {
+                        onlineTitle = engine.title
+                        onlineArtist = engine.artist
+                        onlineCandidates = []
+                        onlinePreview = nil
+                        onlineError = nil
+                        onlineSearched = false
+                        showOnlineSearch = true
+                    } label: { Label("在线搜", systemImage: "globe") }
                     Button { engine.setLyricsForCurrent("") } label: { Label("清除", systemImage: "trash") }
                 }
                 .font(.subheadline)
@@ -484,6 +596,133 @@ struct NowPlayingView: View {
             }
         }
     }
+
+    // MARK: 在线搜歌词（分层全屏视图，风格与 lyricsSheet 一致）
+    private var onlineSearchSheet: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.opacity(0.96).ignoresSafeArea()
+            VStack(alignment: .leading, spacing: 0) {
+                HStack {
+                    Text("在线搜歌词").font(.headline).foregroundStyle(.white)
+                    Spacer()
+                    Button { showOnlineSearch = false } label: {
+                        Image(systemName: "xmark.circle.fill").font(.title2).foregroundStyle(.white.opacity(0.8))
+                    }
+                }
+                .padding()
+                HStack(spacing: 8) {
+                    TextField("歌名", text: $onlineTitle).textFieldStyle(.roundedBorder)
+                    TextField("歌手", text: $onlineArtist).textFieldStyle(.roundedBorder)
+                }
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+                Button {
+                    Task { await runOnlineSearch() }
+                } label: {
+                    if onlineSearching { ProgressView().tint(.white) }
+                    else { Label("搜索", systemImage: "magnifyingglass") }
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.horizontal)
+                .padding(.bottom, 8)
+
+                if let err = onlineError, onlinePreview == nil {
+                    Text(err).font(.footnote).foregroundStyle(.red).padding(.horizontal)
+                }
+
+                if onlineSearching, onlinePreview == nil {
+                    ProgressView("搜索中…").tint(.white).padding()
+                } else if let preview = onlinePreview, !preview.isEmpty {
+                    ScrollView {
+                        Text(preview)
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding()
+                    }
+                    Button {
+                        engine.setLyricsForCurrent(preview)
+                        showOnlineSearch = false
+                        showLyrics = false
+                    } label: { Label("应用到本曲", systemImage: "checkmark") }
+                        .buttonStyle(.borderedProminent)
+                        .padding(.horizontal)
+                        .padding(.bottom, 12)
+                } else if !onlineCandidates.isEmpty {
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 4) {
+                            ForEach(onlineCandidates) { c in
+                                Button {
+                                    Task { await pickOnlineCandidate(c) }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(c.title).font(.headline).foregroundStyle(.white)
+                                        let sub = "\(c.artist)\(c.album.isEmpty ? "" : " · \(c.album)")"
+                                        if !sub.trimmingCharacters(in: .whitespaces).isEmpty {
+                                            Text(sub).font(.caption).foregroundStyle(.white.opacity(0.6))
+                                        }
+                                        Text(c.provider).font(.caption2).foregroundStyle(.white.opacity(0.4))
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.vertical, 6)
+                                    .padding(.horizontal)
+                                }
+                            }
+                        }
+                    }
+                } else if !onlineSearching, onlineSearched {
+                    Text("未找到歌词，换个歌名/歌手试试")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                } else if !onlineSearching {
+                    Text("输入歌名 / 歌手后点「搜索」")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, 40)
+                }
+                Spacer(minLength: 0)
+            }
+        }
+        .transition(.move(edge: .bottom))
+    }
+
+    @MainActor
+    private func runOnlineSearch() async {
+        onlineError = nil
+        onlinePreview = nil
+        onlineCandidates = []
+        onlineSearching = true
+        onlineSearched = true
+        defer { onlineSearching = false }
+        do {
+            let res = try await LyricsService.search(title: onlineTitle, artist: onlineArtist)
+            if res.count == 1, let lrc = res[0].lrc, !lrc.isEmpty {
+                onlinePreview = lrc
+            } else {
+                onlineCandidates = res
+                if res.isEmpty { onlineError = "未找到歌词" }
+            }
+        } catch {
+            onlineError = "搜索失败：\(error.localizedDescription)"
+        }
+    }
+
+    @MainActor
+    private func pickOnlineCandidate(_ c: LyricsCandidate) async {
+        onlineError = nil
+        onlineSearching = true
+        defer { onlineSearching = false }
+        do {
+            let lrc = try await LyricsService.fetchLyric(c)
+            onlinePreview = lrc
+        } catch {
+            onlineError = "获取失败：\(error.localizedDescription)"
+        }
+    }
+
     private func formatTime(_ t: Double) -> String {
         guard t.isFinite, t > 0 else { return "0:00" }
         let total = Int(t)
