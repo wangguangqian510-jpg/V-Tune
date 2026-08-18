@@ -16,6 +16,8 @@ struct TrackRecord: Codable {
     let lyrics: String?
     /// 引用原文件模式：存安全书签；复制/远程模式为 nil
     let bookmark: Data?
+    /// 导入去重指纹（源文件名|文件大小），仅 imported 用；相同指纹视为同一文件，不再新增记录
+    let fingerprint: String?
 }
 
 /// 歌单 JSON 导入时的可预期错误。
@@ -149,6 +151,18 @@ final class TrackStore: ObservableObject {
             return
         }
 
+        // 清理 dangling：imported 记录指向的文件已不存在（如重复导入产生的坏记录）则移除，
+        // 解决「列表出现重复且无法播放」的残留。
+        var removedDangling = false
+        for (id, rec) in records where rec.source == .imported {
+            let u = docs.appendingPathComponent(rec.urlString)
+            if !fileManager.fileExists(atPath: u.path) {
+                records.removeValue(forKey: id)
+                removedDangling = true
+            }
+        }
+        if removedDangling { saveRecords() }
+
         var userTracks: [Track] = []
         for record in records.values {
             switch record.source {
@@ -265,6 +279,10 @@ final class TrackStore: ObservableObject {
             }
         }
 
+        // 去重指纹：源文件名 + 文件大小，同一物理文件重复导入不再新增记录（避免列表出现重复且无法播放）。
+        let srcSize = (try? fileManager.attributesOfItem(atPath: url.path)[.size] as? Int64) ?? 0
+        let fingerprint = "\(url.lastPathComponent)|\(srcSize)"
+
         // 读真实标签（异步，参考成熟播放器的本地导入实现，自写）。
         let tags = await extractTags(from: dest)
         let baseTitle = (dest.lastPathComponent as NSString).deletingPathExtension
@@ -272,7 +290,19 @@ final class TrackStore: ObservableObject {
         let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
         let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
-        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics)
+
+        // 查重：已有相同指纹的 imported 记录 → 更新其路径与元数据，不新增。
+        if let existingID = records.first(where: { $0.value.source == .imported && $0.value.fingerprint == fingerprint })?.key {
+            records[existingID] = TrackRecord(
+                id: existingID, title: title, artist: artist, album: album,
+                source: .imported, urlString: dest.lastPathComponent, coverSeed: dest.lastPathComponent,
+                lyrics: lyrics, bookmark: nil, fingerprint: fingerprint)
+            saveRecords(); refresh(); catalogVersion += 1; addToImportPlaylist(existingID)
+            reportImportResult("已更新（去重）：\(title)")
+            return
+        }
+
+        addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint)
         reportImportResult("已导入：\(title)")
     }
 
@@ -305,7 +335,8 @@ final class TrackStore: ObservableObject {
             urlString: url.absoluteString,
             coverSeed: url.absoluteString,
             lyrics: nil,
-            bookmark: nil
+            bookmark: nil,
+            fingerprint: nil
         )
         records[id] = record
         saveRecords()
@@ -390,7 +421,8 @@ final class TrackStore: ObservableObject {
             urlString: urlString,
             coverSeed: urlString,
             lyrics: nil,
-            bookmark: nil
+            bookmark: nil,
+            fingerprint: nil
         )
         records[id] = record
         return id
@@ -527,7 +559,7 @@ final class TrackStore: ObservableObject {
 
     // MARK: - 私有辅助
 
-    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?) {
+    private func addImportedRecord(filename: String, title: String, artist: String, album: String, lyrics: String?, fingerprint: String?) {
         let id = UUID()
         let record = TrackRecord(
             id: id,
@@ -538,7 +570,8 @@ final class TrackStore: ObservableObject {
             urlString: filename,
             coverSeed: filename,
             lyrics: lyrics,
-            bookmark: nil
+            bookmark: nil,
+            fingerprint: fingerprint
         )
         records[id] = record
         saveRecords()
@@ -559,7 +592,8 @@ final class TrackStore: ObservableObject {
             urlString: fileName,
             coverSeed: fileName,
             lyrics: lyrics,
-            bookmark: bookmark
+            bookmark: bookmark,
+            fingerprint: nil
         )
         records[id] = record
         saveRecords()
