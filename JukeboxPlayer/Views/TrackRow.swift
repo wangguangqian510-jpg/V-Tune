@@ -45,7 +45,7 @@ struct TrackRow: View {
                     Button {
                         onAddToPlaylist?(track)
                     } label: {
-                        Label("添加到歌单", systemImage: "plus.circle")
+                        Label("移动到歌单", systemImage: "plus.circle")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
