@@ -1,6 +1,6 @@
-# Jukebox 播放器（iOS）
+# V-Tune（iOS）— 原 Jukebox 播放器 v2.0
 
-基于 GitHub 开源项目 [teodorpatras/Jukebox](https://github.com/teodorpatras/Jukebox)（MIT 协议）开发的 iOS 音乐播放器。
+V-Tune（Video + Tune）：现代 Swift / SwiftUI 重写的 iOS 音乐与视频播放器，基于 GitHub 开源项目 [teodorpatras/Jukebox](https://github.com/teodorpatras/Jukebox)（MIT 协议）开发。
 原库是 2016 年的 Swift 3 代码，本项目将其**核心移植为现代 Swift（Swift 5.9+ / iOS 16+）**，并在其上用 **SwiftUI** 实现了一套完整播放器 UI。
 
 > 注意：当前仓库是在无 macOS 环境下生成的源码工程。代码已按现代 Swift 逐一排查编译要点（AVAudioSession 新 API、`MPMediaItemArtwork` 新初始化器、`AVMetadataKey` 枚举、@objc 通知、`CMTime` 处理、actor 隔离等），但**首次请在 Xcode 中打开并编译验证**。
