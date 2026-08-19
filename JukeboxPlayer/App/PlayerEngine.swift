@@ -476,10 +476,8 @@ final class PlayerEngine: ObservableObject {
 
     private func setupAndPlay(_ track: Track) {
 
-        // 播放前确保 AudioSession 处于激活态：息屏/来电中断/长时间运行后 session 可能被系统停用，
-        // 不重新激活会导致「切歌后全目录点了都没声/失败」。
-        // 先 deactivate 再 activate 重置会话状态（防「多次切歌/中断后 session 被系统锁死」）。
-        try? AVAudioSession.sharedInstance().setActive(false)
+        // 播放前确保 AudioSession 处于激活态（幂等）：息屏/来电中断/长时间运行后 session 可能被系统停用。
+        // 注意：不能 setActive(false) 重置——App 在后台时 setActive(false) 会让锁屏/灵动岛控制失效且卡顿。
         try? AVAudioSession.sharedInstance().setActive(true)
 
         cleanupObservers()
@@ -1097,6 +1095,14 @@ final class PlayerEngine: ObservableObject {
     private func setupRemoteCommands() {
 
         let center = MPRemoteCommandCenter.shared()
+
+        // 显式启用所有锁屏/控制中心命令，避免 iOS 因缺少命令状态而置灰。
+        center.playCommand.isEnabled = true
+        center.pauseCommand.isEnabled = true
+        center.togglePlayPauseCommand.isEnabled = true
+        center.nextTrackCommand.isEnabled = true
+        center.previousTrackCommand.isEnabled = true
+        center.changePlaybackPositionCommand.isEnabled = true
 
         // 锁屏「播放」按钮：明确恢复，绝不能走 toggle（否则快速连点会与 pause 互相抵消）。
         center.playCommand.addTarget { [weak self] _ in

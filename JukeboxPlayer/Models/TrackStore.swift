@@ -183,10 +183,9 @@ final class TrackStore: ObservableObject {
 
     private var hiddenSampleIDs: Set<UUID> = []
 
-    /// 导入模式：false=引用原文件（不复制，省空间，书签带安全作用域）；
-    /// true=复制到 App 沙盒（最稳，重签名/旁载环境可靠，但占 2 倍空间）。
-    /// 默认引用（省空间）；解析失败会保留记录并自动回退复制，不会出现「记录全删」。
-    var importByCopy: Bool = false {
+    /// 导入模式：统一使用复制到 App 沙盒（最稳）。引用模式已删除——轻松签/重签名环境下
+    /// security-scoped bookmark 跨启动解析不可靠（iOS 系统限制），会导致曲目消失/无法播放。
+    var importByCopy: Bool = true {
         didSet {
             if oldValue != importByCopy {
                 UserDefaults.standard.set(importByCopy, forKey: importByCopyKey)
@@ -227,9 +226,9 @@ final class TrackStore: ObservableObject {
 
     init() {
 
-        // 默认 false（引用原文件，省空间）；仅当用户在设置里显式开启「复制到 App」才为 true。
+        // 默认 true（复制到 App 沙盒，最稳）；引用模式已删除，此开关保留兼容旧设置。
 
-        let byCopy = (UserDefaults.standard.object(forKey: importByCopyKey) as? Bool) ?? false
+        let byCopy = (UserDefaults.standard.object(forKey: importByCopyKey) as? Bool) ?? true
 
         importByCopy = byCopy
 
@@ -286,17 +285,24 @@ final class TrackStore: ObservableObject {
     private func scheduleArtworkLoad(_ track: Track) {
         guard !pendingArtwork.contains(track.id) else { return }
         pendingArtwork.insert(track.id)
-        Task { @MainActor [weak self] in
+        let trackID = track.id
+        let url = track.url
+        // 关键：提取封面（AVURLAsset 同步读 metadata + UIImage 解码）必须在后台线程执行，
+        // 否则主页列表滚动时会阻塞主线程导致整个 App 卡顿。
+        Task.detached(priority: .utility) { [weak self] in
             guard let self else { return }
-            let img = await Self.extractArtwork(from: track.url)
-            if let img {
-                self.artworkCache[track.id] = img
+            let img = await Self.extractArtwork(from: url)
+            await MainActor.run {
+                if let img {
+                    self.artworkCache[trackID] = img
+                }
+                self.pendingArtwork.remove(trackID)
             }
-            self.pendingArtwork.remove(track.id)
         }
     }
 
     /// 从本地文件提取封面：内嵌封面（mp3 ID3 / m4a）→ 同目录 cover.jpg/folder.jpg/同名图。
+    /// 注意：本方法含同步 AVAsset 元数据读取与图片解码，必须在后台线程调用（勿在主线程执行）。
     private static func extractArtwork(from url: URL) async -> UIImage? {
         let asset = AVURLAsset(url: url)
         if let item = asset.commonMetadata.first(where: { $0.commonKey?.rawValue == "artwork" }),

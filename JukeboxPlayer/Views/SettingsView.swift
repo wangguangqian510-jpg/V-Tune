@@ -93,45 +93,32 @@ struct SettingsView: View {
             }
 
             Section("导入设置") {
-                Picker("导入模式", selection: Binding(
-                    get: { store.importByCopy },
-                    set: { store.importByCopy = $0 }
-                )) {
-                    Text("引用原文件（省空间）").tag(false)
-                    Text("复制到 App（最稳）").tag(true)
-                }
-                .pickerStyle(.menu)
-                Text(store.importByCopy
-                     ? "复制模式：音频复制进 App 沙盒，占 2 倍空间；原文件被删除/移动不影响播放，最稳。"
-                     : "引用模式：不复制，直接播放 Files 里的原文件（只占 1 份空间）；原文件被删除/移动后该曲目会无法播放，可在曲库中删除。")
+                Text("导入模式：复制到 App 沙盒（最稳）。音频复制进 App，占 2 倍空间；原文件被删除/移动不影响播放。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                if !store.importByCopy {
-                    Text("⚠️ 轻松签/重签名安装环境下，引用模式可能失效（重启后曲目消失/无法播放，iOS 系统限制）。建议切换到复制模式，或将下方引用曲目一键复制进 App。")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                }
                 HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
-                HStack { Text("引用（不占空间）"); Spacer(); Text("\(storage.referencedCount)") }
+                if storage.referencedCount > 0 {
+                    HStack { Text("历史引用曲目（未复制）"); Spacer(); Text("\(storage.referencedCount)") }
 
-                // 一键迁移：把还能正常访问的引用曲目全部复制进 App（转复制模式）
-                Button {
-                    isMigrating = true
-                    migrateMessage = nil
-                    Task { @MainActor in
-                        let r = await store.migrateReferencedToCopied()
-                        storage = store.storageInfo()
-                        migrateMessage = "迁移完成：成功 \(r.migrated)，失败 \(r.failed)（失败的原文件已失效，需重新导入）"
-                        isMigrating = false
+                    // 一键迁移：把还能正常访问的引用曲目全部复制进 App（转复制模式）
+                    Button {
+                        isMigrating = true
+                        migrateMessage = nil
+                        Task { @MainActor in
+                            let r = await store.migrateReferencedToCopied()
+                            storage = store.storageInfo()
+                            migrateMessage = "迁移完成：成功 \(r.migrated)，失败 \(r.failed)（失败的原文件已失效，需重新导入）"
+                            isMigrating = false
+                        }
+                    } label: {
+                        if isMigrating {
+                            ProgressView()
+                        } else {
+                            Label("把引用曲目一键复制进 App", systemImage: "arrow.triangle.2.circlepath")
+                        }
                     }
-                } label: {
-                    if isMigrating {
-                        ProgressView()
-                    } else {
-                        Label("把引用曲目一键复制进 App", systemImage: "arrow.triangle.2.circlepath")
-                    }
+                    .disabled(storage.referencedCount == 0 || isMigrating)
                 }
-                .disabled(storage.referencedCount == 0 || isMigrating)
 
                 Button {
 
