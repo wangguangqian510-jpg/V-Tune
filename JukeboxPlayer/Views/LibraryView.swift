@@ -36,33 +36,26 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        ZStack {
-            // 全局皮肤背景放在最底层（共享 SkinBackground），配合 List 透明化，
-            // 背景图能透到列表 row 间隙、各 tab 之间的空白区域。
-            SkinBackground()
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            tabBar
 
-            VStack(spacing: 0) {
-                tabBar
-
-                ZStack {
-                    switch tab {
-                    case .songs:     songList
-                    case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
-                    case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
-                    case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
-                    case .favorites: favoritesList
-                    }
+            ZStack {
+                switch tab {
+                case .songs:     songList
+                case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
+                case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
+                case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
+                case .favorites: favoritesList
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                // 迷你播放条：直接放在底部 VStack，点播放(hasTrack=true)时作为普通视图出现，
-                // 不再用 .safeAreaInset，因此不会和顶部 .searchable 搜索栏打架、也不会把布局顶乱。
-                if engine.hasTrack {
-                    NowPlayingBar()
-                        .environmentObject(engine)
-                        .environmentObject(store)
-                }
+            // 迷你播放条：直接放在底部 VStack，点播放(hasTrack=true)时作为普通视图出现，
+            // 不再用 .safeAreaInset，因此不会和顶部 .searchable 搜索栏打架、也不会把布局顶乱。
+            if engine.hasTrack {
+                NowPlayingBar()
+                    .environmentObject(engine)
+                    .environmentObject(store)
             }
         }
         .navigationTitle("乐影")
