@@ -1059,7 +1059,7 @@ final class PlayerEngine: ObservableObject {
                let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
                                      colors: cgColors as CFArray, locations: [0, 1]) {
                 cg.drawLinearGradient(grad,
-                                       start: CGPoint(x: 0, y: size),
+                                       start: CGPoint(x: 0, y: size.height),
                                        end: CGPoint(x: size.width, y: 0),
                                        options: [])
             } else {
