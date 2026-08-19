@@ -1140,12 +1140,13 @@ final class PlayerEngine: ObservableObject {
         center.nextTrackCommand.isEnabled = true
         center.previousTrackCommand.isEnabled = true
         center.changePlaybackPositionCommand.isEnabled = true
-        // 锁屏「+15s / -15s」快进快退按钮（iOS 16+ 锁屏必有），必须注册 target
-        // 否则按下时系统无可用 handler → 可能影响其他控制的状态导致整个锁屏卡片失效。
-        center.skipForwardCommand.isEnabled = true
-        center.skipBackwardCommand.isEnabled = true
-        center.skipForwardCommand.preferredIntervals = [NSNumber(value: 15)]
-        center.skipBackwardCommand.preferredIntervals = [NSNumber(value: 15)]
+        // 关键：必须显式禁用 skipForward/skipBackward（不注册 handler）。
+        // iOS 17+ 只要检测到 skip 命令，锁屏布局就会用「-15s/+15s」按钮替换「上一首/下一首」，
+        // 用户要求的是老版本布局（直接上一首/下一首切换）。
+        center.skipForwardCommand.isEnabled = false
+        center.skipBackwardCommand.isEnabled = false
+        center.skipForwardCommand.removeTarget(self)
+        center.skipBackwardCommand.removeTarget(self)
 
         // 锁屏「播放」按钮：明确恢复，绝不能走 toggle（否则快速连点会与 pause 互相抵消）。
         center.playCommand.addTarget { [weak self] _ in
@@ -1203,24 +1204,6 @@ final class PlayerEngine: ObservableObject {
 
         }
 
-        // 锁屏「+15 秒」快进：跳过 15s（视频用小容差避免 zero tolerance 在 H.264/H.265 上卡死）
-        center.skipForwardCommand.addTarget { [weak self] _ in
-
-            Task { @MainActor in self?.skipForward(15) }
-
-            return .success
-
-        }
-
-        // 锁屏「-15 秒」快退
-        center.skipBackwardCommand.addTarget { [weak self] _ in
-
-            Task { @MainActor in self?.skipBackward(15) }
-
-            return .success
-
-        }
-
         // 「停止」指令：耳机线控 / CarPlay / 系统媒体键的停止键触发时，
 
         // 暂停并清空锁屏卡片（即「后台关闭」）。
@@ -1235,29 +1218,6 @@ final class PlayerEngine: ObservableObject {
 
         }
 
-    }
-
-    /// 锁屏/控制中心「+N 秒」快进：跳到 currentTime + N（不超过 duration）。
-    /// 视频用 0.1s 容差（zero tolerance 在 H.264/H.265 上常失败导致 item.status=failed）。
-    private func skipForward(_ seconds: Double) {
-        guard let player else { return }
-        let target = max(0, min(duration - 0.5, currentTime + seconds))
-        let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
-                    toleranceBefore: tol, toleranceAfter: tol) { _ in
-            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
-        }
-    }
-
-    /// 锁屏/控制中心「-N 秒」快退。
-    private func skipBackward(_ seconds: Double) {
-        guard let player else { return }
-        let target = max(0, currentTime - seconds)
-        let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
-                    toleranceBefore: tol, toleranceAfter: tol) { _ in
-            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
-        }
     }
 
     // MARK: - 通知监听
