@@ -100,6 +100,9 @@ struct GroupDetailView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        .containerBackground(for: .navigation) {
+            SkinBackground()
+        }
         .navigationTitle(title)
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
