@@ -942,18 +942,14 @@ final class PlayerEngine: ObservableObject {
 
         info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
 
-        // 锁屏歌词：第三方 App 的 MPMediaItemPropertyLyrics 在锁屏常不渲染，
-        // 故把「当前歌词行」合成进封面图作为锁屏 artwork，兼容性最稳。
-        let lockText: String = {
-            guard let lrc = lyrics, !lrc.isEmpty else { return "" }
+        if let lyrics = lyrics, !lyrics.isEmpty {
+            // 锁屏/控制中心优先显示当前歌词行；无时间轴时回退到纯文本。
             let line = currentLyricLine(at: currentTime)
-            return line.isEmpty ? Self.plainLyrics(lrc) : line
-        }()
-        if !lockText.isEmpty {
-            info[MPMediaItemPropertyLyrics] = lockText
+            info[MPMediaItemPropertyLyrics] = line.isEmpty ? Self.plainLyrics(lyrics) : line
         }
-        let lockImage = Self.compositeLyrics(onto: artwork, text: lockText)
-        info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(boundsSize: lockImage.size) { _ in lockImage }
+        if let art = artwork {
+            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(image: art)
+        }
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
@@ -968,47 +964,6 @@ final class PlayerEngine: ObservableObject {
             }
             return s.trimmingCharacters(in: .whitespaces)
         }.filter { !$0.isEmpty }.joined(separator: "\n")
-    }
-
-    /// 锁屏歌词合成：把当前歌词行绘制到封面图上，作为锁屏 artwork 显示。
-    /// 因为 MPMediaItemPropertyLyrics 在第三方 App 锁屏常不渲染，合成进图是兼容性最稳的方案。
-    private static func compositeLyrics(onto base: UIImage?, text: String) -> UIImage {
-        // 用户反馈：黑描边+阴影像「黑白叠加、很模糊」。
-        // 改为：纯白大字 + 底部半透明黑条，干净清晰。
-        let size = CGSize(width: 1200, height: 1200)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { ctx in
-            if let img = base {
-                img.draw(in: CGRect(origin: .zero, size: size))
-            } else {
-                UIColor(white: 0.08, alpha: 1).setFill()
-                ctx.fill(CGRect(origin: .zero, size: size))
-            }
-            guard !text.isEmpty else { return }
-
-            // 底部一条淡淡的暗化渐变，保证白字可读但不糊。
-            let colors = [UIColor.black.withAlphaComponent(0).cgColor,
-                          UIColor.black.withAlphaComponent(0.35).cgColor] as CFArray
-            if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                     colors: colors, locations: [0.7, 1.0]) {
-                ctx.cgContext.drawLinearGradient(grad,
-                                       start: CGPoint(x: size.width / 2, y: size.height * 0.65),
-                                       end: CGPoint(x: size.width / 2, y: size.height),
-                                       options: [])
-            }
-
-            let para = NSMutableParagraphStyle()
-            para.alignment = .center
-            // 纯白、更大、更粗，无描边无阴影。
-            let font = UIFont.systemFont(ofSize: 80, weight: .bold)
-            let attrs: [NSAttributedString.Key: Any] = [
-                .font: font,
-                .paragraphStyle: para,
-                .foregroundColor: UIColor.white
-            ]
-            let rect = CGRect(x: 60, y: size.height - 260, width: size.width - 120, height: 200)
-            text.draw(in: rect, withAttributes: attrs)
-        }
     }
 
     /// 内嵌封面为空时，异步拉取在线专辑图（iTunes Search API，免费无需密钥）兜底，解决「部分歌曲识别不到头像」。
