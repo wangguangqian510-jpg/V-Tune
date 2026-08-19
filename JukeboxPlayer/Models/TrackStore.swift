@@ -4,50 +4,6 @@ import SwiftUI
 
 import Combine
 
-import UIKit
-
-/// 主题强调色预设。
-enum AccentColor: String, CaseIterable, Identifiable {
-    case white, red, orange, blue, green, purple, pink
-    var id: String { rawValue }
-    var displayName: String {
-        switch self {
-        case .white:  return "默认白"
-        case .red:    return "红"
-        case .orange: return "橙"
-        case .blue:   return "蓝"
-        case .green:  return "绿"
-        case .purple: return "紫"
-        case .pink:   return "粉"
-        }
-    }
-    var color: Color {
-        // 再降饱和度、提明度，避免大块纯色扎眼；white 保持原样。
-        // 播放页按钮/进度条用色，柔和优先。
-        switch self {
-        case .white:  return .white
-        case .red:    return Color(uiColor: UIColor(hue: 0.98, saturation: 0.32, brightness: 0.97, alpha: 1.0))
-        case .orange: return Color(uiColor: UIColor(hue: 0.07, saturation: 0.35, brightness: 0.98, alpha: 1.0))
-        case .blue:   return Color(uiColor: UIColor(hue: 0.58, saturation: 0.32, brightness: 0.97, alpha: 1.0))
-        case .green:  return Color(uiColor: UIColor(hue: 0.38, saturation: 0.30, brightness: 0.96, alpha: 1.0))
-        case .purple: return Color(uiColor: UIColor(hue: 0.75, saturation: 0.32, brightness: 0.97, alpha: 1.0))
-        case .pink:   return Color(uiColor: UIColor(hue: 0.88, saturation: 0.32, brightness: 0.97, alpha: 1.0))
-        }
-    }
-}
-
-/// 播放页背景模式。
-enum BackgroundMode: String, CaseIterable, Identifiable {
-    case albumArt, custom
-    var id: String { rawValue }
-    var displayName: String {
-        switch self {
-        case .albumArt: return "专辑封面（模糊）"
-        case .custom:   return "自定义图片"
-        }
-    }
-}
-
 /// 持久化记录：存标题、路径、来源等，不存 Color（Color 不便于编码）。
 
 struct TrackRecord: Codable {
@@ -237,67 +193,6 @@ final class TrackStore: ObservableObject {
 
     private let importDiagnosticsEnabledKey = "JukeboxImportDiagnosticsEnabled_v1"
 
-    // MARK: - 个性化皮肤
-    @Published var accentColorName: String = AccentColor.white.rawValue {
-        didSet { UserDefaults.standard.set(accentColorName, forKey: AccentColorKey) }
-    }
-    @Published var backgroundMode: String = BackgroundMode.albumArt.rawValue {
-        didSet { UserDefaults.standard.set(backgroundMode, forKey: BackgroundModeKey) }
-    }
-    /// 自定义背景图在 App 沙盒内的路径（Documents/skin_background.jpg），无则为 nil。
-    @Published var customBackgroundPath: String? = nil {
-        didSet { UserDefaults.standard.set(customBackgroundPath, forKey: CustomBgKey) }
-    }
-    /// 自定义背景图的不透明度/浓度（0~1）。0 几乎全黑，1 图片最清晰。默认 0.5。
-    @Published var customBackgroundOpacity: Double = 0.5 {
-        didSet { UserDefaults.standard.set(customBackgroundOpacity, forKey: CustomBgOpacityKey) }
-    }
-    private let AccentColorKey = "YueYingAccentColor_v1"
-    private let BackgroundModeKey = "YueYingBackgroundMode_v1"
-    private let CustomBgKey = "YueYingCustomBackground_v1"
-    private let CustomBgOpacityKey = "YueYingCustomBackgroundOpacity_v1"
-
-    /// 当前主题色对应的 SwiftUI Color。
-    var accentColor: Color { AccentColor(rawValue: accentColorName)?.color ?? .white }
-    /// 当前背景模式枚举。
-    var backgroundModeEnum: BackgroundMode { BackgroundMode(rawValue: backgroundMode) ?? .albumArt }
-
-    /// 保存用户从相册选择的背景图到 App 沙盒（限制尺寸，避免原图过大），返回是否成功。
-    @discardableResult
-    func setCustomBackground(_ image: UIImage) -> Bool {
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return false }
-        let url = docs.appendingPathComponent("skin_background.jpg")
-        let target = resizeImage(image, toMax: 1280)
-        guard let data = target.jpegData(compressionQuality: 0.8) else { return false }
-        do { try data.write(to: url); customBackgroundPath = url.path; return true } catch { return false }
-    }
-    func clearCustomBackground() {
-        if let p = customBackgroundPath { try? fileManager.removeItem(at: URL(fileURLWithPath: p)) }
-        customBackgroundPath = nil
-    }
-    /// 读取已保存的自定义背景图（沙盒内），无则返回 nil。
-    /// 注意：iOS App 容器 UUID 可能变化，不能死认绝对路径；优先用 Documents/skin_background.jpg。
-    func loadCustomBackground() -> UIImage? {
-        if let p = customBackgroundPath, let img = UIImage(contentsOfFile: p) {
-            return img
-        }
-        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
-        let fallback = docs.appendingPathComponent("skin_background.jpg")
-        if let img = UIImage(contentsOfFile: fallback.path) {
-            // 路径失效但文件还在，自动修复记录
-            customBackgroundPath = fallback.path
-            return img
-        }
-        return nil
-    }
-    private func resizeImage(_ image: UIImage, toMax maxDim: CGFloat) -> UIImage {
-        let longer = max(image.size.width, image.size.height)
-        guard longer > maxDim else { return image }
-        let scale = maxDim / longer
-        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        return UIGraphicsImageRenderer(size: size).image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
-    }
-
     /// 最近播放记录（曲目 id，倒序，最多 50），用于「最近播放」页。
 
     @Published private(set) var recentIDs: [UUID] = []
@@ -325,10 +220,6 @@ final class TrackStore: ObservableObject {
         loadHiddenSamples()
 
         importDiagnosticsEnabled = (UserDefaults.standard.object(forKey: importDiagnosticsEnabledKey) as? Bool) ?? false
-        accentColorName = UserDefaults.standard.string(forKey: AccentColorKey) ?? AccentColor.white.rawValue
-        backgroundMode = UserDefaults.standard.string(forKey: BackgroundModeKey) ?? BackgroundMode.albumArt.rawValue
-        customBackgroundPath = UserDefaults.standard.string(forKey: CustomBgKey)
-        customBackgroundOpacity = (UserDefaults.standard.object(forKey: CustomBgOpacityKey) as? Double) ?? 0.5
 
         loadImportLog()
 
