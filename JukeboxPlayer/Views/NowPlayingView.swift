@@ -523,20 +523,26 @@ struct NowPlayingView: View {
                     }
                 }
                 .padding()
-                // 歌词操作：示例 / 粘贴 / 导入LRC / 清除（无歌词也能立刻验证偏移）
+                // 歌词操作收纳：示例独立保留，粘贴/在线搜/清除折叠进「更多」菜单（排版整洁）
                 HStack(spacing: 14) {
                     Button { engine.loadSampleLyricsForCurrent() } label: { Label("示例", systemImage: "lightbulb") }
-                    Button { showPasteLyrics = true } label: { Label("粘贴", systemImage: "doc.on.clipboard") }
-                    Button {
-                        onlineTitle = engine.title
-                        onlineArtist = engine.artist
-                        onlineCandidates = []
-                        onlinePreview = nil
-                        onlineError = nil
-                        onlineSearched = false
-                        showOnlineSearch = true
-                    } label: { Label("在线搜", systemImage: "globe") }
-                    Button { engine.setLyricsForCurrent("") } label: { Label("清除", systemImage: "trash") }
+                    Spacer()
+                    Menu {
+                        Button { showPasteLyrics = true } label: { Label("粘贴歌词 / LRC", systemImage: "doc.on.clipboard") }
+                        Button {
+                            onlineTitle = engine.title
+                            onlineArtist = engine.artist
+                            onlineCandidates = []
+                            onlinePreview = nil
+                            onlineError = nil
+                            onlineSearched = false
+                            showOnlineSearch = true
+                        } label: { Label("在线搜歌词", systemImage: "globe") }
+                        Divider()
+                        Button(role: .destructive) { engine.setLyricsForCurrent("") } label: { Label("清除歌词", systemImage: "trash") }
+                    } label: {
+                        Label("更多", systemImage: "ellipsis.circle")
+                    }
                 }
                 .font(.subheadline)
                 .foregroundStyle(.white.opacity(0.85))

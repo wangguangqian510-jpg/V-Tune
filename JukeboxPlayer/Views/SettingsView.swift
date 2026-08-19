@@ -89,8 +89,21 @@ struct SettingsView: View {
             }
 
             Section("导入设置") {
-                HStack { Text("导入模式"); Spacer(); Text("复制到 App（强制）").foregroundStyle(.secondary) }
+                Picker("导入模式", selection: Binding(
+                    get: { store.importByCopy },
+                    set: { store.importByCopy = $0 }
+                )) {
+                    Text("引用原文件（省空间）").tag(false)
+                    Text("复制到 App（最稳）").tag(true)
+                }
+                .pickerStyle(.menu)
+                Text(store.importByCopy
+                     ? "复制模式：音频复制进 App 沙盒，占 2 倍空间；原文件被删除/移动不影响播放，最稳。"
+                     : "引用模式：不复制，直接播放 Files 里的原文件（只占 1 份空间）；原文件被删除/移动后该曲目会无法播放，可在曲库中删除。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
+                HStack { Text("引用（不占空间）"); Spacer(); Text("\(storage.referencedCount)") }
 
                 Button {
 

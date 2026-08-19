@@ -168,13 +168,16 @@ final class TrackStore: ObservableObject {
 
     private var hiddenSampleIDs: Set<UUID> = []
 
-    /// 导入模式：false=引用原文件（不复制，省空间，但重签名/旁载环境可能解析失败）；
-
-    /// true=复制到 App 沙盒（最稳，默认）。默认复制，保证导入开箱即用；引用模式在设置里可手动开启。
-
-    /// 导入模式：强制复制到 App 沙盒（最稳，重签名/旁载环境可靠）。
-    /// 引用原文件（不复制）模式已废弃：重签名侧载 App 中书签解析经常失败，导致导入空白/进度无、刷新时记录消失像被全删。
-    var importByCopy: Bool = true
+    /// 导入模式：false=引用原文件（不复制，省空间，书签带安全作用域）；
+    /// true=复制到 App 沙盒（最稳，重签名/旁载环境可靠，但占 2 倍空间）。
+    /// 默认引用（省空间）；解析失败会保留记录并自动回退复制，不会出现「记录全删」。
+    var importByCopy: Bool = false {
+        didSet {
+            if oldValue != importByCopy {
+                UserDefaults.standard.set(importByCopy, forKey: importByCopyKey)
+            }
+        }
+    }
 
     /// 当前已 startAccessing 的引用原文件 URL（保持作用域，供 AVPlayer 播放），refresh 时整体刷新。
 
@@ -203,11 +206,9 @@ final class TrackStore: ObservableObject {
 
     init() {
 
-        // UserDefaults.bool 对未设置的 key 返回 false，故用 object(forKey:) 区分「从未设置」与「显式关掉」，
+        // 默认 false（引用原文件，省空间）；仅当用户在设置里显式开启「复制到 App」才为 true。
 
-        // 默认 true（复制到 App 沙盒，开箱即用最稳）；仅当用户在设置里显式开启「引用原文件」才为 false。
-
-        let byCopy = (UserDefaults.standard.object(forKey: importByCopyKey) as? Bool) ?? true
+        let byCopy = (UserDefaults.standard.object(forKey: importByCopyKey) as? Bool) ?? false
 
         importByCopy = byCopy
 
@@ -329,35 +330,22 @@ final class TrackStore: ObservableObject {
 
             case .referenced:
 
-                guard let bm = rec.bookmark else {
+                // 失效记录只跳过展示、不删除：之前「解析失败即删」在重签名环境会批量失败，
+                // 表现为刷新后曲目像被全删。现在保留记录，仅本次不进入列表；用户可在曲库手动删除。
 
-                    records.removeValue(forKey: id)
-
-                    removedIDs.append(id)
-
-                    continue
-
-                }
+                guard let bm = rec.bookmark else { continue }
 
                 var stale = false
 
                 do {
 
-                    let resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    _ = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
 
-                    if stale || !fileManager.fileExists(atPath: resolved.path) {
-
-                        records.removeValue(forKey: id)
-
-                        removedIDs.append(id)
-
-                    }
+                    if stale { continue }
 
                 } catch {
 
-                    records.removeValue(forKey: id)
-
-                    removedIDs.append(id)
+                    continue
 
                 }
 
@@ -423,7 +411,7 @@ final class TrackStore: ObservableObject {
 
                 do {
 
-                    resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    resolved = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
 
                 } catch {
 
@@ -598,7 +586,7 @@ final class TrackStore: ObservableObject {
 
             } else {
 
-                if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                if let bm = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) {
 
                     records[existingID] = TrackRecord(
 
@@ -648,7 +636,7 @@ final class TrackStore: ObservableObject {
 
         if !importByCopy {
 
-            if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+            if let bm = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) {
 
                 addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint, artwork: artwork)
 

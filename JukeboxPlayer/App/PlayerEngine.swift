@@ -473,6 +473,14 @@ final class PlayerEngine: ObservableObject {
 
         cleanupObservers()
 
+        // 串音修复：销毁旧 player 前必须先显式 pause + 清空 item。
+        // 之前只做 `player = nil` 靠 ARC 释放，但 AVPlayer 底层 audio queue 是 CF 对象、
+        // 不会立即停止输出，新曲一响就与旧音频重叠（尤其 MP4 视频切换时最明显）。
+        // pause() 会同步停止旧音频队列，replaceCurrentItem(with: nil) 进一步摘除解码源。
+        if let oldPlayer = player {
+            oldPlayer.pause()
+            oldPlayer.replaceCurrentItem(with: nil)
+        }
         // 必须先停掉旧 player，否则 applyEQToCurrentItem 会触发 replaceCurrentItem，
 
         // 在旧 tap 仍在渲染时迁移到新 item 容易导致 MTAudioProcessingTap 闪退。
@@ -544,44 +552,8 @@ final class PlayerEngine: ObservableObject {
         }
 
         // 进度观察（4fps 基础更新，足够 UI；高频场景可另行监听）
-
-        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-
-        timeObserver = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] t in
-
-            guard let self = self else { return }
-
-            let s = CMTimeGetSeconds(t)
-
-            if s.isFinite {
-
-                // 拖动进度条期间不回写 currentTime，否则会和滑块的 set 互相覆盖、
-
-                // 触发一连串零容差 seek 把 AVPlayer 搞到卡死（表现为「拖一下只播 2 秒就停」）。
-
-                if !self.isScrubbing {
-
-                    self.currentTime = s
-
-                    // 歌词行变化时同步锁屏信息，使锁屏/控制中心显示当前行。
-
-                    let line = self.currentLyricLine(at: s)
-
-                    if line != self.lastLyricLine {
-
-                        self.lastLyricLine = line
-
-                        self.updateNowPlaying()
-
-                    }
-
-                }
-
-                if s > self.duration { self.duration = s }
-
-            }
-
-        }
+        // 播放时开启、暂停时移除（见 timeControlStatus sink），避免暂停后仍空转 CPU 导致发热。
+        addTimeObserver()
 
         // 时长兜底：部分本地文件 item.duration 在 readyToPlay 时仍是 indefinite，
 
@@ -659,11 +631,17 @@ final class PlayerEngine: ObservableObject {
 
                 if status == .paused {
 
+                    // 暂停时停掉周期进度轮询：不空转 CPU（发热优化）
+
+                    self.removeTimeObserverIfNeeded()
+
                     MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
 
                     if #available(iOS 16.1, *) { self.updateLiveActivity() }
 
                 } else {
+
+                    self.addTimeObserver()
 
                     self.updateNowPlaying()
 
@@ -699,7 +677,7 @@ final class PlayerEngine: ObservableObject {
 
         // 异步提取内嵌封面 / MP4 视频首帧，作为黑胶中心图
 
-        if track.artwork == nil { loadArtwork(for: asset) }
+        if track.artwork == nil { loadArtwork(for: asset, track: track) }
 
         // 通知曲库记录「最近播放」
 
@@ -757,9 +735,39 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: - 清理
 
+    /// 周期进度观察（4fps）：播放时开启、暂停时移除（省 CPU 防发热）。
+    private func addTimeObserver() {
+        removeTimeObserverIfNeeded()
+        guard let player = player else { return }
+        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        timeObserver = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] t in
+            guard let self = self else { return }
+            let s = CMTimeGetSeconds(t)
+            if s.isFinite {
+                // 拖动进度条期间不回写 currentTime，否则会和滑块的 set 互相覆盖、
+                // 触发一连串零容差 seek 把 AVPlayer 搞到卡死（表现为「拖一下只播 2 秒就停」）。
+                if !self.isScrubbing {
+                    self.currentTime = s
+                    // 歌词行变化时同步锁屏信息，使锁屏/控制中心显示当前行。
+                    let line = self.currentLyricLine(at: s)
+                    if line != self.lastLyricLine {
+                        self.lastLyricLine = line
+                        self.updateNowPlaying()
+                    }
+                }
+                if s > self.duration { self.duration = s }
+            }
+        }
+    }
+
+    private func removeTimeObserverIfNeeded() {
+        if let o = timeObserver { player?.removeTimeObserver(o) }
+        timeObserver = nil
+    }
+
     private func cleanupObservers() {
 
-        if let o = timeObserver { player?.removeTimeObserver(o); timeObserver = nil }
+        removeTimeObserverIfNeeded()
 
         cancellables.removeAll()
 
@@ -813,8 +821,9 @@ final class PlayerEngine: ObservableObject {
     }
 
     /// 异步提取内嵌封面（音频 artwork）或 MP4 视频首帧，赋值 engine.artwork。
+    /// 兜底顺序：内嵌封面 → 同目录 cover.jpg/folder.jpg → MP4 首帧（限 800pt 防 OOM）。
 
-    private func loadArtwork(for asset: AVAsset) {
+    private func loadArtwork(for asset: AVAsset, track: Track) {
 
         Task { @MainActor [weak self] in
 
@@ -834,13 +843,25 @@ final class PlayerEngine: ObservableObject {
 
             }
 
-            // 2) MP4 / 视频文件：取首帧作为封面
+            // 2) 本地文件：同目录同名封面图兜底（cover.jpg / folder.jpg / 同名 jpg/png）
+
+            if track.url.isFileURL, let img = Self.sidecarCover(for: track.url) {
+
+                self.artwork = img
+
+                return
+
+            }
+
+            // 3) MP4 / 视频文件：取首帧作为封面（maximumSize 限制，避免 4K 首帧 OOM）
 
             if !asset.tracks(withMediaType: .video).isEmpty {
 
                 let gen = AVAssetImageGenerator(asset: asset)
 
                 gen.appliesPreferredTrackTransform = true
+
+                gen.maximumSize = CGSize(width: 800, height: 800)
 
                 if let cg = try? gen.copyCGImage(at: .zero, actualTime: nil) {
 
@@ -851,6 +872,42 @@ final class PlayerEngine: ObservableObject {
             }
 
         }
+
+    }
+
+    /// 查找与音频同目录的同名封面图（cover.jpg / folder.jpg / 同名 .jpg/.png/.jpeg）。
+
+    private static func sidecarCover(for url: URL) -> UIImage? {
+
+        let dir = url.deletingLastPathComponent()
+
+        let base = url.deletingPathExtension().lastPathComponent
+
+        let fm = FileManager.default
+
+        let candidates = [
+
+            "cover.jpg", "cover.png", "cover.jpeg",
+
+            "folder.jpg", "folder.png", "folder.jpeg",
+
+            "\(base).jpg", "\(base).png", "\(base).jpeg"
+
+        ]
+
+        for name in candidates {
+
+            let p = dir.appendingPathComponent(name)
+
+            if fm.fileExists(atPath: p.path), let img = UIImage(contentsOfFile: p.path) {
+
+                return img
+
+            }
+
+        }
+
+        return nil
 
     }
 
