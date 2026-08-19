@@ -23,39 +23,43 @@ struct GroupedListView: View {
     }
 
     var body: some View {
-        List {
-            ForEach(groups, id: \.name) { group in
-                NavigationLink {
-                    GroupDetailView(title: group.name, tracks: group.tracks)
-                } label: {
-                    HStack(spacing: 14) {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(LinearGradient(colors: coverColors(for: group.name),
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing))
-                            .frame(width: 56, height: 56)
-                            .overlay(
-                                Text(String(group.name.prefix(1)))
-                                    .foregroundStyle(.white)
-                                    .font(.title3)
-                            )
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(group.name)
-                                .font(.headline)
-                                .lineLimit(1)
-                            Text("\(group.tracks.count) 首")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
+        ZStack {
+            SkinBackground().ignoresSafeArea()
+
+            List {
+                ForEach(groups, id: \.name) { group in
+                    NavigationLink {
+                        GroupDetailView(title: group.name, tracks: group.tracks)
+                    } label: {
+                        HStack(spacing: 14) {
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(LinearGradient(colors: coverColors(for: group.name),
+                                                    startPoint: .topLeading,
+                                                    endPoint: .bottomTrailing))
+                                .frame(width: 56, height: 56)
+                                .overlay(
+                                    Text(String(group.name.prefix(1)))
+                                        .foregroundStyle(.white)
+                                        .font(.title3)
+                                )
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(group.name)
+                                    .font(.headline)
+                                    .lineLimit(1)
+                                Text("\(group.tracks.count) 首")
+                                    .font(.subheadline)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
+                        .padding(.vertical, 4)
                     }
-                    .padding(.vertical, 4)
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .listRowBackground(Color.clear)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
         .overlay {
             if groups.isEmpty {
                 Text("没有\(title)")
@@ -76,30 +80,34 @@ struct GroupDetailView: View {
     @State private var trackToAdd: Track?
 
     var body: some View {
-        List {
-            Button {
-                engine.load(tracks)
-                engine.play(index: 0)
-            } label: {
-                Label("播放全部", systemImage: "play.circle.fill")
-                    .font(.headline)
-            }
+        ZStack {
+            SkinBackground().ignoresSafeArea()
 
-            ForEach(tracks) { track in
-                TrackRow(
-                    track: track,
-                    isCurrent: isCurrent(track),
-                    isPlaying: engine.isPlaying,
-                    onTap: { play(track) },
-                    onAddToPlaylist: { trackToAdd = $0 }
-                )
-                .deleteDisabled(!track.isRemovable)
+            List {
+                Button {
+                    engine.load(tracks)
+                    engine.play(index: 0)
+                } label: {
+                    Label("播放全部", systemImage: "play.circle.fill")
+                        .font(.headline)
+                }
+
+                ForEach(tracks) { track in
+                    TrackRow(
+                        track: track,
+                        isCurrent: isCurrent(track),
+                        isPlaying: engine.isPlaying,
+                        onTap: { play(track) },
+                        onAddToPlaylist: { trackToAdd = $0 }
+                    )
+                    .deleteDisabled(!track.isRemovable)
+                }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .listRowBackground(Color.clear)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
         .navigationTitle(title)
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
