@@ -131,7 +131,7 @@ struct TrackRow: View {
             .frame(width: 56, height: 56)
 
                         .overlay {
-                if let img = track.artwork {
+                if let img = store.artwork(for: track) {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()

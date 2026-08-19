@@ -83,6 +83,9 @@ final class PlayerEngine: ObservableObject {
     /// 锁屏歌词：记录上一次推送到 MPNowPlayingInfoCenter 的歌词行，只在变化时刷新。
     private var lastLyricLine: String = ""
 
+    /// 播放失败后是否已做一次性 session 重试（成功切歌时重置为 false）。
+    private var sessionRetried = false
+
     /// 当前曲目是否为视频文件（MP4/MOV 等），由 setupAndPlay 检测，用于切换视频播放界面。
 
     @Published var isVideo: Bool = false
@@ -471,6 +474,10 @@ final class PlayerEngine: ObservableObject {
 
     private func setupAndPlay(_ track: Track) {
 
+        // 播放前确保 AudioSession 处于激活态：息屏/来电中断/长时间运行后 session 可能被系统停用，
+        // 不重新激活会导致「切歌后全目录点了都没声/失败」。setActive 幂等，已在播则无副作用。
+        try? AVAudioSession.sharedInstance().setActive(true)
+
         cleanupObservers()
 
         // 串音修复：销毁旧 player 前必须先显式 pause + 清空 item。
@@ -593,6 +600,8 @@ final class PlayerEngine: ObservableObject {
 
                     self.isLoading = false
 
+                    self.sessionRetried = false
+
                     // EQ 已在 setupAndPlay 中提前挂接；这里不再重复 replace，避免播放中断。
 
                 case .failed:
@@ -600,6 +609,17 @@ final class PlayerEngine: ObservableObject {
                     self.isLoading = false
 
                     self.lastError = item.error?.localizedDescription ?? "播放失败"
+
+                    // 会话可能被系统停用导致本次加载失败：重新激活 session 并重试播放一次（防「全目录都不能播」）。
+                    if !self.sessionRetried {
+                        self.sessionRetried = true
+                        try? AVAudioSession.sharedInstance().setActive(true)
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                            guard let self, self.player?.currentItem === item else { return }
+                            self.player?.play()
+                            self.player?.rate = self.playbackRate
+                        }
+                    }
 
                 default:
 
@@ -1173,7 +1193,12 @@ final class PlayerEngine: ObservableObject {
 
                AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
 
+                // 中断结束后必须重新激活 session 再恢复播放，否则所有曲目会静默失败（息屏/来电后全目录不能播的根因之一）。
+                try? AVAudioSession.sharedInstance().setActive(true)
+
                 player?.play(); isPlaying = true
+
+                player?.rate = playbackRate
 
             }
 

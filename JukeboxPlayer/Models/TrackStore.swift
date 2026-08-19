@@ -4,6 +4,10 @@ import SwiftUI
 
 import Combine
 
+import UIKit
+
+import AVFoundation
+
 /// 持久化记录：存标题、路径、来源等，不存 Color（Color 不便于编码）。
 
 struct TrackRecord: Codable {
@@ -29,8 +33,9 @@ struct TrackRecord: Codable {
     let lyrics: String?
 
     /// 引用原文件模式：存安全书签；复制/远程模式为 nil
+    /// var：书签过期（stale）时可原地刷新，避免重启后引用失效
 
-    let bookmark: Data?
+    var bookmark: Data?
 
     /// 导入去重指纹（源文件名|文件大小），仅 imported 用；相同指纹视为同一文件，不再新增记录
 
@@ -200,6 +205,12 @@ final class TrackStore: ObservableObject {
 
     @Published private(set) var recentIDs: [UUID] = []
 
+    /// 主页列表封面懒加载缓存：导入时未提取到内嵌封面的本地曲目，异步补提（内嵌 → 同名图）。
+    @Published private(set) var artworkCache: [UUID: UIImage] = [:]
+
+    /// 正在异步补提封面的曲目 id（去重，避免列表滚动重复触发）。
+    private var pendingArtwork: Set<UUID> = []
+
     private let recentKey = "JukeboxRecentIDs_v1"
 
     private var cancellables = Set<AnyCancellable>()
@@ -248,6 +259,61 @@ final class TrackStore: ObservableObject {
 
             .store(in: &cancellables)
 
+    }
+
+    // MARK: - 封面懒加载
+
+    /// 取曲目封面：内嵌封面 → 懒加载缓存；都没有则返回 nil（UI 用渐变兜底）并异步补提。
+    func artwork(for track: Track) -> UIImage? {
+        if let a = track.artwork { return a }
+        if let cached = artworkCache[track.id] { return cached }
+        if track.url.isFileURL {
+            scheduleArtworkLoad(track)
+        }
+        return nil
+    }
+
+    private func scheduleArtworkLoad(_ track: Track) {
+        guard !pendingArtwork.contains(track.id) else { return }
+        pendingArtwork.insert(track.id)
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let img = await Self.extractArtwork(from: track.url)
+            if let img {
+                self.artworkCache[track.id] = img
+            }
+            self.pendingArtwork.remove(track.id)
+        }
+    }
+
+    /// 从本地文件提取封面：内嵌封面（mp3 ID3 / m4a）→ 同目录 cover.jpg/folder.jpg/同名图。
+    private static func extractArtwork(from url: URL) async -> UIImage? {
+        let asset = AVURLAsset(url: url)
+        if let item = asset.commonMetadata.first(where: { $0.commonKey?.rawValue == "artwork" }),
+           let data = item.value as? Data,
+           let img = UIImage(data: data) {
+            return img
+        }
+        return sidecarCover(for: url)
+    }
+
+    /// 查找与音频同目录的同名封面图（cover.jpg / folder.jpg / 同名 .jpg/.png/.jpeg）。
+    private static func sidecarCover(for url: URL) -> UIImage? {
+        let dir = url.deletingLastPathComponent()
+        let base = url.deletingPathExtension().lastPathComponent
+        let fm = FileManager.default
+        let candidates = [
+            "cover.jpg", "cover.png", "cover.jpeg",
+            "folder.jpg", "folder.png", "folder.jpeg",
+            "\(base).jpg", "\(base).png", "\(base).jpeg"
+        ]
+        for name in candidates {
+            let p = dir.appendingPathComponent(name)
+            if fm.fileExists(atPath: p.path), let img = UIImage(contentsOfFile: p.path) {
+                return img
+            }
+        }
+        return nil
     }
 
     // MARK: - 派生数据
@@ -413,8 +479,21 @@ final class TrackStore: ObservableObject {
 
                     resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
 
+                    // 书签已过期但仍能解析（重签名/系统更新后常见）：用新 URL 刷新书签并落盘，
+                    // 避免下次启动解析彻底失败导致「引用消失」。
+                    if stale, let fresh = try? resolved.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                        var updated = record
+                        updated.bookmark = fresh
+                        records[record.id] = updated
+                        saveRecords()
+                    }
+
                 } catch {
 
+                    // 书签解析失败：不丢弃曲目，用文件名占位 URL 保持条目可见（播放时会提示引用失效），
+                    // 而不是「重启后曲目凭空消失」。
+                    let fallback = URL(fileURLWithPath: record.urlString)
+                    userTracks.append(makeTrack(record: record, url: fallback, source: .referenced))
                     continue
 
                 }
@@ -1511,6 +1590,10 @@ final class TrackStore: ObservableObject {
         if let data = try? JSONEncoder().encode(list) {
 
             UserDefaults.standard.set(data, forKey: recordsKey)
+
+            // 强制落盘：导入后如果 App 异常退出/被杀（如快速切歌崩溃），
+            // 不同步会丢最后一次写入 → 重启后引用曲目「消失」。
+            UserDefaults.standard.synchronize()
 
         }
 
