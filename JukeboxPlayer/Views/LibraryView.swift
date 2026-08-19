@@ -36,32 +36,19 @@ struct LibraryView: View {
     }
 
     var body: some View {
-        // VStack 整体透明（覆盖默认白色容器背景），让 containerBackground(for: .navigation) 透出。
         VStack(spacing: 0) {
             tabBar
 
-            ZStack {
-                switch tab {
-                case .songs:     songList
-                case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
-                case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
-                case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
-                case .favorites: favoritesList
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-            // 迷你播放条：直接放在底部 VStack，点播放(hasTrack=true)时作为普通视图出现，
-            // 不再用 .safeAreaInset，因此不会和顶部 .searchable 搜索栏打架、也不会把布局顶乱。
-            if engine.hasTrack {
-                NowPlayingBar()
-                    .environmentObject(engine)
-                    .environmentObject(store)
+            switch tab {
+            case .songs:     songList
+            case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
+            case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
+            case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
+            case .favorites: favoritesList
             }
         }
-        .background(Color.clear)
-        .navigationTitle("乐影")
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("V-Tune")
+        .navigationBarTitleDisplayMode(.large)
         .toolbar { toolbarItems }
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
@@ -146,11 +133,6 @@ struct LibraryView: View {
             .onDelete(perform: delete)
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
-        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图（即使 containerBackground 不生效）。
-        .background { SkinBackground() }
         .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
     }
 
@@ -169,11 +151,6 @@ struct LibraryView: View {
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
-        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
-        .background { SkinBackground() }
         .overlay {
             if store.favoriteTracks.isEmpty {
                 emptyHint("还没有收藏\n在歌曲右侧点 ♡ 即可收藏")
