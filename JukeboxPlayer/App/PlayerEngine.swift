@@ -456,7 +456,9 @@ final class PlayerEngine: ObservableObject {
 
                     self.isPlaying = false
 
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+                    // 睡眠到点也保留锁屏卡片+控制（rate=0），不再清空
+
+                    self.updateNowPlaying()
 
                 }
 
@@ -475,7 +477,9 @@ final class PlayerEngine: ObservableObject {
     private func setupAndPlay(_ track: Track) {
 
         // 播放前确保 AudioSession 处于激活态：息屏/来电中断/长时间运行后 session 可能被系统停用，
-        // 不重新激活会导致「切歌后全目录点了都没声/失败」。setActive 幂等，已在播则无副作用。
+        // 不重新激活会导致「切歌后全目录点了都没声/失败」。
+        // 先 deactivate 再 activate 重置会话状态（防「多次切歌/中断后 session 被系统锁死」）。
+        try? AVAudioSession.sharedInstance().setActive(false)
         try? AVAudioSession.sharedInstance().setActive(true)
 
         cleanupObservers()
@@ -655,7 +659,10 @@ final class PlayerEngine: ObservableObject {
 
                     self.removeTimeObserverIfNeeded()
 
-                    MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+                    // 保留锁屏/灵动岛卡片 + 控制按钮可点：更新一次让 rate=0（系统用 rate 暂停且仍显示卡片）。
+                    // 之前清空 nowPlayingInfo 导致锁屏「上一首/下一首/暂停」灰色不可用。
+
+                    self.updateNowPlaying()
 
                     if #available(iOS 16.1, *) { self.updateLiveActivity() }
 

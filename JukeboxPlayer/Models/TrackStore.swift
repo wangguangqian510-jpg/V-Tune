@@ -157,6 +157,15 @@ final class TrackStore: ObservableObject {
 
     private let recordsKey = "JukeboxTrackRecords_v1"
 
+    /// records 持久化文件路径：Documents/jukebox_records.json
+    /// 改用文件存储（FileManager.write atomic）而非 UserDefaults，因为 UserDefaults 的 synchronize()
+    /// 在 iOS 上已被视为 no-op，App 异常退出时无法保证落盘，导致引用曲目重启后消失。
+    private var recordsURL: URL {
+        let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+            ?? URL(fileURLWithPath: NSTemporaryDirectory())
+        return docs.appendingPathComponent("jukebox_records.json")
+    }
+
     private let playlistsKey = "JukeboxPlaylists_v1"
 
     private let favoritesKey = "JukeboxFavoriteIDs_v1"
@@ -1575,11 +1584,22 @@ final class TrackStore: ObservableObject {
 
     private func loadRecords() {
 
+        // 优先从 Documents/jukebox_records.json 文件读（原子写保证立即落盘）
+        if let data = try? Data(contentsOf: recordsURL),
+           let list = try? JSONDecoder().decode([TrackRecord].self, from: data) {
+            records = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
+            return
+        }
+
+        // 兜底迁移：首次启动从 UserDefaults 读旧数据，立即写入文件并继续
+
         guard let data = UserDefaults.standard.data(forKey: recordsKey),
 
               let list = try? JSONDecoder().decode([TrackRecord].self, from: data) else { return }
 
         records = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
+
+        saveRecords()
 
     }
 
@@ -1589,11 +1609,15 @@ final class TrackStore: ObservableObject {
 
         if let data = try? JSONEncoder().encode(list) {
 
-            UserDefaults.standard.set(data, forKey: recordsKey)
+            // 原子写到 Documents 文件：先写临时文件再 rename，App 异常退出也能保证数据落盘。
+            // 之前用 UserDefaults + synchronize() 在 iOS 13+ 是 no-op，无法可靠保证持久化。
+            do {
+                try data.write(to: recordsURL, options: [.atomic])
+            } catch {
+                // 文件写失败兜底：仍写 UserDefaults（至少下次启动内存里能恢复）
 
-            // 强制落盘：导入后如果 App 异常退出/被杀（如快速切歌崩溃），
-            // 不同步会丢最后一次写入 → 重启后引用曲目「消失」。
-            UserDefaults.standard.synchronize()
+                UserDefaults.standard.set(data, forKey: recordsKey)
+            }
 
         }
 
