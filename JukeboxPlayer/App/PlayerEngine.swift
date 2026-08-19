@@ -91,6 +91,9 @@ final class PlayerEngine: ObservableObject {
     /// 播放失败后是否已做一次性 session 重试（成功切歌时重置为 false）。
     private var sessionRetried = false
 
+    /// skip 命令（视频锁屏 15s 快进）是否已注册 handler（防重复 addTarget）。
+    private var skipCommandsRegistered = false
+
     /// 当前曲目是否为视频文件（MP4/MOV 等），由 setupAndPlay 检测，用于切换视频播放界面。
 
     @Published var isVideo: Bool = false
@@ -1236,8 +1239,9 @@ final class PlayerEngine: ObservableObject {
             center.skipBackwardCommand.isEnabled = true
             center.skipForwardCommand.preferredIntervals = [NSNumber(value: 15)]
             center.skipBackwardCommand.preferredIntervals = [NSNumber(value: 15)]
-            // 只注册一次（targets 非空则跳过），避免重复 addTarget 导致一次点击触发多次跳转
-            if center.skipForwardCommand.targets.isEmpty {
+            // 只注册一次（MPRemoteCommand 重复 addTarget 会多次触发），用标志位防重复
+            if !skipCommandsRegistered {
+                skipCommandsRegistered = true
                 center.skipForwardCommand.addTarget { [weak self] _ in
                     Task { @MainActor in self?.skipForward(15) }
                     return .success
@@ -1252,6 +1256,7 @@ final class PlayerEngine: ObservableObject {
             center.skipBackwardCommand.isEnabled = false
             center.skipForwardCommand.removeTarget(self)
             center.skipBackwardCommand.removeTarget(self)
+            skipCommandsRegistered = false
         }
     }
 
