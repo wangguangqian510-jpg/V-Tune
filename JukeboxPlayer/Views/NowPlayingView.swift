@@ -205,12 +205,36 @@ struct NowPlayingView: View {
             if showLyrics { lyricsSheet }
             if showOnlineSearch { onlineSearchSheet }
         }
-        // 全局背景已移到 UIWindow 层（见 WindowBackground），
-        // 播放页本身保持透明，让 UIWindow 背景透出来。
+        // 纯 SwiftUI 背景：播放页内容层透明，背景挂在 ZStack 的 .background 上，
+        // 不操作 UIWindow（避免启动崩溃）。
+        .background { backgroundLayer }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
         }
         .simultaneousGesture(dismissSwipe)
+    }
+
+    // MARK: 播放页背景
+    private var backgroundLayer: some View {
+        let isCustom = store.backgroundModeEnum == .custom
+        let image: UIImage? = {
+            if isCustom, let img = store.loadCustomBackground() { return img }
+            return engine.artwork
+        }()
+        let dimOpacity = isCustom ? (1 - store.customBackgroundOpacity) : 0.35
+        return Group {
+            if let img = image {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .blur(radius: 45, opaque: false)
+                    .overlay(Color.black.opacity(dimOpacity))
+            } else {
+                let base = engine.currentCover.isEmpty ? [Color.black] : engine.currentCover
+                LinearGradient(colors: base.map { $0.opacity(0.9) } + [.black],
+                               startPoint: .top, endPoint: .bottom)
+            }
+        }
     }
 
     // MARK: Header
