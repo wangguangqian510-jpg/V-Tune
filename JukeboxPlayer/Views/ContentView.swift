@@ -19,6 +19,8 @@ struct ContentView: View {
                                    startPoint: .top, endPoint: .bottom)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .clipped()
             .ignoresSafeArea()
             NavigationStack {
                 LibraryView()
