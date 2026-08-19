@@ -37,6 +37,9 @@ struct PlaylistDetailView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .navigationTitle(playlist.name)
         .overlay {
             if tracks.isEmpty {
