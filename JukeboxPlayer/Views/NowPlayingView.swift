@@ -215,8 +215,9 @@ struct NowPlayingView: View {
     }
     /// 播放页背景：自定义图片优先 → 专辑封面模糊 → 封面色渐变兜底。
     private var backgroundLayer: some View {
+        let isCustom = store.backgroundModeEnum == .custom
         let image: UIImage? = {
-            if store.backgroundModeEnum == .custom, let img = store.loadCustomBackground() {
+            if isCustom, let img = store.loadCustomBackground() {
                 return img
             }
             return engine.artwork
@@ -225,13 +226,14 @@ struct NowPlayingView: View {
         // 否则 Image 会退回原始像素尺寸把 ZStack 撑宽，导致播放页自身被拉宽。
         let bgW = UIScreen.main.bounds.width
         let bgH = UIScreen.main.bounds.height
+        let dimOpacity = isCustom ? (1 - store.customBackgroundOpacity) : 0.35
         return Group {
             if let img = image {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
                     .blur(radius: 45, opaque: false)
-                    .overlay(Color.black.opacity(0.35))
+                    .overlay(Color.black.opacity(dimOpacity))
             } else {
                 LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
                                startPoint: .top, endPoint: .bottom)
