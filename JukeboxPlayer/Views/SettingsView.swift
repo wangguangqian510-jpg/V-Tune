@@ -339,7 +339,11 @@ struct SettingsView: View {
         }
 
         .sheet(isPresented: $showPhotoPicker) {
-            PhotoPicker(onPick: { img in _ = store.setCustomBackground(img) })
+            PhotoPicker(onPick: { img in
+                if store.setCustomBackground(img) {
+                    store.backgroundMode = BackgroundMode.custom.rawValue
+                }
+            })
         }
 
     }
