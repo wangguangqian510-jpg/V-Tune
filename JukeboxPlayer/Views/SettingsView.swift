@@ -336,9 +336,14 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        // 显式设为 plain：iOS 18 默认是 insetGrouped 会渲染圆角白色分组卡片挡住背景。
+        // 改 plain 后背景图能完整透出（虽然失去 iOS 设置的分组感，但避免"分割感"）。
+        .listStyle(.plain)
         .containerBackground(for: .navigation) {
             SkinBackground()
         }
+        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
+        .background { SkinBackground() }
 
         .navigationTitle("设置")
 
