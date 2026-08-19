@@ -83,6 +83,11 @@ final class PlayerEngine: ObservableObject {
     /// 锁屏歌词：记录上一次推送到 MPNowPlayingInfoCenter 的歌词行，只在变化时刷新。
     private var lastLyricLine: String = ""
 
+    /// 锁屏占位封面缓存：曲目无内嵌封面时，用 currentCover 渐变色合成一张 600×600 图当占位
+    /// （避免 iOS 18 因缺 artwork 把所有控制置灰）。
+    private var cachedPlaceholderArtwork: UIImage?
+    private var cachedPlaceholderKey: String = ""
+
     /// 播放失败后是否已做一次性 session 重试（成功切歌时重置为 false）。
     private var sessionRetried = false
 
@@ -1029,12 +1034,42 @@ final class PlayerEngine: ObservableObject {
             let line = currentLyricLine(at: currentTime)
             info[MPMediaItemPropertyLyrics] = line.isEmpty ? Self.plainLyrics(lyrics) : line
         }
-        if let art = artwork {
-            info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(image: art)
-        }
+        // 必须始终设 artwork：iOS 18 设计——锁屏卡片无封面图时所有控制（上一首/下一首/暂停）灰色不可点。
+        // 无内嵌封面时用 currentCover 渐变合成占位图，让卡片完整 + 控制可用。
+        let artImage = artwork ?? placeholderArtworkImage()
+        info[MPMediaItemPropertyArtwork] = MPMediaItemArtwork(image: artImage)
 
         MPNowPlayingInfoCenter.default().nowPlayingInfo = info
 
+    }
+
+    /// 用 currentCover 颜色合成一张占位封面图（用于锁屏/控制中心当曲目无内嵌封面时）。
+    /// 缓存：颜色未变复用旧图，避免每帧重绘。
+    private func placeholderArtworkImage() -> UIImage {
+        let key = currentCover.map { UIColor($0).description }.joined(separator: "|")
+        if let cached = cachedPlaceholderArtwork, cachedPlaceholderKey == key {
+            return cached
+        }
+        let size = CGSize(width: 600, height: 600)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        let img = renderer.image { ctx in
+            let cg = ctx.cgContext
+            let cgColors = currentCover.map { UIColor($0).cgColor }
+            if cgColors.count >= 2,
+               let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                     colors: cgColors as CFArray, locations: [0, 1]) {
+                cg.drawLinearGradient(grad,
+                                       start: CGPoint(x: 0, y: size),
+                                       end: CGPoint(x: size.width, y: 0),
+                                       options: [])
+            } else {
+                UIColor(white: 0.15, alpha: 1).setFill()
+                cg.fill(CGRect(origin: .zero, size: size))
+            }
+        }
+        cachedPlaceholderArtwork = img
+        cachedPlaceholderKey = key
+        return img
     }
 
     /// 把带时间轴的 LRC 转成纯文本（去掉 [mm:ss.xx] 行首时间戳），用于锁屏歌词显示（锁屏不支持逐行高亮）。
