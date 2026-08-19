@@ -207,7 +207,7 @@ struct NowPlayingView: View {
         }
         // 纯 SwiftUI 背景：播放页内容层透明，背景挂在 ZStack 的 .background 上，
         // 不操作 UIWindow（避免启动崩溃）。
-        .background { backgroundLayer }
+        .background { SkinBackground() }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
         }
