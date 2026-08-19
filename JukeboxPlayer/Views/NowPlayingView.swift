@@ -145,7 +145,8 @@ struct NowPlayingView: View {
     @State private var scrubTime: Double = 0
     var body: some View {
         ZStack {
-            backgroundLayer
+            // 内容层：必须被 SwiftUI 的安全区约束，不能再和 ignoresSafeArea 的背景同级，
+            // 否则背景会“漏掉”ZStack 的安全区参考，导致内容顶到状态栏/灵动岛。
             VStack(spacing: 24) {
                 header
                 if engine.isVideo {
@@ -198,13 +199,17 @@ struct NowPlayingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
-        .foregroundStyle(.white)
+            .foregroundStyle(.white)
+
+            if showQueue { queueSheet }
+            if showLyrics { lyricsSheet }
+            if showOnlineSearch { onlineSearchSheet }
+        }
+        // 背景只挂在 ZStack 的 background 上，.ignoresSafeArea 只影响背景，
+        // 不会把安全区参考漏给内容视图。
+        .background { backgroundLayer }
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
-        }
-        if showQueue { queueSheet }
-            if showLyrics { lyricsSheet }
-        if showOnlineSearch { onlineSearchSheet }
         }
         .simultaneousGesture(dismissSwipe)
     }
