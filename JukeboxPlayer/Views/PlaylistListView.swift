@@ -49,6 +49,8 @@ struct PlaylistListView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
+        .background { SkinBackground() }
         .overlay {
             if store.playlists.isEmpty {
                 VStack(spacing: 8) {
