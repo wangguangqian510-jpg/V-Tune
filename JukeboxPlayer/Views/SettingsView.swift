@@ -72,11 +72,8 @@ struct SettingsView: View {
 
 
     var body: some View {
-        // 全局皮肤背景放到 List 后面 ZStack 里（共享 SkinBackground），
-        // 让背景图能透到所有 Section 间隙和 list row 之间。
-        ZStack {
-            SkinBackground().ignoresSafeArea()
-
+        // 全局背景由 ContentView 的 .containerBackground(for: .navigation) 统一提供，
+        // 本页 List 保持透明即可透出。
         List {
 
             Section("占用空间") {
@@ -339,7 +336,6 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
-        }
 
         .navigationTitle("设置")
 
