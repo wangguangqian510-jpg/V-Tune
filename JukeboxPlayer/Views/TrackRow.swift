@@ -40,7 +40,7 @@ struct TrackRow: View {
 
                         .lineLimit(1)
 
-                        .foregroundStyle(Color.primary)
+                        .foregroundStyle(isCurrent ? Color.accentColor : Color.primary)
 
                     Text(track.artist)
 
