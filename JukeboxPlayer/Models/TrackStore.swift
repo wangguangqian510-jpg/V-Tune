@@ -22,15 +22,16 @@ enum AccentColor: String, CaseIterable, Identifiable {
         }
     }
     var color: Color {
-        // 降饱和度、提明度，避免大块纯色扎眼；white 保持原样。
+        // 再降饱和度、提明度，避免大块纯色扎眼；white 保持原样。
+        // 播放页按钮/进度条用色，柔和优先。
         switch self {
         case .white:  return .white
-        case .red:    return Color(uiColor: UIColor(hue: 0.98, saturation: 0.50, brightness: 0.96, alpha: 1.0))
-        case .orange: return Color(uiColor: UIColor(hue: 0.07, saturation: 0.55, brightness: 0.97, alpha: 1.0))
-        case .blue:   return Color(uiColor: UIColor(hue: 0.58, saturation: 0.50, brightness: 0.96, alpha: 1.0))
-        case .green:  return Color(uiColor: UIColor(hue: 0.38, saturation: 0.48, brightness: 0.95, alpha: 1.0))
-        case .purple: return Color(uiColor: UIColor(hue: 0.75, saturation: 0.50, brightness: 0.96, alpha: 1.0))
-        case .pink:   return Color(uiColor: UIColor(hue: 0.88, saturation: 0.50, brightness: 0.96, alpha: 1.0))
+        case .red:    return Color(uiColor: UIColor(hue: 0.98, saturation: 0.32, brightness: 0.97, alpha: 1.0))
+        case .orange: return Color(uiColor: UIColor(hue: 0.07, saturation: 0.35, brightness: 0.98, alpha: 1.0))
+        case .blue:   return Color(uiColor: UIColor(hue: 0.58, saturation: 0.32, brightness: 0.97, alpha: 1.0))
+        case .green:  return Color(uiColor: UIColor(hue: 0.38, saturation: 0.30, brightness: 0.96, alpha: 1.0))
+        case .purple: return Color(uiColor: UIColor(hue: 0.75, saturation: 0.32, brightness: 0.97, alpha: 1.0))
+        case .pink:   return Color(uiColor: UIColor(hue: 0.88, saturation: 0.32, brightness: 0.97, alpha: 1.0))
         }
     }
 }
@@ -270,9 +271,19 @@ final class TrackStore: ObservableObject {
         customBackgroundPath = nil
     }
     /// 读取已保存的自定义背景图（沙盒内），无则返回 nil。
+    /// 注意：iOS App 容器 UUID 可能变化，不能死认绝对路径；优先用 Documents/skin_background.jpg。
     func loadCustomBackground() -> UIImage? {
-        guard let p = customBackgroundPath else { return nil }
-        return UIImage(contentsOfFile: p)
+        if let p = customBackgroundPath, let img = UIImage(contentsOfFile: p) {
+            return img
+        }
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return nil }
+        let fallback = docs.appendingPathComponent("skin_background.jpg")
+        if let img = UIImage(contentsOfFile: fallback.path) {
+            // 路径失效但文件还在，自动修复记录
+            customBackgroundPath = fallback.path
+            return img
+        }
+        return nil
     }
     private func resizeImage(_ image: UIImage, toMax maxDim: CGFloat) -> UIImage {
         let longer = max(image.size.width, image.size.height)
