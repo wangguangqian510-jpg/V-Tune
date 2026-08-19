@@ -36,6 +36,7 @@ struct LibraryView: View {
     }
 
     var body: some View {
+        // VStack 整体透明（覆盖默认白色容器背景），让 containerBackground(for: .navigation) 透出。
         VStack(spacing: 0) {
             tabBar
 
@@ -58,6 +59,7 @@ struct LibraryView: View {
                     .environmentObject(store)
             }
         }
+        .background(Color.clear)
         .navigationTitle("乐影")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarItems }
@@ -147,6 +149,8 @@ struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图（即使 containerBackground 不生效）。
+        .background { SkinBackground() }
         .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
     }
 
@@ -168,6 +172,8 @@ struct LibraryView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
+        .background { SkinBackground() }
         .overlay {
             if store.favoriteTracks.isEmpty {
                 emptyHint("还没有收藏\n在歌曲右侧点 ♡ 即可收藏")
