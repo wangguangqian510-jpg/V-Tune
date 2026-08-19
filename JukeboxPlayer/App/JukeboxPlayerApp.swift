@@ -10,6 +10,8 @@ struct JukeboxPlayerApp: App {
             ContentView()
                 .environmentObject(engine)
                 .environmentObject(store)
+                // 全局背景挂到 UIWindow 最底层，所有页面统一透出来。
+                .overlay(WindowBackground())
         .onAppear {
             engine.load(store.tracks)
             // 预触发 iOS 网络权限弹窗：避免用户第一次点远程示例曲时才被打断。
