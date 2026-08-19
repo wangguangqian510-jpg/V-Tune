@@ -702,6 +702,11 @@ final class PlayerEngine: ObservableObject {
 
         updateNowPlaying()
 
+        // 按「视频/音频」动态切换锁屏 skip 命令：
+        // - 视频：iOS 强制视频控制布局(-15s/+15s)，必须启用 skip 才可点
+        // - 音频：禁用 skip，锁屏恢复「上一首/播放/下一首」
+        setupSkipCommands(isVideo: isVideo)
+
         if #available(iOS 16.1, *) {
             startLiveActivityIfNeeded()
             startLiveActivityTimer()
@@ -1218,6 +1223,58 @@ final class PlayerEngine: ObservableObject {
 
         }
 
+    }
+
+    /// 按「视频/音频」动态配置锁屏 skip 命令：
+    /// - 视频播放：iOS 强制使用视频控制布局（-15s/+15s），必须启用 skip 命令按钮才可点；
+    ///   若不启用会显示灰色不可点，且状态可能污染后续音频播放。
+    /// - 音频播放：禁用 skip，锁屏恢复「上一首/播放/下一首」布局（用户要求）。
+    private func setupSkipCommands(isVideo: Bool) {
+        let center = MPRemoteCommandCenter.shared()
+        if isVideo {
+            center.skipForwardCommand.isEnabled = true
+            center.skipBackwardCommand.isEnabled = true
+            center.skipForwardCommand.preferredIntervals = [NSNumber(value: 15)]
+            center.skipBackwardCommand.preferredIntervals = [NSNumber(value: 15)]
+            // 只注册一次（targets 非空则跳过），避免重复 addTarget 导致一次点击触发多次跳转
+            if center.skipForwardCommand.targets.isEmpty {
+                center.skipForwardCommand.addTarget { [weak self] _ in
+                    Task { @MainActor in self?.skipForward(15) }
+                    return .success
+                }
+                center.skipBackwardCommand.addTarget { [weak self] _ in
+                    Task { @MainActor in self?.skipBackward(15) }
+                    return .success
+                }
+            }
+        } else {
+            center.skipForwardCommand.isEnabled = false
+            center.skipBackwardCommand.isEnabled = false
+            center.skipForwardCommand.removeTarget(self)
+            center.skipBackwardCommand.removeTarget(self)
+        }
+    }
+
+    /// 锁屏/控制中心「+N 秒」快进（视频模式使用）。
+    private func skipForward(_ seconds: Double) {
+        guard let player else { return }
+        let target = max(0, min(duration - 0.5, currentTime + seconds))
+        let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
+                    toleranceBefore: tol, toleranceAfter: tol) { _ in
+            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
+        }
+    }
+
+    /// 锁屏/控制中心「-N 秒」快退（视频模式使用）。
+    private func skipBackward(_ seconds: Double) {
+        guard let player else { return }
+        let target = max(0, currentTime - seconds)
+        let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
+                    toleranceBefore: tol, toleranceAfter: tol) { _ in
+            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
+        }
     }
 
     // MARK: - 通知监听
