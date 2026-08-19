@@ -145,6 +145,8 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
     }
 
@@ -164,6 +166,8 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .overlay {
             if store.favoriteTracks.isEmpty {
                 emptyHint("还没有收藏\n在歌曲右侧点 ♡ 即可收藏")
