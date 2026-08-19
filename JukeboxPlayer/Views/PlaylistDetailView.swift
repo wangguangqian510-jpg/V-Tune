@@ -10,36 +10,40 @@ struct PlaylistDetailView: View {
     private var tracks: [Track] { store.tracks(in: playlist) }
 
     var body: some View {
-        List {
-            if !tracks.isEmpty {
-                Button {
-                    engine.load(tracks)
-                    engine.play(index: 0)
-                } label: {
-                    Label("播放全部", systemImage: "play.fill")
-                        .font(.headline)
-                        .foregroundStyle(Color.accentColor)
+        ZStack {
+            SkinBackground().ignoresSafeArea()
+
+            List {
+                if !tracks.isEmpty {
+                    Button {
+                        engine.load(tracks)
+                        engine.play(index: 0)
+                    } label: {
+                        Label("播放全部", systemImage: "play.fill")
+                            .font(.headline)
+                            .foregroundStyle(Color.accentColor)
+                    }
                 }
-            }
-            ForEach(tracks) { track in
-                TrackRow(
-                    track: track,
-                    isCurrent: isCurrent(track),
-                    isPlaying: engine.isPlaying,
-                    onTap: { play(track) },
-                    onAddToPlaylist: { trackToAdd = $0 }
-                )
-                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                    Button(role: .destructive) { store.removeTrack(track.id, from: playlist.id) } label: {
-                        Label("移除", systemImage: "minus.circle")
+                ForEach(tracks) { track in
+                    TrackRow(
+                        track: track,
+                        isCurrent: isCurrent(track),
+                        isPlaying: engine.isPlaying,
+                        onTap: { play(track) },
+                        onAddToPlaylist: { trackToAdd = $0 }
+                    )
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) { store.removeTrack(track.id, from: playlist.id) } label: {
+                            Label("移除", systemImage: "minus.circle")
+                        }
                     }
                 }
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
+            .listRowBackground(Color.clear)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
         .navigationTitle(playlist.name)
         .overlay {
             if tracks.isEmpty {
