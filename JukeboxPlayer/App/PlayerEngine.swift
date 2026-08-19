@@ -424,8 +424,10 @@ final class PlayerEngine: ObservableObject {
         guard let player = player else { return }
 
         let cm = CMTime(seconds: max(0, second), preferredTimescale: CMTimeScale(NSEC_PER_SEC))
-
-        player.seek(to: cm, toleranceBefore: .zero, toleranceAfter: .zero) { _ in }
+        // 用小容差（0.1s）：zero tolerance 在 H.264/H.265 视频上常失败导致 item.status=failed
+        // （之前「拖一下只播 2 秒就停」同源问题）。音频几乎无感。
+        let tol = CMTime(seconds: 0.1, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        player.seek(to: cm, toleranceBefore: tol, toleranceAfter: tol) { _ in }
 
         currentTime = second
 
