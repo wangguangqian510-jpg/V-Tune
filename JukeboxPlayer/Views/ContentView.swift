@@ -25,8 +25,10 @@ struct ContentView: View {
     private var backgroundLayer: some View {
         Group {
             if store.backgroundModeEnum == .custom, let img = store.loadCustomBackground() {
+                // 自定义图片：用 Slider 控制浓度，0 几乎全黑，1 图片最清晰。
                 Image(uiImage: img).resizable().scaledToFill()
-                    .blur(radius: 60, opaque: false).overlay(Color.black.opacity(0.5))
+                    .blur(radius: 60, opaque: false)
+                    .overlay(Color.black.opacity(1 - store.customBackgroundOpacity))
             } else if let img = engine.artwork {
                 Image(uiImage: img).resizable().scaledToFill()
                     .blur(radius: 60, opaque: false).overlay(Color.black.opacity(0.5))
