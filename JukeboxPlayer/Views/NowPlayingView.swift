@@ -229,6 +229,7 @@ struct NowPlayingView: View {
             }
         }
         .ignoresSafeArea()
+        .zIndex(-1)
     }
 
     // MARK: Header
