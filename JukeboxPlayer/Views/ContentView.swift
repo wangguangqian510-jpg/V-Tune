@@ -5,15 +5,18 @@ struct ContentView: View {
     @EnvironmentObject private var store: TrackStore
 
     var body: some View {
-        // 全局背景改用"每页自挂"方案，详见 SkinBackground：每个有 List 的页面
-        // 用 ZStack { SkinBackground(); List() } 包裹自己挂背景，绕开 NavigationStack
-        // 系统背景遮挡（iOS 16 deployment target 下 .containerBackground 不可用）。
+        // deployment target 已提到 iOS 18，用官方 .containerBackground(for: .navigation)
+        // 做 NavigationStack 全局背景：由系统绘制在每一级 push 页面后面，视觉统一、
+        // 不被 List/NavigationStack 系统背景遮挡，也不需要每页自挂。
         NavigationStack {
             LibraryView()
                 .navigationTitle("乐影")
                 .navigationBarTitleDisplayMode(.inline)
         }
         .toolbarBackground(.hidden, for: .navigationBar)
+        .containerBackground(for: .navigation) {
+            SkinBackground()
+        }
     }
 }
 
