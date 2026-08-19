@@ -60,6 +60,10 @@ struct SettingsView: View {
 
     @State private var clearResult: String?
 
+    /// 一键迁移「引用→复制」状态
+    @State private var isMigrating = false
+    @State private var migrateMessage: String?
+
 
 
     var body: some View {
@@ -102,8 +106,32 @@ struct SettingsView: View {
                      : "引用模式：不复制，直接播放 Files 里的原文件（只占 1 份空间）；原文件被删除/移动后该曲目会无法播放，可在曲库中删除。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if !store.importByCopy {
+                    Text("⚠️ 轻松签/重签名安装环境下，引用模式可能失效（重启后曲目消失/无法播放，iOS 系统限制）。建议切换到复制模式，或将下方引用曲目一键复制进 App。")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
                 HStack { Text("已复制（占 2 倍空间）"); Spacer(); Text("\(storage.importedFiles)") }
                 HStack { Text("引用（不占空间）"); Spacer(); Text("\(storage.referencedCount)") }
+
+                // 一键迁移：把还能正常访问的引用曲目全部复制进 App（转复制模式）
+                Button {
+                    isMigrating = true
+                    migrateMessage = nil
+                    Task { @MainActor in
+                        let r = await store.migrateReferencedToCopied()
+                        storage = store.storageInfo()
+                        migrateMessage = "迁移完成：成功 \(r.migrated)，失败 \(r.failed)（失败的原文件已失效，需重新导入）"
+                        isMigrating = false
+                    }
+                } label: {
+                    if isMigrating {
+                        ProgressView()
+                    } else {
+                        Label("把引用曲目一键复制进 App", systemImage: "arrow.triangle.2.circlepath")
+                    }
+                }
+                .disabled(storage.referencedCount == 0 || isMigrating)
 
                 Button {
 
@@ -298,6 +326,15 @@ struct SettingsView: View {
 
             Text(clearResult ?? "")
 
+        }
+
+        .alert("迁移结果", isPresented: Binding(
+            get: { migrateMessage != nil },
+            set: { if !$0 { migrateMessage = nil } }
+        )) {
+            Button("确定", role: .cancel) { migrateMessage = nil }
+        } message: {
+            Text(migrateMessage ?? "")
         }
 
     }

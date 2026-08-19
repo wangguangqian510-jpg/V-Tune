@@ -20,11 +20,12 @@ struct TrackRecord: Codable {
 
     let album: String
 
-    let source: TrackSource
+    /// var：一键迁移「引用→复制」时改 source 并清 bookmark
+    var source: TrackSource
 
     /// 本地文件：仅存文件名；远程音频：存完整 URL 字符串；引用原文件：存原文件名（仅展示用）
 
-    let urlString: String
+    var urlString: String
 
     let coverSeed: String
 
@@ -573,6 +574,52 @@ final class TrackStore: ObservableObject {
     }
 
     // MARK: - 导入
+
+    /// 把所有「还能正常解析」的引用曲目复制进 App 沙盒，转为 imported（复制模式）。
+    /// 已失效的书签（原文件找不到/权限丢失）无法迁移，只能重新导入。
+    /// - Returns: (成功数, 失败数)
+    @MainActor
+    func migrateReferencedToCopied() async -> (migrated: Int, failed: Int) {
+        var migrated = 0
+        var failed = 0
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return (0, 0) }
+        let snapshot = records.values.filter { $0.source == .referenced && $0.bookmark != nil }
+        guard !snapshot.isEmpty else { return (0, 0) }
+        for rec in snapshot {
+            var stale = false
+            guard let bm = rec.bookmark,
+                  let url = try? URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale) else {
+                failed += 1
+                continue
+            }
+            let acc = url.startAccessingSecurityScopedResource()
+            defer { if acc { url.stopAccessingSecurityScopedResource() } }
+            guard acc, fileManager.fileExists(atPath: url.path) else {
+                failed += 1
+                continue
+            }
+            let dest = uniqueURL(in: docs, for: url)
+            do {
+                try fileManager.copyItem(at: url, to: dest)
+            } catch {
+                do { try coordinateCopy(from: url, to: dest) } catch {
+                    failed += 1
+                    continue
+                }
+            }
+            var updated = rec
+            updated.source = .imported
+            updated.urlString = dest.lastPathComponent
+            updated.bookmark = nil
+            records[rec.id] = updated
+            migrated += 1
+        }
+        if migrated > 0 {
+            saveRecords()
+            refresh()
+        }
+        return (migrated, failed)
+    }
 
     /// 包装层：统一记录导入日志（触发/成功/失败 + 原文），再交给真正实现。
 
