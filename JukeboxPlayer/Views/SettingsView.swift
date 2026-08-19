@@ -336,6 +336,9 @@ struct SettingsView: View {
         .scrollContentBackground(.hidden)
         .background(Color.clear)
         .listRowBackground(Color.clear)
+        .containerBackground(for: .navigation) {
+            SkinBackground()
+        }
 
         .navigationTitle("设置")
 
