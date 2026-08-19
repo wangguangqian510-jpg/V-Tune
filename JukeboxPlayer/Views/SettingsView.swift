@@ -1,10 +1,5 @@
 import SwiftUI
 
-import PhotosUI
-
-/// 纯 String 常量：避免 SWIFT_EMIT_LOC_STRINGS 把 Section/Text 标题抽进本地化目录导致二进制里缺失。
-private let skinSectionTitle = "个性化皮肤"
-
 
 
 /// 设置页展示的存储与曲库概况。
@@ -65,15 +60,10 @@ struct SettingsView: View {
 
     @State private var clearResult: String?
 
-    @State private var showPhotoPicker = false
-    @State private var showPhotoError = false
-    @State private var photoErrorMessage: String? = nil
-
 
 
     var body: some View {
-        // 全局背景由 ContentView 的 .containerBackground(for: .navigation) 统一提供，
-        // 本页 List 保持透明即可透出。
+
         List {
 
             Section("占用空间") {
@@ -181,7 +171,7 @@ struct SettingsView: View {
 
                         Text("3. 歌词：播放页点「歌词」→「在线搜」，按歌名/歌手自动拉取")
 
-                        Text("4. 文件 App 分享：长按音频/视频文件 → 共享 → 选 乐影")
+                        Text("4. 文件 App 分享：长按音频/视频文件 → 共享 → 选 V-Tune")
 
                     }
 
@@ -201,79 +191,6 @@ struct SettingsView: View {
 
             }
 
-
-
-            Section {
-                Text(verbatim: skinSectionTitle)
-                    .font(.headline)
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("主题色")
-                    HStack(spacing: 14) {
-                        ForEach(AccentColor.allCases) { c in
-                            Circle()
-                                .fill(c.color)
-                                .frame(width: 28, height: 28)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(store.accentColorName == c.rawValue ? Color.white : Color.clear, lineWidth: 3)
-                                )
-                                .onTapGesture { store.accentColorName = c.rawValue }
-                        }
-                    }
-                }
-                Text("主题色会同步到播放页的按钮与进度条")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Picker("背景", selection: $store.backgroundMode) {
-                    ForEach(BackgroundMode.allCases) { m in
-                        Text(m.displayName).tag(m.rawValue)
-                    }
-                }
-                if store.backgroundModeEnum == .custom {
-                    Button { showPhotoPicker = true } label: {
-                        Label("选择背景图片", systemImage: "photo")
-                    }
-                    // 显示已导入背景缩略图，便于用户确认导入是否成功。
-                    if let bg = store.loadCustomBackground() {
-                        HStack(spacing: 12) {
-                            Image(uiImage: bg)
-                                .resizable()
-                                .scaledToFill()
-                                .frame(width: 60, height: 60)
-                                .clipShape(RoundedRectangle(cornerRadius: 8))
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text("已导入自定义背景")
-                                    .font(.subheadline)
-                                Text("已应用到主页、播放页和设置页")
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                Button(role: .destructive) {
-                                    store.clearCustomBackground()
-                                } label: {
-                                    Label("清除背景图片", systemImage: "trash")
-                                        .font(.caption)
-                                }
-                            }
-                            Spacer()
-                        }
-                    }
-                    // 自定义背景浓度/透明度滑杆，实时预览。
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            Text("背景浓度")
-                            Spacer()
-                            Text("\(Int(store.customBackgroundOpacity * 100))%")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        Slider(value: $store.customBackgroundOpacity, in: 0...1, step: 0.05)
-                    }
-                    .padding(.vertical, 4)
-                }
-                Text("自定义背景会自动应用到主页、播放页和设置页。图片会复制到 App 沙盒（卸载即删除）。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
 
 
             if store.importDiagnosticsEnabled {
@@ -333,17 +250,6 @@ struct SettingsView: View {
             }
 
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
-        // 显式设为 plain：iOS 18 默认是 insetGrouped 会渲染圆角白色分组卡片挡住背景。
-        // 改 plain 后背景图能完整透出（虽然失去 iOS 设置的分组感，但避免"分割感"）。
-        .listStyle(.plain)
-        .containerBackground(for: .navigation) {
-            SkinBackground()
-        }
-        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
-        .background { SkinBackground() }
 
         .navigationTitle("设置")
 
@@ -381,25 +287,6 @@ struct SettingsView: View {
 
         }
 
-        .sheet(isPresented: $showPhotoPicker) {
-            PhotoPicker(onPick: { img in
-                if store.setCustomBackground(img) {
-                    store.backgroundMode = BackgroundMode.custom.rawValue
-                } else {
-                    photoErrorMessage = "保存背景图失败，请换一张图片重试。"
-                    showPhotoError = true
-                }
-            }, onError: { msg in
-                photoErrorMessage = msg
-                showPhotoError = true
-            })
-        }
-        .alert("背景图导入失败", isPresented: $showPhotoError) {
-            Button("确定", role: .cancel) { photoErrorMessage = nil }
-        } message: {
-            Text(photoErrorMessage ?? "未知错误")
-        }
-
     }
 
 
@@ -422,53 +309,5 @@ struct SettingsView: View {
 
     }
 
-}
-
-/// 从系统相册选择一张图片作为播放页背景（PHPicker，iOS 14+，无需相册授权）。
-struct PhotoPicker: UIViewControllerRepresentable {
-    var onPick: (UIImage) -> Void
-    var onError: ((String) -> Void)?
-
-    func makeUIViewController(context: Context) -> PHPickerViewController {
-        var config = PHPickerConfiguration()
-        config.filter = .images
-        config.selectionLimit = 1
-        let picker = PHPickerViewController(configuration: config)
-        picker.delegate = context.coordinator
-        return picker
-    }
-
-    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
-
-    func makeCoordinator() -> Coordinator { Coordinator(self) }
-
-    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
-        let parent: PhotoPicker
-        init(_ parent: PhotoPicker) { self.parent = parent }
-        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            picker.dismiss(animated: true)
-            guard let provider = results.first?.itemProvider else {
-                parent.onError?("未选择图片")
-                return
-            }
-            guard provider.canLoadObject(ofClass: UIImage.self) else {
-                parent.onError?("该图片无法直接加载，请换一张")
-                return
-            }
-            provider.loadObject(ofClass: UIImage.self) { object, error in
-                DispatchQueue.main.async {
-                    if let error = error {
-                        self.parent.onError?("加载图片失败：\(error.localizedDescription)")
-                        return
-                    }
-                    guard let image = object as? UIImage else {
-                        self.parent.onError?("图片格式不支持")
-                        return
-                    }
-                    self.parent.onPick(image)
-                }
-            }
-        }
-    }
 }
 
