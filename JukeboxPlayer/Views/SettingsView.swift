@@ -66,6 +66,8 @@ struct SettingsView: View {
     @State private var clearResult: String?
 
     @State private var showPhotoPicker = false
+    @State private var showPhotoError = false
+    @State private var photoErrorMessage: String? = nil
 
 
 
@@ -230,11 +232,25 @@ struct SettingsView: View {
                     Button { showPhotoPicker = true } label: {
                         Label("选择背景图片", systemImage: "photo")
                     }
-                    if store.loadCustomBackground() != nil {
-                        Button(role: .destructive) {
-                            store.clearCustomBackground()
-                        } label: {
-                            Label("清除背景图片", systemImage: "trash")
+                    // 显示已导入背景缩略图，便于用户确认导入是否成功。
+                    if let bg = store.loadCustomBackground() {
+                        HStack(spacing: 12) {
+                            Image(uiImage: bg)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 8))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("已导入自定义背景")
+                                    .font(.subheadline)
+                                Button(role: .destructive) {
+                                    store.clearCustomBackground()
+                                } label: {
+                                    Label("清除背景图片", systemImage: "trash")
+                                        .font(.caption)
+                                }
+                            }
+                            Spacer()
                         }
                     }
                 }
@@ -342,8 +358,19 @@ struct SettingsView: View {
             PhotoPicker(onPick: { img in
                 if store.setCustomBackground(img) {
                     store.backgroundMode = BackgroundMode.custom.rawValue
+                } else {
+                    photoErrorMessage = "保存背景图失败，请换一张图片重试。"
+                    showPhotoError = true
                 }
+            }, onError: { msg in
+                photoErrorMessage = msg
+                showPhotoError = true
             })
+        }
+        .alert("背景图导入失败", isPresented: $showPhotoError) {
+            Button("确定", role: .cancel) { photoErrorMessage = nil }
+        } message: {
+            Text(photoErrorMessage ?? "未知错误")
         }
 
     }
@@ -373,6 +400,7 @@ struct SettingsView: View {
 /// 从系统相册选择一张图片作为播放页背景（PHPicker，iOS 14+，无需相册授权）。
 struct PhotoPicker: UIViewControllerRepresentable {
     var onPick: (UIImage) -> Void
+    var onError: ((String) -> Void)?
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
@@ -392,11 +420,25 @@ struct PhotoPicker: UIViewControllerRepresentable {
         init(_ parent: PhotoPicker) { self.parent = parent }
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
             picker.dismiss(animated: true)
-            guard let provider = results.first?.itemProvider,
-                  provider.canLoadObject(ofClass: UIImage.self) else { return }
-            provider.loadObject(ofClass: UIImage.self) { object, _ in
-                if let image = object as? UIImage {
-                    DispatchQueue.main.async { self.parent.onPick(image) }
+            guard let provider = results.first?.itemProvider else {
+                parent.onError?("未选择图片")
+                return
+            }
+            guard provider.canLoadObject(ofClass: UIImage.self) else {
+                parent.onError?("该图片无法直接加载，请换一张")
+                return
+            }
+            provider.loadObject(ofClass: UIImage.self) { object, error in
+                DispatchQueue.main.async {
+                    if let error = error {
+                        self.parent.onError?("加载图片失败：\(error.localizedDescription)")
+                        return
+                    }
+                    guard let image = object as? UIImage else {
+                        self.parent.onError?("图片格式不支持")
+                        return
+                    }
+                    self.parent.onPick(image)
                 }
             }
         }
