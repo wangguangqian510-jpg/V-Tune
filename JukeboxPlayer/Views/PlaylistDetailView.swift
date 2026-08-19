@@ -43,6 +43,8 @@ struct PlaylistDetailView: View {
         .containerBackground(for: .navigation) {
             SkinBackground()
         }
+        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
+        .background { SkinBackground() }
         .navigationTitle(playlist.name)
         .overlay {
             if tracks.isEmpty {
