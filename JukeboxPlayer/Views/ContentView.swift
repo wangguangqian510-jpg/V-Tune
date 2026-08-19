@@ -5,31 +5,21 @@ struct ContentView: View {
     @EnvironmentObject private var store: TrackStore
 
     var body: some View {
-        ZStack {
-            // 全局背景：跟随皮肤（自定义图 → 当前播放封面 → 封面色渐变），让曲库/设置页也有氛围。
-            // 用 UIScreen.main.bounds 做明确尺寸，避免 GeometryReader 干扰内容安全区。
+        NavigationStack {
+            LibraryView()
+                .navigationTitle("乐影")
+                .navigationBarTitleDisplayMode(.inline)
+        }
+        .background {
             backgroundLayer
                 .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                .clipped()
                 .ignoresSafeArea()
-                .zIndex(-1)
-
-            // 内容层：不套 GeometryReader、不加显式 frame，让它按设备安全区自然布局。
-            // 这样不会把主页/导入歌词/列表整体上顶。
-            NavigationStack {
-                LibraryView()
-                    .navigationTitle("乐影")
-                    .navigationBarTitleDisplayMode(.large)
-            }
         }
-        .safeAreaInset(edge: .bottom) {
-            if engine.hasTrack {
-                NowPlayingBar()
-                    .environmentObject(engine)
-                    .environmentObject(store)
-                    .transition(.move(edge: .bottom))
-            }
-        }
+        // 迷你播放条已移入 LibraryView 底部（见 LibraryView）：
+        // 1) 去掉 .safeAreaInset(edge:.bottom) —— 它会在点播放(hasTrack=true)时与
+        //    .searchable 搜索栏冲突，导致搜索框消失、列表整体偏上、底部条被挤得点不到。
+        // 2) 背景改用 .background 挂载，不再用 ZStack + ignoresSafeArea 把顶层安全区
+        //    “漏”给 NavigationStack，避免内容上顶到状态栏。
     }
 
     private var backgroundLayer: some View {
