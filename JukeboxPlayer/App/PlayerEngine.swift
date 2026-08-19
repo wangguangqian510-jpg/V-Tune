@@ -973,7 +973,8 @@ final class PlayerEngine: ObservableObject {
     /// 锁屏歌词合成：把当前歌词行绘制到封面图上，作为锁屏 artwork 显示。
     /// 因为 MPMediaItemPropertyLyrics 在第三方 App 锁屏常不渲染，合成进图是兼容性最稳的方案。
     private static func compositeLyrics(onto base: UIImage?, text: String) -> UIImage {
-        // 提高渲染分辨率（1200），文字更清晰；最终锁屏封面会缩放显示。
+        // 用户反馈：黑描边+阴影像「黑白叠加、很模糊」。
+        // 改为：纯白大字 + 底部半透明黑条，干净清晰。
         let size = CGSize(width: 1200, height: 1200)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in
@@ -984,34 +985,28 @@ final class PlayerEngine: ObservableObject {
                 ctx.fill(CGRect(origin: .zero, size: size))
             }
             guard !text.isEmpty else { return }
-            // 底部暗化渐变（增强三段，任意背景下白字都可读）
+
+            // 底部一条淡淡的暗化渐变，保证白字可读但不糊。
             let colors = [UIColor.black.withAlphaComponent(0).cgColor,
-                          UIColor.black.withAlphaComponent(0.55).cgColor,
-                          UIColor.black.withAlphaComponent(0.92).cgColor] as CFArray
+                          UIColor.black.withAlphaComponent(0.35).cgColor] as CFArray
             if let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
-                                     colors: colors, locations: [0.45, 0.72, 1.0]) {
+                                     colors: colors, locations: [0.7, 1.0]) {
                 ctx.cgContext.drawLinearGradient(grad,
-                                       start: CGPoint(x: size.width / 2, y: size.height * 0.5),
+                                       start: CGPoint(x: size.width / 2, y: size.height * 0.65),
                                        end: CGPoint(x: size.width / 2, y: size.height),
                                        options: [])
             }
+
             let para = NSMutableParagraphStyle()
             para.alignment = .center
-            // 放大字号、加粗，并加黑描边 + 阴影，确保锁屏歌词清晰
-            let font = UIFont.systemFont(ofSize: 64, weight: .heavy)
-            let shadow = NSShadow()
-            shadow.shadowColor = UIColor.black
-            shadow.shadowBlurRadius = 8
-            shadow.shadowOffset = CGSize(width: 0, height: 2)
+            // 纯白、更大、更粗，无描边无阴影。
+            let font = UIFont.systemFont(ofSize: 80, weight: .bold)
             let attrs: [NSAttributedString.Key: Any] = [
                 .font: font,
                 .paragraphStyle: para,
-                .foregroundColor: UIColor.white,
-                .strokeColor: UIColor.black,
-                .strokeWidth: -4.0,
-                .shadow: shadow
+                .foregroundColor: UIColor.white
             ]
-            let rect = CGRect(x: 72, y: size.height - 300, width: size.width - 144, height: 240)
+            let rect = CGRect(x: 60, y: size.height - 260, width: size.width - 120, height: 200)
             text.draw(in: rect, withAttributes: attrs)
         }
     }
