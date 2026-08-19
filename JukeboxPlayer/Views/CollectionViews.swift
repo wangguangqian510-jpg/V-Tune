@@ -53,11 +53,6 @@ struct GroupedListView: View {
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
-        // 双保险：List 视图后面挂 SkinBackground，让 plain List 也透出背景图。
-        .background { SkinBackground() }
         .overlay {
             if groups.isEmpty {
                 Text("没有\(title)")
@@ -99,13 +94,6 @@ struct GroupDetailView: View {
             }
         }
         .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
-        .listRowBackground(Color.clear)
-        .containerBackground(for: .navigation) {
-            SkinBackground()
-        }
-        .background { SkinBackground() }
         .navigationTitle(title)
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
