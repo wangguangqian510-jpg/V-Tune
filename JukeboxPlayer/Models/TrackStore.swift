@@ -248,9 +248,14 @@ final class TrackStore: ObservableObject {
     @Published var customBackgroundPath: String? = nil {
         didSet { UserDefaults.standard.set(customBackgroundPath, forKey: CustomBgKey) }
     }
+    /// 自定义背景图的不透明度/浓度（0~1）。0 几乎全黑，1 图片最清晰。默认 0.5。
+    @Published var customBackgroundOpacity: Double = 0.5 {
+        didSet { UserDefaults.standard.set(customBackgroundOpacity, forKey: CustomBgOpacityKey) }
+    }
     private let AccentColorKey = "YueYingAccentColor_v1"
     private let BackgroundModeKey = "YueYingBackgroundMode_v1"
     private let CustomBgKey = "YueYingCustomBackground_v1"
+    private let CustomBgOpacityKey = "YueYingCustomBackgroundOpacity_v1"
 
     /// 当前主题色对应的 SwiftUI Color。
     var accentColor: Color { AccentColor(rawValue: accentColorName)?.color ?? .white }
@@ -323,6 +328,7 @@ final class TrackStore: ObservableObject {
         accentColorName = UserDefaults.standard.string(forKey: AccentColorKey) ?? AccentColor.white.rawValue
         backgroundMode = UserDefaults.standard.string(forKey: BackgroundModeKey) ?? BackgroundMode.albumArt.rawValue
         customBackgroundPath = UserDefaults.standard.string(forKey: CustomBgKey)
+        customBackgroundOpacity = (UserDefaults.standard.object(forKey: CustomBgOpacityKey) as? Double) ?? 0.5
 
         loadImportLog()
 
