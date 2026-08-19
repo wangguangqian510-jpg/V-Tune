@@ -228,6 +228,8 @@ struct NowPlayingView: View {
                                startPoint: .top, endPoint: .bottom)
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .clipped()
         .ignoresSafeArea()
         .zIndex(-1)
     }
