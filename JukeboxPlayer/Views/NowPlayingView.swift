@@ -205,44 +205,12 @@ struct NowPlayingView: View {
             if showLyrics { lyricsSheet }
             if showOnlineSearch { onlineSearchSheet }
         }
-        // 背景只挂在 ZStack 的 background 上，.ignoresSafeArea 只影响背景，
-        // 不会把安全区参考漏给内容视图。
-        .background { backgroundLayer }
+        // 全局背景已移到 UIWindow 层（见 WindowBackground），
+        // 播放页本身保持透明，让 UIWindow 背景透出来。
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
         }
         .simultaneousGesture(dismissSwipe)
-    }
-    /// 播放页背景：自定义图片优先 → 专辑封面模糊 → 封面色渐变兜底。
-    private var backgroundLayer: some View {
-        let isCustom = store.backgroundModeEnum == .custom
-        let image: UIImage? = {
-            if isCustom, let img = store.loadCustomBackground() {
-                return img
-            }
-            return engine.artwork
-        }()
-        // 关键：背景必须用明确的屏幕尺寸约束，不能 .frame(maxWidth:.infinity)。
-        // 否则 Image 会退回原始像素尺寸把 ZStack 撑宽，导致播放页自身被拉宽。
-        let bgW = UIScreen.main.bounds.width
-        let bgH = UIScreen.main.bounds.height
-        let dimOpacity = isCustom ? (1 - store.customBackgroundOpacity) : 0.35
-        return Group {
-            if let img = image {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
-                    .blur(radius: 45, opaque: false)
-                    .overlay(Color.black.opacity(dimOpacity))
-            } else {
-                LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
-                               startPoint: .top, endPoint: .bottom)
-            }
-        }
-        .frame(width: bgW, height: bgH)
-        .clipped()
-        .ignoresSafeArea()
-        .zIndex(-1)
     }
 
     // MARK: Header
