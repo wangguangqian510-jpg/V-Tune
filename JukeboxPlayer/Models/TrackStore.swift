@@ -339,7 +339,7 @@ final class TrackStore: ObservableObject {
 
                 do {
 
-                    _ = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    _ = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
 
                     if stale { continue }
 
@@ -411,7 +411,7 @@ final class TrackStore: ObservableObject {
 
                 do {
 
-                    resolved = try URL(resolvingBookmarkData: bm, options: [.withSecurityScope], relativeTo: nil, bookmarkDataIsStale: &stale)
+                    resolved = try URL(resolvingBookmarkData: bm, options: [], relativeTo: nil, bookmarkDataIsStale: &stale)
 
                 } catch {
 
@@ -586,7 +586,7 @@ final class TrackStore: ObservableObject {
 
             } else {
 
-                if let bm = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) {
+                if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
 
                     records[existingID] = TrackRecord(
 
@@ -636,7 +636,7 @@ final class TrackStore: ObservableObject {
 
         if !importByCopy {
 
-            if let bm = try? url.bookmarkData(options: [.withSecurityScope], includingResourceValuesForKeys: nil, relativeTo: nil) {
+            if let bm = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
 
                 addReferencedRecord(bookmark: bm, fileName: url.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint, artwork: artwork)
 
