@@ -53,6 +53,9 @@ struct GroupedListView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .overlay {
             if groups.isEmpty {
                 Text("没有\(title)")
@@ -94,6 +97,9 @@ struct GroupDetailView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .navigationTitle(title)
         .sheet(item: $trackToAdd) { track in
             AddToPlaylistSheet(track: track)
