@@ -216,6 +216,10 @@ struct NowPlayingView: View {
             }
             return engine.artwork
         }()
+        // 关键：背景必须用明确的屏幕尺寸约束，不能 .frame(maxWidth:.infinity)。
+        // 否则 Image 会退回原始像素尺寸把 ZStack 撑宽，导致播放页自身被拉宽。
+        let bgW = UIScreen.main.bounds.width
+        let bgH = UIScreen.main.bounds.height
         return Group {
             if let img = image {
                 Image(uiImage: img)
@@ -228,7 +232,7 @@ struct NowPlayingView: View {
                                startPoint: .top, endPoint: .bottom)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: bgW, height: bgH)
         .clipped()
         .ignoresSafeArea()
         .zIndex(-1)
