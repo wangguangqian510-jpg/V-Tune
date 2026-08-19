@@ -46,6 +46,9 @@ struct PlaylistListView: View {
             }
         }
         .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
         .overlay {
             if store.playlists.isEmpty {
                 VStack(spacing: 8) {
