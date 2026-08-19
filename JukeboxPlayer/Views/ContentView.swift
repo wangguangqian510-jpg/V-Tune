@@ -5,17 +5,23 @@ struct ContentView: View {
     @EnvironmentObject private var store: TrackStore
 
     var body: some View {
-        NavigationStack {
-            LibraryView()
-                .navigationTitle("乐影")
-                .navigationBarTitleDisplayMode(.inline)
+        // 用 ZStack(alignment: .top) 而不是 .background { ... }，把背景图放到
+        // NavigationStack 下面一层显式渲染，避免被 NavigationStack 的系统背景遮住。
+        // 关键：.ignoresSafeArea() 只挂在 backgroundLayer 自己，不污染 NavigationStack，
+        // 所以内容仍按安全区自然布局（顶部不被推到状态栏下面）。
+        ZStack(alignment: .top) {
+            backgroundLayer
+                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
+                .clipped()
+                .ignoresSafeArea()
+
+            NavigationStack {
+                LibraryView()
+                    .navigationTitle("乐影")
+                    .navigationBarTitleDisplayMode(.inline)
+            }
+            .toolbarBackground(.hidden, for: .navigationBar)
         }
-        // 导航栏背景透明，让底层 backgroundLayer 透出来。
-        .toolbarBackground(.hidden, for: .navigationBar)
-        // 纯 SwiftUI 背景：挂在 NavigationStack 的 .background 上，不操作 UIWindow，
-        // 避免启动早期对 window 层级硬插入导致的崩溃。配合各 List 的透明化，
-        // 自定义背景能统一透到主页/曲库/歌手专辑/歌单/设置页。
-        .background { backgroundLayer }
     }
 
     private var backgroundLayer: some View {
