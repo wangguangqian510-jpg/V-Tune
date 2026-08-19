@@ -243,6 +243,9 @@ struct SettingsView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("已导入自定义背景")
                                     .font(.subheadline)
+                                Text("已应用到主页、播放页和设置页")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
                                 Button(role: .destructive) {
                                     store.clearCustomBackground()
                                 } label: {
@@ -253,8 +256,20 @@ struct SettingsView: View {
                             Spacer()
                         }
                     }
+                    // 自定义背景浓度/透明度滑杆，实时预览。
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            Text("背景浓度")
+                            Spacer()
+                            Text("\(Int(store.customBackgroundOpacity * 100))%")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Slider(value: $store.customBackgroundOpacity, in: 0...1, step: 0.05)
+                    }
+                    .padding(.vertical, 4)
                 }
-                Text("自定义背景图会复制到 App 沙盒（与导入音频一致，卸载即删除）。")
+                Text("自定义背景会自动应用到主页、播放页和设置页。图片会复制到 App 沙盒（卸载即删除）。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -317,6 +332,9 @@ struct SettingsView: View {
             }
 
         }
+        .scrollContentBackground(.hidden)
+        .background(Color.clear)
+        .listRowBackground(Color.clear)
 
         .navigationTitle("设置")
 
