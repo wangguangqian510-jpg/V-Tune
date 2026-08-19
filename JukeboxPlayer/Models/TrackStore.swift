@@ -25,12 +25,12 @@ enum AccentColor: String, CaseIterable, Identifiable {
         // 降饱和度、提明度，避免大块纯色扎眼；white 保持原样。
         switch self {
         case .white:  return .white
-        case .red:    return Color(uiColor: UIColor(hue: 0.98, saturation: 0.50, brightness: 0.96))
-        case .orange: return Color(uiColor: UIColor(hue: 0.07, saturation: 0.55, brightness: 0.97))
-        case .blue:   return Color(uiColor: UIColor(hue: 0.58, saturation: 0.50, brightness: 0.96))
-        case .green:  return Color(uiColor: UIColor(hue: 0.38, saturation: 0.48, brightness: 0.95))
-        case .purple: return Color(uiColor: UIColor(hue: 0.75, saturation: 0.50, brightness: 0.96))
-        case .pink:   return Color(uiColor: UIColor(hue: 0.88, saturation: 0.50, brightness: 0.96))
+        case .red:    return Color(uiColor: UIColor(hue: 0.98, saturation: 0.50, brightness: 0.96, alpha: 1.0))
+        case .orange: return Color(uiColor: UIColor(hue: 0.07, saturation: 0.55, brightness: 0.97, alpha: 1.0))
+        case .blue:   return Color(uiColor: UIColor(hue: 0.58, saturation: 0.50, brightness: 0.96, alpha: 1.0))
+        case .green:  return Color(uiColor: UIColor(hue: 0.38, saturation: 0.48, brightness: 0.95, alpha: 1.0))
+        case .purple: return Color(uiColor: UIColor(hue: 0.75, saturation: 0.50, brightness: 0.96, alpha: 1.0))
+        case .pink:   return Color(uiColor: UIColor(hue: 0.88, saturation: 0.50, brightness: 0.96, alpha: 1.0))
         }
     }
 }
