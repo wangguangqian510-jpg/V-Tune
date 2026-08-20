@@ -165,7 +165,11 @@ struct LibraryView: View {
     }
 
     private func play(_ track: Track, from list: [Track]) {
-        guard let idx = store.tracks.firstIndex(where: { $0.id == track.id }) else { return }
+        // 修复：必须切到当前列表再取索引播放，否则从歌单/歌手页播放后 engine.tracks
+        // 被局部列表污染（engine.load 用歌单子集替换了全库），回主库/我喜欢页点歌时
+        // 用全库 index 越界 -> 点歌无反应；且搜索/收藏队列顺序也会错（next 跳错歌）。
+        guard let idx = list.firstIndex(where: { $0.id == track.id }) else { return }
+        engine.load(list)
         engine.play(index: idx)
     }
 
