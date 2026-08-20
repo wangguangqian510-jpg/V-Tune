@@ -27,6 +27,15 @@ enum PlaybackMode: String, CaseIterable {
 
 }
 
+/// 高频播放进度（独立 ObservableObject）。
+/// 修复：currentTime 每 0.25s 更新一次，如果放在 PlayerEngine 上发布，所有
+/// @EnvironmentObject 引用 engine 的页面（LibraryView / SettingsView 等）都会
+/// 跟着每 0.25s 重算 body——播放 MP4 视频时叠加视频解码占主线程，切页面明显卡顿。
+/// 拆到独立对象后，只有真正需要进度刷新的视图（播放页 / 歌词）订阅它。
+final class PlaybackProgress: ObservableObject {
+    @Published var currentTime: Double = 0
+}
+
 /// 灵动岛 / Live Activity 属性（主 App 与 Widget 扩展共用一份定义）。
 @available(iOS 16.1, *)
 struct JukeboxLiveActivityAttributes: ActivityAttributes {
@@ -64,7 +73,10 @@ final class PlayerEngine: ObservableObject {
 
     @Published private(set) var isPlaying: Bool = false
 
-    @Published private(set) var currentTime: Double = 0
+    /// 高频进度：独立发布通道（PlaybackProgress），避免全 App 页面随 0.25s 进度刷新重算。
+    let progress = PlaybackProgress()
+    /// 当前播放进度（读值用；发布走 progress.currentTime）
+    private(set) var currentTime: Double = 0
     /// 实时播放进度（直接读 AVPlayer，供黑胶旋转用），不受 currentTime 发布节流影响。
     var liveCurrentTime: Double { player?.currentTime().seconds ?? 0 }
 
@@ -433,6 +445,7 @@ final class PlayerEngine: ObservableObject {
         player.seek(to: cm, toleranceBefore: tol, toleranceAfter: tol) { _ in }
 
         currentTime = second
+        progress.currentTime = second
 
     }
 
@@ -509,6 +522,7 @@ final class PlayerEngine: ObservableObject {
         playerItem = nil
 
         currentTime = 0
+        progress.currentTime = 0
 
         duration = 0
 
@@ -613,6 +627,11 @@ final class PlayerEngine: ObservableObject {
                     self.isLoading = false
 
                     self.sessionRetried = false
+
+                    // 修复：setupAndPlay 里同步访问 asset.tracks 在 item 就绪前恒为空，
+                    // 远程 MP4/MOV 永远检测不到视频（界面不切换）。readyToPlay 时轨道已就绪，
+                    // 此时再检测一次，确保视频文件能切到 VideoPlayer 界面。
+                    self.isVideo = !asset.tracks(withMediaType: .video).isEmpty
 
                     // EQ 已在 setupAndPlay 中提前挂接；这里不再重复 replace，避免播放中断。
 
@@ -751,6 +770,8 @@ final class PlayerEngine: ObservableObject {
 
             player?.play()
 
+            player?.rate = playbackRate   // 修复：单曲循环重新播放后恢复用户倍速，否则被重置为 1.0
+
             isPlaying = true
 
         case .shuffle:
@@ -788,6 +809,7 @@ final class PlayerEngine: ObservableObject {
                 // 触发一连串零容差 seek 把 AVPlayer 搞到卡死（表现为「拖一下只播 2 秒就停」）。
                 if !self.isScrubbing {
                     self.currentTime = s
+                    self.progress.currentTime = s
                     // 歌词行变化时同步锁屏信息，使锁屏/控制中心显示当前行。
                     let line = self.currentLyricLine(at: s)
                     if line != self.lastLyricLine {
@@ -840,6 +862,7 @@ final class PlayerEngine: ObservableObject {
         isLoading = false
 
         currentTime = 0
+        progress.currentTime = 0
 
         duration = 0
 
@@ -1037,7 +1060,7 @@ final class PlayerEngine: ObservableObject {
 
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = currentTime
 
-        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? 1.0 : 0.0
+        info[MPNowPlayingInfoPropertyPlaybackRate] = isPlaying ? Double(playbackRate) : 0.0
 
         if let lyrics = lyrics, !lyrics.isEmpty {
             // 锁屏/控制中心优先显示当前歌词行；无时间轴时回退到纯文本。
@@ -1267,7 +1290,7 @@ final class PlayerEngine: ObservableObject {
         let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
                     toleranceBefore: tol, toleranceAfter: tol) { _ in
-            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
+            DispatchQueue.main.async { self.currentTime = target; self.progress.currentTime = target; self.updateNowPlaying() }
         }
     }
 
@@ -1278,7 +1301,7 @@ final class PlayerEngine: ObservableObject {
         let tol = CMTime(seconds: 0.1, preferredTimescale: 600)
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600),
                     toleranceBefore: tol, toleranceAfter: tol) { _ in
-            DispatchQueue.main.async { self.currentTime = target; self.updateNowPlaying() }
+            DispatchQueue.main.async { self.currentTime = target; self.progress.currentTime = target; self.updateNowPlaying() }
         }
     }
 
