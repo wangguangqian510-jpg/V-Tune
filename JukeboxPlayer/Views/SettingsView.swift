@@ -48,7 +48,8 @@ struct SettingsView: View {
 
     @EnvironmentObject private var store: TrackStore
 
-    @EnvironmentObject private var engine: PlayerEngine
+    // 注意：不引用 PlayerEngine —— 否则 engine 的每次 @Published（切歌/播放状态）都会触发本页重算。
+    // 播放进度已拆到独立的 PlaybackProgress 通道，本页与高频刷新完全解耦。
 
 
 
