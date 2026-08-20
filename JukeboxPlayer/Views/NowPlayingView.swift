@@ -116,6 +116,8 @@ private struct LyricsService {
 
 struct NowPlayingView: View {
     @EnvironmentObject private var engine: PlayerEngine
+    /// 高频进度订阅（独立发布通道，避免拖累全局页面）
+    @EnvironmentObject private var progress: PlaybackProgress
     @Environment(\.dismiss) private var dismiss
     @State private var showQueue = false
     @State private var showLyrics = false
@@ -265,14 +267,14 @@ struct NowPlayingView: View {
         VStack(spacing: 6) {
             Slider(
                 value: Binding(
-                    get: { engine.isScrubbing ? scrubTime : engine.currentTime },
+                    get: { engine.isScrubbing ? scrubTime : progress.currentTime },
                     set: { scrubTime = $0 }
                 ),
                 in: 0...max(engine.duration, 1),
                 onEditingChanged: { editing in
                     if editing {
                         engine.isScrubbing = true
-                        scrubTime = engine.currentTime
+                        scrubTime = progress.currentTime
                     } else {
                         engine.seek(to: scrubTime)
                         engine.isScrubbing = false
@@ -281,7 +283,7 @@ struct NowPlayingView: View {
             )
             .tint(.white)
             HStack {
-                Text(formatTime(engine.isScrubbing ? scrubTime : engine.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
+                Text(formatTime(engine.isScrubbing ? scrubTime : progress.currentTime)).font(.caption).foregroundStyle(.white.opacity(0.7))
                 Spacer()
                 Text(formatTime(engine.duration)).font(.caption).foregroundStyle(.white.opacity(0.7))
             }
@@ -875,6 +877,7 @@ private func parseLRC(_ raw: String) -> [LRCLine]? {
 private struct LyricsView: View {
     let lines: [LRCLine]
     @EnvironmentObject private var engine: PlayerEngine
+    @EnvironmentObject private var progress: PlaybackProgress
     @State private var lastIndex: Int = 0
     private func index(at t: Double) -> Int {
         let tt = max(0, t + engine.lyricsOffset)
@@ -889,7 +892,7 @@ private struct LyricsView: View {
             ScrollView {
                 LazyVStack(spacing: 14) {
                     ForEach(0..<lines.count, id: \.self) { i in
-                        let active = i == index(at: engine.currentTime)
+                        let active = i == index(at: progress.currentTime)
                         Text(lines[i].text)
                             .font(active ? .title3.bold() : .body)
                             .foregroundStyle(active ? .white : .white.opacity(0.4))
@@ -901,14 +904,14 @@ private struct LyricsView: View {
                 }
                 .padding(.vertical, 40)
             }
-            .onReceive(engine.$currentTime) { t in
+            .onReceive(progress.$currentTime) { t in
                 let idx = index(at: t)
                 if idx != lastIndex {
                     lastIndex = idx
                     withAnimation { proxy.scrollTo(idx, anchor: .center) }
                 }
             }
-            .onAppear { proxy.scrollTo(index(at: engine.currentTime), anchor: .center) }
+            .onAppear { proxy.scrollTo(index(at: progress.currentTime), anchor: .center) }
         }
     }
 
