@@ -10,6 +10,7 @@ struct JukeboxPlayerApp: App {
             ContentView()
                 .environmentObject(engine)
                 .environmentObject(store)
+                .environmentObject(engine.progress)  // 高频进度独立通道：避免低频页面随 0.25s 进度刷新重算
         .onAppear {
             engine.load(store.tracks)
             // 预触发 iOS 网络权限弹窗：避免用户第一次点远程示例曲时才被打断。
