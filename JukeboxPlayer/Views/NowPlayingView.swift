@@ -904,7 +904,7 @@ private struct LyricsView: View {
                 }
                 .padding(.vertical, 40)
             }
-            .onReceive(progress.$currentTime) { t in
+            .onReceive(playbackProgress.$currentTime) { t in
                 let idx = index(at: t)
                 if idx != lastIndex {
                     lastIndex = idx
