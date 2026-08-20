@@ -201,7 +201,6 @@ struct NowPlayingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
-            .gesture(dismissSwipe)
         .foregroundStyle(.white)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
@@ -210,6 +209,7 @@ struct NowPlayingView: View {
             if showLyrics { lyricsSheet }
         if showOnlineSearch { onlineSearchSheet }
         }
+        .gesture(dismissSwipe)
     }
     // MARK: Header
     private var header: some View {
@@ -231,11 +231,11 @@ struct NowPlayingView: View {
 
     /// 水平滑动返回：在播放页空白/黑胶区域左右滑动即可回到主页。
     private var dismissSwipe: some Gesture {
-        DragGesture(minimumDistance: 20, coordinateSpace: .local)
+        DragGesture(minimumDistance: 12, coordinateSpace: .local)
             .onEnded { value in
                 let w = value.translation.width
                 let h = value.translation.height
-                guard abs(w) > abs(h), abs(w) > 80 else { return }
+                guard abs(w) > abs(h), abs(w) > 60 else { return }
                 dismiss()
             }
     }
