@@ -7,11 +7,11 @@ on:
 
 env:
   # 描述文件绑定的 Bundle ID（与 V-Tune 同一证书，必须一致）
-  BUNDLE_ID: com.aramco.cycomm
+  BUNDLE_ID: com.moyuxuan.nianyue
   APP_NAME: FreeGrid
 
 jobs:
-      BUNDLE_ID: com.moyuxuan.nianyue
+  build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
