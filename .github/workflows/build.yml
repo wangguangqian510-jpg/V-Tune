@@ -11,7 +11,7 @@ env:
   APP_NAME: FreeGrid
 
 jobs:
-  build:
+      BUNDLE_ID: com.moyuxuan.nianyue
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
