@@ -1,0 +1,83 @@
+# macOS
+.DS_Store
+
+# Xcode 用户级状态(不该共享)
+xcuserdata/
+*.xcuserstate
+*.xcuserdatad/
+
+# Xcode workspace 用户配置
+*.xcworkspace/xcuserdata/
+
+# Build 产物
+build/
+DerivedData/
+*.ipa
+*.dSYM.zip
+*.dSYM
+
+# Swift Package Manager
+.swiftpm/
+.build/
+Packages/
+Package.pins
+Package.resolved
+
+# CocoaPods (本项目暂未使用)
+Pods/
+
+# Carthage (本项目暂未使用)
+Carthage/Build/
+
+# fastlane (本项目暂未使用)
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/screenshots/**/*.png
+fastlane/test_output
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 临时文件
+*.swp
+*.swo
+
+# 私人接力笔记 (跨对话状态文档,只本地存在,不让 fork/contributor 看到)
+HANDOFF.md
+MIGRATION_HANDOFF.md
+
+# 云同步 token (不硬编码进版本库; 公开分支不含云同步, 但本地可能残留此文件)
+FreeGrid/Secrets.swift
+
+# 图标源图 / 设计导出素材 (成品已进 Assets.xcassets, 这里是工作文件, 只本地留)
+exports/
+app图标/
+
+# 个人记账数据 (用户私人财务文件, 不进仓库)
+记账本-迭代版.xlsx
+
+# Claude Code 本地状态 (worktrees / 会话产物, 只本地)
+.claude/
+
+# 临时目录
+tmp/
+
+# 本地规划 / 工作笔记 (不进公开仓)
+MACOS_PORT_PLAN.md
+
+# 宣传 / 教程视频工程 (渲染帧 + mp4 + 配置, 体积大, 只本地留)
+freegrid-promo-video/
+freegrid-tutorial-video/
+
+# 产品落地页 (独立部署到 Cloudflare Pages, 不从本仓发布)
+site/
+
+# Screen Studio 演示片工程 (只本地, 成品另传)
+freegrid-screenstudio-sample/
+
+# 产品介绍截图素材 (本地工作文件)
+product-intro-captures/
+
+# Playwright CLI 抓页缓存 (本地工具产物)
+.playwright-cli/
