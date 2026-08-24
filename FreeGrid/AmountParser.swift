@@ -191,21 +191,11 @@ enum AmountParser {
     static func parseMultiple(_ raw: String) -> [Bill] {
         // 英文千分位先清(中文逗号保留——它是分段符)
         let cleaned = raw.replacingOccurrences(of: ",", with: "")
-        let pattern = "[，。；、！？?!\n\r]|又|再|然后|接着|另外|还有|花了|付了"
-        guard let re = try? NSRegularExpression(pattern: pattern) else { return [parse(cleaned)] }
 
-        let ns = cleaned as NSString
+        // 两层切分: ①标点/连接词粗切 → ②金额边界细切(ASR 常不给标点,只给空格)
         var segments: [String] = []
-        var last = 0
-        re.enumerateMatches(in: cleaned, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
-            guard let m else { return }
-            if m.range.location > last {
-                segments.append(ns.substring(with: NSRange(location: last, length: m.range.location - last)))
-            }
-            last = m.range.location + m.range.length
-        }
-        if last < ns.length {
-            segments.append(ns.substring(with: NSRange(location: last, length: ns.length - last)))
+        for coarse in splitCoarse(cleaned) {
+            segments.append(contentsOf: splitByAmount(coarse))
         }
 
         let bills = segments.compactMap { seg -> Bill? in
@@ -217,6 +207,54 @@ enum AmountParser {
         // 切不出多笔就整句解析兜底
         if bills.isEmpty { return [parse(cleaned)] }
         return bills
+    }
+
+    /// 第一层: 按标点/连接词粗切
+    private static func splitCoarse(_ text: String) -> [String] {
+        let pattern = "[，。；、！？?!\n\r]|又|再|然后|接着|另外|还有|花了|付了"
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return [text] }
+        let ns = text as NSString
+        var out: [String] = []
+        var last = 0
+        re.enumerateMatches(in: text, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
+            guard let m else { return }
+            if m.range.location > last {
+                out.append(ns.substring(with: NSRange(location: last, length: m.range.location - last)))
+            }
+            last = m.range.location + m.range.length
+        }
+        if last < ns.length {
+            out.append(ns.substring(with: NSRange(location: last, length: ns.length - last)))
+        }
+        return out.isEmpty ? [text] : out
+    }
+
+    /// 第二层: 按金额边界细切 —— 在每个金额表达式后插切分标记
+    /// 「买菜 35 买奶茶 60 打车五块充话费 35」(ASR 无标点版) → 4 段
+    /// 时间/量词保护: 「8月24日花了20块」「买了2个苹果10块」不会被误切
+    private static func splitByAmount(_ input: String) -> [String] {
+        let MARK = "\u{01}"
+        var s = input
+        // 阿拉伯数字(可带小数/数量级/元单位); 后面紧跟时间或量词时不切
+        let arabic = "(\\d+(?:\\.\\d{1,2})?(?:千|万|亿|k|K)?(?:块|元|圆)?)(?!年|月|日|号|点|时|分|:|：|个|只|条|张|件|台|辆|次|套|盒|瓶|杯|碗|份|岁)"
+        if let re = try? NSRegularExpression(pattern: arabic) {
+            s = re.stringByReplacingMatches(
+                in: s,
+                range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1" + MARK)
+        }
+        // 中文数字串+元单位 (五块/三十元)
+        let chinese = "([零一二三四五六七八九十百千万亿两]+(?:块|元|圆))(?!年|月|日|号|点|时|分)"
+        if let re2 = try? NSRegularExpression(pattern: chinese) {
+            s = re2.stringByReplacingMatches(
+                in: s,
+                range: NSRange(s.startIndex..., in: s),
+                withTemplate: "$1" + MARK)
+        }
+        let parts = s.components(separatedBy: MARK)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        return parts.isEmpty ? [input] : parts
     }
 
     // MARK: - Regex helper
