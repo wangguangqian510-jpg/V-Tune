@@ -49,8 +49,8 @@ struct LibraryView: View {
             case .favorites: favoritesList
             }
         }
-        .navigationTitle("V-Tune")
-        .navigationBarTitleDisplayMode(.large)
+        // 标题上提到 ContentView 固定为 inline: large↔inline 转场是主页/设置切换闪烁的根源
+    
         .toolbar { toolbarItems }
         .searchable(text: $searchText, prompt: "搜索歌曲、歌手、专辑")
         .fileImporter(
