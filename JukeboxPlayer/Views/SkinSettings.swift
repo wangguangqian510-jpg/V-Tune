@@ -1,0 +1,158 @@
+import PhotosUI
+import SwiftUI
+
+// ============================================================================
+// SkinManager — 自定义皮肤: 用自己的图片当播放页背景
+// 图片存 Documents/skin_background.jpg(压缩), 参数存 UserDefaults。单例, 播放页直接读。
+// ============================================================================
+
+final class SkinManager: ObservableObject {
+    static let shared = SkinManager()
+
+    @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "SkinEnabled_v1") } }
+    /// 背景模糊半径 0-20
+    @Published var blur: Double { didSet { UserDefaults.standard.set(blur, forKey: "SkinBlur_v1") } }
+    /// 暗色遮罩 0-0.8 (保证白色控件可读)
+    @Published var dim: Double { didSet { UserDefaults.standard.set(dim, forKey: "SkinDim_v1") } }
+    @Published private(set) var image: UIImage?
+
+    private var skinURL: URL {
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return docs.appendingPathComponent("skin_background.jpg")
+    }
+
+    private init() {
+        enabled = UserDefaults.standard.bool(forKey: "SkinEnabled_v1")
+        blur = UserDefaults.standard.object(forKey: "SkinBlur_v1") as? Double ?? 6
+        dim = UserDefaults.standard.object(forKey: "SkinDim_v1") as? Double ?? 0.45
+        if let data = try? Data(contentsOf: skinURL) {
+            image = UIImage(data: data)
+            if image == nil { enabled = false }
+        } else {
+            enabled = false
+        }
+    }
+
+    func save(_ uiImage: UIImage) {
+        // 压到最长边 1600 再存, 控制内存与磁盘
+        let maxSide: CGFloat = 1600
+        var target = uiImage
+        let longest = max(uiImage.size.width, uiImage.size.height)
+        if longest > maxSide {
+            let scale = maxSide / longest
+            let newSize = CGSize(width: uiImage.size.width * scale, height: uiImage.size.height * scale)
+            let renderer = UIGraphicsImageRenderer(size: newSize)
+            target = renderer.image { _ in
+                uiImage.draw(in: CGRect(origin: .zero, size: newSize))
+            }
+        }
+        guard let data = target.jpegData(compressionQuality: 0.85) else { return }
+        do {
+            try data.write(to: skinURL, options: [.atomic])
+            image = target
+            enabled = true
+        } catch {
+            // 存盘失败保持旧状态
+        }
+    }
+
+    func clear() {
+        try? FileManager.default.removeItem(at: skinURL)
+        image = nil
+        enabled = false
+    }
+}
+
+// MARK: - PHPicker 封装
+
+struct SkinPhotoPicker: UIViewControllerRepresentable {
+    var onPick: (UIImage) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    func makeUIViewController(context: Context) -> PHPickerViewController {
+        var config = PHPickerConfiguration()
+        config.filter = .images
+        config.selectionLimit = 1
+        let picker = PHPickerViewController(configuration: config)
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: PHPickerViewController, context: Context) {}
+
+    final class Coordinator: NSObject, PHPickerViewControllerDelegate {
+        let parent: SkinPhotoPicker
+        init(_ parent: SkinPhotoPicker) { self.parent = parent }
+
+        func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
+            defer { parent.dismiss() }
+            guard let provider = results.first?.itemProvider,
+                  provider.canLoadObject(ofClass: UIImage.self) else { return }
+            provider.loadObject(ofClass: UIImage.self) { [weak self] obj, _ in
+                guard let img = obj as? UIImage else { return }
+                DispatchQueue.main.async {
+                    self?.parent.onPick(img)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - 皮肤设置页
+
+struct SkinSettingsView: View {
+    @ObservedObject private var skin = SkinManager.shared
+    @State private var showingPicker = false
+
+    var body: some View {
+        List {
+            Section("背景图") {
+                if let img = skin.image {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(height: 140)
+                        .frame(maxWidth: .infinity)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                }
+                Button {
+                    showingPicker = true
+                } label: {
+                    Label(skin.image == nil ? "从相册选择图片" : "更换图片", systemImage: "photo")
+                }
+                Toggle("使用自定义背景", isOn: $skin.enabled)
+                    .disabled(skin.image == nil)
+                if skin.image != nil {
+                    Button(role: .destructive) {
+                        skin.clear()
+                    } label: {
+                        Label("删除背景图", systemImage: "trash")
+                    }
+                }
+            }
+
+            Section {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack { Text("模糊强度"); Spacer(); Text("\(Int(skin.blur))").foregroundStyle(.secondary) }
+                    Slider(value: $skin.blur, in: 0...20, step: 1)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack { Text("暗度"); Spacer(); Text("\(Int(skin.dim * 100))%").foregroundStyle(.secondary) }
+                    Slider(value: $skin.dim, in: 0...0.8, step: 0.05)
+                }
+                Text("提示: 稍微加一点模糊和暗度, 播放页的白色文字会更清楚")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text("效果调节")
+            } footer: {
+                Text("生效范围: 播放页背景。关闭开关即恢复默认渐变背景。")
+            }
+        }
+        .navigationTitle("自定义皮肤")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingPicker) {
+            SkinPhotoPicker { img in skin.save(img) }
+        }
+    }
+}
