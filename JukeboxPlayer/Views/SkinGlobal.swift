@@ -1,51 +1,30 @@
 import SwiftUI
+import UIKit
 
 // ============================================================================
-// SkinOverlay — 全局皮肤层: 挂在 App 根(WindowGroup)覆盖所有页面。
-// 播放页自带背景层(可单独调参), 这里负责其余一切页面(曲库/设置/歌单…)。
-// 用 UIGestureRecognizerRepresentable 挂 backdrop 下方, 列表滚动/点击不受影响。
+// SkinGlobalOverlay — 全局皮肤层: 挂在 App 根覆盖所有页面(曲库/设置/歌单…)。
+// 性能铁律: 背景图一律用降采样后的 backdropImage; 先铺满再 blur+drawingGroup 烘焙成单张贴图;
+// 绝不套 GeometryReader——它会向上传播尺寸提案, 在 NavigationStack 根部 .overlay 里引发布局反馈循环。
 // ============================================================================
-
-struct SkinGlobalBackdrop: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
-        let v = PassthroughUIView()
-        v.isUserInteractionEnabled = false
-        v.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-        return v
-    }
-
-    func updateUIView(_ uiView: UIView, context: Context) {}
-
-    /// 默认 hitTest 返回 nil → 整层对触摸透明, 下面的内容照常交互
-    final class PassthroughUIView: UIView {
-        override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? { nil }
-    }
-}
 
 struct SkinGlobalOverlay: View {
     @ObservedObject private var skin = SkinManager.shared
 
     var body: some View {
-        // 指针事件完全穿透(SwiftUI 层), 真正的视觉内容由 UIKit 层渲染
-        skinLayer
-            .allowsHitTesting(false)
-            .ignoresSafeArea()
-    }
-
-    @ViewBuilder
-    private var skinLayer: some View {
-        if skin.globalEnabled, skin.enabled, let img = skin.image {
-            GeometryReader { geo in
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
-                    .blur(radius: skin.globalBlur)
-                    .overlay(Color.black.opacity(skin.globalDim))
-            }
-        } else {
-            EmptyView()
+        if skin.globalEnabled, skin.enabled, let img = skin.backdropImage ?? skin.image {
+            // 顺序关键: scaledToFill 铺满屏幕后再 blur → drawingGroup 烘焙。
+            // 若先对未受限尺寸的源图做模糊, Metal 会按原图尺寸建离屏缓冲(4608×3456 就是 60MB+),
+            // 每帧重建 → 主线程卡死、全 app 控件失灵(上版卡屏根因)。
+            Image(uiImage: img)
+                .resizable()
+                .interpolation(.medium)
+                .scaledToFill()
+                .blur(radius: skin.globalBlur)
+                .overlay(Color.black.opacity(skin.globalDim))
+                .drawingGroup()   // 合成一张位图贴图, 滚动时只贴不重算
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
         }
     }
 }
