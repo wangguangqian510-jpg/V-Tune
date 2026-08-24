@@ -168,9 +168,10 @@ struct NowPlayingView: View {
         }
     }
 
-    /// 黑胶模式下是否隐藏封面渐变(让皮肤图透出来)。开启皮肤且关闭「黑胶衬底」时为 true。
+    /// 黑胶模式下是否隐藏封面渐变(让皮肤图透出来)。纯皮肤模式或(非衬底+开启皮肤)时为 true。
     private var hideVinylGradient: Bool {
-        skin.enabled && skin.image != nil && !skin.vinylBackdrop
+        guard skin.enabled, skin.image != nil else { return false }
+        return skin.pureMode || !skin.vinylBackdrop
     }
 
     var body: some View {
