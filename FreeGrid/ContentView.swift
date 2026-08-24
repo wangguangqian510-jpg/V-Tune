@@ -259,6 +259,8 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             DashboardView(onOpenAssets: {
                 selectedTab = .assets
+            }, onOpenHistory: {
+                selectedTab = .history
             })
                 .tabItem {
                     Label("Dashboard", systemImage: "chart.line.uptrend.xyaxis")
@@ -299,6 +301,7 @@ struct ContentView: View {
 struct DashboardView: View {
 
     let onOpenAssets: () -> Void
+    var onOpenHistory: (() -> Void)? = nil
 
     // ===== SwiftData 反应式查询 =====
     @Query private var expenses: [Expense]
@@ -337,24 +340,22 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: Spacing.lg) {
-                    topBar           // 圆点 + FreeGrid + 副标
-                    heroSection      // Freedom Days 巨大数字 hero
+                    greetRow         // 头像 + 时段问候 + 日期 (念念有账)
                     if needsOnboarding {
                         onboardingPrompt // 存款与支出齐备后自动消失
                     }
-                    gridSection      // 1825 格,占整个 mid 区
-                    statsRow         // 3 个 stat 卡片横向
-                    actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
-                    voiceRow         // 说一笔:语音记账 (念念有账)
-                    simulateRow      // 模拟决策
-                    todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
+                    monthBalanceCard // 本月结余玻璃卡
+                    voiceHeroCard    // 语音记账 hero 绿卡
+                    gridSection      // Freedom Grid 玻璃卡
+                    quickRow         // 快捷记账四钮
+                    recentSection    // 最近记账
                 }
                 .padding(.horizontal, Spacing.lg)
                 .padding(.top, Spacing.sm)
                 .padding(.bottom, Spacing.xxl)
             }
             .scrollContentBackground(.hidden)
-            .background(Color.midnight.ignoresSafeArea())
+            .background(GlassBlobs())
             .hideNavBar()
             .safeAreaInset(edge: .top) {
                 if pendingUndoID != nil {
@@ -363,7 +364,7 @@ struct DashboardView: View {
                 }
             }
             .sheet(isPresented: $showingAddExpense) {
-                AddExpenseSheet(onSaved: { exp in
+                AddExpenseSheet(initialCategory: quickCategory, onSaved: { exp in
                     showUndoToast(id: exp.id, amount: exp.amount, isExpense: true)
                 })
             }
@@ -470,6 +471,288 @@ struct DashboardView: View {
     // ============================================================================
     // MARK: - 顶部 wordmark
     // ============================================================================
+
+    // ============================================================================
+    // MARK: - 念念有账首页 (液态玻璃 v2 · 对齐 UI 设计稿)
+    // ============================================================================
+
+    @State private var quickCategory: String? = nil
+
+    private var greetRow: some View {
+        let h = Calendar.current.component(.hour, from: Date())
+        let greet = h < 6 ? "凌晨好" : h < 12 ? "早上好" : h < 18 ? "下午好" : "晚上好"
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "zh_CN")
+        df.dateFormat = "M月d日 EEE"
+        return HStack(spacing: Spacing.md) {
+            Circle()
+                .fill(LinearGradient(colors: [Color.sky, Color.skyDeep],
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: 46, height: 46)
+                .overlay(Text("漫")
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white))
+                .shadow(color: Color.skyDeep.opacity(0.35), radius: 8, y: 3)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(greet + "，小漫")
+                    .font(.system(size: 24, weight: .heavy, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Text(df.string(from: Date()))
+                    .font(.system(.footnote, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+            }
+            Spacer()
+        }
+    }
+
+    private var monthBalanceCard: some View {
+        let cal = Calendar.current
+        let now = Date()
+        let exp = expenses.filter { cal.isDate($0.date, equalTo: now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.amount }
+        let inc = incomes.filter { cal.isDate($0.date, equalTo: now, toGranularity: .month) }
+            .reduce(0) { $0 + $1.amount }
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "zh_CN")
+        df.dateFormat = "yyyy年M月 · 本月结余"
+        return VaultCard(padding: 22) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(df.string(from: now))
+                    .font(.system(.caption, design: .rounded))
+                    .tracking(1)
+                    .foregroundStyle(Color.inkMuted)
+                Text("¥" + (inc - exp).formatted(.number.precision(.fractionLength(0...2))))
+                    .font(.system(size: 38, weight: .heavy, design: .rounded).monospacedDigit())
+                    .foregroundStyle(Color.ink)
+                HStack(spacing: 22) {
+                    ioStat("支出", exp, Color.flame)
+                    ioStat("收入", inc, Color.mossGreen)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    private func ioStat(_ label: String, _ value: Double, _ color: Color) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(.footnote, design: .rounded))
+                .foregroundStyle(Color.inkMuted)
+            Text("¥" + value.formatted(.number.precision(.fractionLength(0...2))))
+                .font(.system(.footnote, design: .rounded).weight(.bold).monospacedDigit())
+                .foregroundStyle(color)
+        }
+    }
+
+    /// 语音 hero 绿卡 — 点一下进入语音记账 (点击模式,不踩按住的坑)
+    private var voiceHeroCard: some View {
+        Button {
+            showingVoice = true
+        } label: {
+            HStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(Color.white.opacity(0.20))
+                    Circle()
+                        .strokeBorder(Color.white.opacity(0.45), lineWidth: 1)
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 24, weight: .medium))
+                        .foregroundStyle(.white)
+                }
+                .frame(width: 62, height: 62)
+                .shadow(color: .black.opacity(0.15), radius: 6, y: 3)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("点一下说话，轻松记账")
+                        .font(.system(size: 17, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("语音识别 · 3 秒搞定一笔账")
+                        .font(.system(.caption, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                Spacer()
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(LinearGradient(colors: [Color.sky, Color.skyDeep],
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
+            )
+            .shadow(color: Color.brandGreen.opacity(0.38), radius: 17, y: 14)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private struct QuickCat: Identifiable {
+        let id = UUID()
+        let title: String
+        let icon: String
+        let tint: Color
+        let isIncome: Bool
+        let category: String?
+    }
+
+    private let quickCats: [QuickCat] = [
+        QuickCat(title: "餐饮", icon: "fork.knife",
+                 tint: Color(red: 0.090, green: 0.698, blue: 0.416), isIncome: false, category: "餐饮"),
+        QuickCat(title: "交通", icon: "bus",
+                 tint: Color(red: 0.184, green: 0.620, blue: 0.561), isIncome: false, category: "交通"),
+        QuickCat(title: "购物", icon: "cart",
+                 tint: Color(red: 0.910, green: 0.635, blue: 0.239), isIncome: false, category: "购物"),
+        QuickCat(title: "收入", icon: "dollarsign.circle",
+                 tint: Color(red: 0.310, green: 0.557, blue: 0.969), isIncome: true, category: nil),
+    ]
+
+    private var quickRow: some View {
+        HStack(spacing: Spacing.md) {
+            ForEach(quickCats) { q in
+                Button {
+                    if q.isIncome {
+                        showingAddIncome = true
+                    } else {
+                        quickCategory = q.category
+                        showingAddExpense = true
+                    }
+                } label: {
+                    VStack(spacing: 8) {
+                        ZStack {
+                            Circle()
+                                .fill(.ultraThinMaterial)
+                                .overlay(Circle().strokeBorder(Color.white.opacity(0.55), lineWidth: 1))
+                                .shadow(color: Color(red: 0.094, green: 0.227, blue: 0.157).opacity(0.12), radius: 8, y: 4)
+                            Image(systemName: q.icon)
+                                .font(.system(size: 22))
+                                .foregroundStyle(q.tint)
+                        }
+                        .frame(width: 56, height: 56)
+                        Text(q.title)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, Spacing.xs)
+    }
+
+    private struct RecentItem: Identifiable {
+        let id: UUID
+        let isExpense: Bool
+        let amount: Double
+        let title: String
+        let category: String
+        let date: Date
+    }
+
+    private func mergedRecent() -> [RecentItem] {
+        var items: [RecentItem] = []
+        for e in expenses.prefix(20) {
+            items.append(RecentItem(id: e.id, isExpense: true, amount: e.amount,
+                                    title: e.note.isEmpty ? e.category : e.note,
+                                    category: e.category, date: e.date))
+        }
+        for i in incomes.prefix(10) {
+            items.append(RecentItem(id: i.id, isExpense: false, amount: i.amount,
+                                    title: i.source.isEmpty ? "收入" : i.source,
+                                    category: "收入", date: i.date))
+        }
+        return Array(items.sorted { $0.date > $1.date }.prefix(3))
+    }
+
+    private func categoryTint(_ c: String) -> Color {
+        switch c {
+        case "餐饮": return Color(red: 0.090, green: 0.698, blue: 0.416)
+        case "交通": return Color(red: 0.184, green: 0.620, blue: 0.561)
+        case "购物": return Color(red: 0.910, green: 0.635, blue: 0.239)
+        case "娱乐": return Color(red: 0.478, green: 0.435, blue: 0.941)
+        case "居住": return Color(red: 0.310, green: 0.557, blue: 0.969)
+        case "医疗": return Color.flame
+        default: return Color(red: 0.541, green: 0.592, blue: 0.549)
+        }
+    }
+
+    private func categoryIcon(_ c: String) -> String {
+        switch c {
+        case "餐饮": return "fork.knife"
+        case "交通": return "bus"
+        case "购物": return "cart"
+        case "娱乐": return "gamecontroller"
+        case "居住": return "house"
+        case "医疗": return "cross.case.fill"
+        default: return "ellipsis.circle"
+        }
+    }
+
+    private var recentSection: some View {
+        let recent = mergedRecent()
+        return VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack {
+                Text("最近记账")
+                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                Spacer()
+                if let onOpen = onOpenHistory {
+                    Button("全部 ›") { onOpen() }
+                        .font(.system(.caption, design: .rounded).weight(.medium))
+                        .foregroundStyle(Color.inkMuted)
+                        .buttonStyle(.plain)
+                }
+            }
+            VaultCard(padding: 16) {
+                if recent.isEmpty {
+                    VStack(spacing: 6) {
+                        Text("还没有记录")
+                            .font(.system(.subheadline, weight: .semibold, design: .rounded))
+                            .foregroundStyle(Color.ink)
+                        Text("按住上方麦克风说一笔试试")
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(recent) { item in
+                            recentRow(item)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func recentRow(_ item: RecentItem) -> some View {
+        let tint = item.isExpense ? categoryTint(item.category) : Color.mossGreen
+        let icon = item.isExpense ? categoryIcon(item.category) : "dollarsign.circle"
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "zh_CN")
+        df.dateFormat = "M月d日 HH:mm"
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(tint.opacity(0.12))
+                .frame(width: 42, height: 42)
+                .overlay(Image(systemName: icon)
+                    .font(.system(size: 17))
+                    .foregroundStyle(tint))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.title)
+                    .font(.system(.subheadline, weight: .semibold, design: .rounded))
+                    .foregroundStyle(Color.ink)
+                    .lineLimit(1)
+                Text(item.category + " · " + df.string(from: item.date))
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkMuted)
+            }
+            Spacer(minLength: 8)
+            Text((item.isExpense ? "−" : "+") + "¥" + item.amount.formatted(.number.precision(.fractionLength(0...2))))
+                .font(.system(.subheadline, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(item.isExpense ? Color.flame : Color.mossGreen)
+        }
+        .padding(.vertical, 8)
+    }
 
     /// 顶部 brand bar:靶心 mark(同时是 dark/light 切换按钮) + 品牌名 + VOL 标识
     /// mark 内部:light mode = sky 实心点(太阳),dark mode = moon icon
@@ -2205,8 +2488,10 @@ enum TxKind: Identifiable {
 
 enum ExpenseCategory {
     /// 权威分类(记账 Picker + 一切分析口径的唯一标准)
-    static let canonical = ["早餐", "午餐", "晚餐", "购物", "交通", "娱乐",
-                            "成长投资", "医疗", "其他"]
+    /// 权威分类(念念有账 v2,对齐液态玻璃 UI 设计稿): 支出 7 类。
+    /// 三餐合一为「餐饮」,新增「居住」;旧记录里的早餐/午餐/晚餍等由 aliases 归一。
+    static let canonical = ["餐饮", "交通", "购物", "娱乐",
+                            "居住", "医疗", "其他"]
 
     /// 兜底分类(归一不出来时的默认)
     static let fallback = "其他"
@@ -2221,7 +2506,12 @@ enum ExpenseCategory {
         "entertainment": "娱乐",
         "medical": "医疗", "health": "医疗",
         "other": "其他", "others": "其他", "misc": "其他",
-        "growth": "成长投资", "investment": "成长投资",
+        "growth": "其他", "investment": "其他",
+        "housing": "居住", "rent": "居住",
+        // v1 九类 → v2 七类归一
+        "早餐": "餐饮", "午餐": "餐饮", "晚餍": "餐饮",
+        "成长投资": "其他",
+        "日用": "购物", "人情": "其他", "房租": "居住",
         "数码": "购物",   // 经用户确认:电子产品并入购物
     ]
 
@@ -2629,17 +2919,15 @@ struct MonthlySummaryView: View {
     // 念念有账: 月预算 (与 SettingsView 共享同一 AppStorage key)
     @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
 
-    /// 分类占比配色轮盘 (按占比降序取色)
+    /// 分类占比配色轮盘 (按占比降序取色,对齐设计稿 tint)
     private let donutPalette: [Color] = [
-        Color.assetBlue,
-        Color.mossGreen,
-        Color.incomeGold,
-        Color.flame,
-        Color.skyDeep,
-        Color(red: 0.62, green: 0.44, blue: 0.78),
-        Color(red: 0.30, green: 0.69, blue: 0.65),
-        Color(red: 0.83, green: 0.55, blue: 0.45),
-        Color(red: 0.55, green: 0.60, blue: 0.66),
+        Color(red: 0.090, green: 0.698, blue: 0.416),   // 餐饮绿
+        Color(red: 0.184, green: 0.620, blue: 0.561),   // 交通青
+        Color(red: 0.910, green: 0.635, blue: 0.239),   // 购物金
+        Color(red: 0.478, green: 0.435, blue: 0.941),   // 娱乐紫
+        Color(red: 0.310, green: 0.557, blue: 0.969),   // 居住蓝
+        Color.flame,                                     // 医疗红
+        Color(red: 0.541, green: 0.592, blue: 0.549),   // 其他灰绿
     ]
 
     struct MonthlyStat: Identifiable {
@@ -3346,6 +3634,9 @@ struct CheckView: View {
 
 struct AddExpenseSheet: View {
 
+    /// 快捷记账入口预选的分类 (nil = 默认「餐饮」)
+    var initialCategory: String? = nil
+
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -3359,7 +3650,7 @@ struct AddExpenseSheet: View {
     @Query private var passiveSources: [PassiveSource]
 
     @State private var amount: String = ""
-    @State private var category: String = "早餐"
+    @State private var category: String = "餐饮"
     @State private var note: String = ""
     @State private var date: Date = .now
 
@@ -3417,6 +3708,11 @@ struct AddExpenseSheet: View {
                         .foregroundStyle(isAmountValid ? Color.skyDeep : Color.inkFaint)
                         .fontWeight(.medium)
                 }
+            }
+        }
+        .onAppear {
+            if let ic = initialCategory, ExpenseCategory.canonical.contains(ic) {
+                category = ic
             }
         }
     }
