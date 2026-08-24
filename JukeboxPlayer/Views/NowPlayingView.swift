@@ -147,18 +147,16 @@ struct NowPlayingView: View {
     /// 自定义皮肤(单例): 开启时播放页背景换成用户图片
     @ObservedObject private var skin = SkinManager.shared
 
-    /// 背景层: 皮肤图或封面渐变。铺满后再 blur+drawingGroup 烘焙; 用降采样小图, 不碰 GeometryReader。
+    /// 背景层: 皮肤用预烘焙位图(模糊+压暗已烤进像素, 滚动零着色开销); 否则封面渐变
     @ViewBuilder
     private var backgroundLayer: some View {
-        ZStack {
-            if skin.enabled, let img = skin.backdropImage ?? skin.image {
-                Image(uiImage: img)
+        Group {
+            if skin.enabled, let src = skin.backdropImage ?? skin.image,
+               let baked = SkinBackdrop.backdrop(for: src, blur: skin.blur * 1.15, dim: skin.dim) {
+                Image(uiImage: baked)
                     .resizable()
-                    .interpolation(.medium)
+                    .interpolation(.high)
                     .scaledToFill()
-                    .blur(radius: skin.blur)
-                    .overlay(Color.black.opacity(skin.dim))
-                    .drawingGroup()
             } else {
                 LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
                                startPoint: .top, endPoint: .bottom)
