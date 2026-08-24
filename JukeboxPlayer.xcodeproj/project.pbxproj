@@ -16,6 +16,7 @@
 		000000000000000000000021 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000007 /* ContentView.swift */; };
 		000000000000000000000022 /* LibraryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000008 /* LibraryView.swift */; };
 		000000000000000000000023 /* TrackRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000009 /* TrackRow.swift */; };
+00000000000000000000003A /* WiFiTransfer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 000000000000000000000039 /* WiFiTransfer.swift */; };
 		000000000000000000000024 /* NowPlayingBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000A /* NowPlayingBar.swift */; };
 		000000000000000000000025 /* NowPlayingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000B /* NowPlayingView.swift */; };
 		000000000000000000000026 /* PlaylistListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00000000000000000000000C /* PlaylistListView.swift */; };
@@ -37,6 +38,7 @@
 		000000000000000000000007 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ContentView.swift"; sourceTree = "<group>"; };
 		000000000000000000000008 /* LibraryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LibraryView.swift"; sourceTree = "<group>"; };
 		000000000000000000000009 /* TrackRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TrackRow.swift"; sourceTree = "<group>"; };
+000000000000000000000039 /* WiFiTransfer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiTransfer.swift; sourceTree = "<group>"; };
 		00000000000000000000000A /* NowPlayingBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NowPlayingBar.swift"; sourceTree = "<group>"; };
 		00000000000000000000000B /* NowPlayingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NowPlayingView.swift"; sourceTree = "<group>"; };
 		00000000000000000000000C /* PlaylistListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PlaylistListView.swift"; sourceTree = "<group>"; };
@@ -86,6 +88,7 @@
 			00000000000000000000000F,
 			000000000000000000000011,
 			000000000000000000000010,
+			000000000000000000000039,
 		); name = Views; path = Views; sourceTree = "<group>"; };
 		000000000000000000000017 = {isa = PBXGroup; children = (
 			000000000000000000000003,
@@ -171,6 +174,7 @@
 			000000000000000000000021 /* ContentView.swift in Sources */,
 			000000000000000000000022 /* LibraryView.swift in Sources */,
 			000000000000000000000023 /* TrackRow.swift in Sources */,
+			00000000000000000000003A /* WiFiTransfer.swift in Sources */,
 			000000000000000000000024 /* NowPlayingBar.swift in Sources */,
 			000000000000000000000025 /* NowPlayingView.swift in Sources */,
 			000000000000000000000026 /* PlaylistListView.swift in Sources */,
