@@ -147,25 +147,25 @@ struct NowPlayingView: View {
     /// 自定义皮肤(单例): 开启时播放页背景换成用户图片
     @ObservedObject private var skin = SkinManager.shared
 
-    /// 背景层: 皮肤图(可调模糊/暗度) 或 默认封面渐变
+    /// 背景层: 皮肤图或封面渐变。铺满后再 blur+drawingGroup 烘焙; 用降采样小图, 不碰 GeometryReader。
     @ViewBuilder
     private var backgroundLayer: some View {
-        if skin.enabled, let img = skin.image {
-            GeometryReader { geo in
+        ZStack {
+            if skin.enabled, let img = skin.backdropImage ?? skin.image {
                 Image(uiImage: img)
                     .resizable()
+                    .interpolation(.medium)
                     .scaledToFill()
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .clipped()
                     .blur(radius: skin.blur)
                     .overlay(Color.black.opacity(skin.dim))
+                    .drawingGroup()
+            } else {
+                LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
+                               startPoint: .top, endPoint: .bottom)
             }
-            .ignoresSafeArea()
-        } else {
-            LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
-                           startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
         }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
     }
 
     /// 黑胶模式下是否隐藏封面渐变(让皮肤图透出来)。纯皮肤模式或(非衬底+开启皮肤)时为 true。
@@ -321,16 +321,26 @@ struct NowPlayingView: View {
         }
     }
     // MARK: Artwork (黑胶旋转)
+    /// 黑胶旋转优化：只在真正播放时才跑 30fps TimelineView；暂停/缓冲时固定角度不重绘。
+    /// 之前无论是否在播都每秒 30 次重建整棵 VinylArtwork 树(含两个渐变+封面图),白白烧 CPU。
     private var artwork: some View {
-        // 黑胶旋转：用 TimelineView 每 1/30s 直接读 player.currentTime()（liveCurrentTime），
-        // 不再依赖 engine.currentTime 的发布节流，彻底解决「有的歌曲播放中黑胶不转」的卡顿。
-        TimelineView(.periodic(from: .now, by: 1/30)) { _ in
-            VinylArtwork(cover: engine.currentCover, artwork: engine.artwork)
-                .rotationEffect(.degrees(engine.liveCurrentTime * 20))
+        Group {
+            if engine.isPlaying {
+                TimelineView(.periodic(from: .now, by: 1/30)) { _ in
+                    vinylView(angle: engine.liveCurrentTime * 20)
+                }
+            } else {
+                vinylView(angle: 0)
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: 220)
         .aspectRatio(1, contentMode: .fit)
         .shadow(radius: 20, y: 10)
+    }
+
+    private func vinylView(angle: Double) -> some View {
+        VinylArtwork(cover: engine.currentCover, artwork: engine.artwork)
+            .rotationEffect(.degrees(angle))
     }
 
     /// 纯皮肤模式的封面卡: 真实内嵌封面(或渐变占位)圆角卡片, 下方紧跟滚动歌词
@@ -608,7 +618,7 @@ struct NowPlayingView: View {
     }
     // MARK: Lyrics
     private var lyricsSheet: some View {
-        let parsed = engine.lyrics.flatMap { parseLRC($0) }
+        let parsed = parsedLRC(engine.lyrics)
         return ZStack(alignment: .topTrailing) {
             Color.black.opacity(0.95).ignoresSafeArea()
             VStack(alignment: .leading, spacing: 0) {
@@ -854,7 +864,8 @@ struct NowPlayingView: View {
     }
 
     private var inlineLyrics: some View {
-        let parsed = engine.lyrics.flatMap { parseLRC($0) }
+        // 性能：LRC 解析结果按歌词文本缓存(见 parsedLRC 函数),避免每帧重解全文
+        let parsed = parsedLRC(engine.lyrics)
         return Group {
             if let parsed = parsed, !parsed.isEmpty {
                 LyricsView(lines: parsed).environmentObject(engine)
@@ -954,6 +965,17 @@ private struct LRCLine: Identifiable, Equatable {
     let time: Double
     let text: String
 }
+/// 解析缓存: 同一歌词文本只解一次。之前 inlineLyrics/lyricsSheet 在 body 里每次重绘都全量重解 LRC,
+/// 长歌词+皮肤层重合成时是卡屏帮凶之一。
+private func parsedLRC(_ lyrics: String?) -> [LRCLine]? {
+    guard let lyrics else { return nil }
+    if let cached = _parsedLRCCache.0, cached == _parsedLRCCache.1 { return _parsedLRCCache.2 }
+    let parsed = parseLRC(lyrics)
+    _parsedLRCCache = (lyrics, lyrics, parsed)
+    return parsed
+}
+private var _parsedLRCCache: (String?, String?, [LRCLine]?) = (nil, nil, nil)
+
 /// 解析 LRC 文本（[mm:ss.xx] 或 [mm:ss] 时间标签）。返回 nil 表示不是 LRC 格式（纯文本歌词）。
 private func parseLRC(_ raw: String) -> [LRCLine]? {
     guard let re = try? NSRegularExpression(pattern: "\\[(\\d{1,2}):(\\d{1,2}(?:\\.\\d{1,3})?)\\]") else { return nil }
