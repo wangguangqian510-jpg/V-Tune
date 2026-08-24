@@ -139,6 +139,14 @@ struct SettingsView: View {
 
 
 
+            Section("外观") {
+                NavigationLink {
+                    SkinSettingsView()
+                } label: {
+                    Label("自定义皮肤", systemImage: "paintpalette")
+                }
+            }
+
             Section("WiFi 传歌") {
                 NavigationLink {
                     WiFiTransferView()
