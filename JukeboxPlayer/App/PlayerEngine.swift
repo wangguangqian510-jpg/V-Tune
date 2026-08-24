@@ -1331,18 +1331,18 @@ final class PlayerEngine: ObservableObject {
 
         case .ended:
 
+            // 产品决策：中断(来电/微信语音)结束后不自动续播，
+            // 只重新激活 session 保证下次点播放能直接成功；是否继续听由用户自己决定。
             if let optionsValue = info[AVAudioSessionInterruptionOptionKey] as? UInt,
 
                AVAudioSession.InterruptionOptions(rawValue: optionsValue).contains(.shouldResume) {
 
-                // 中断结束后必须重新激活 session 再恢复播放，否则所有曲目会静默失败（息屏/来电后全目录不能播的根因之一）。
                 try? AVAudioSession.sharedInstance().setActive(true)
 
-                player?.play(); isPlaying = true
-
-                player?.rate = playbackRate
-
             }
+            isPlaying = false
+
+            updateNowPlaying()
 
         @unknown default:
 
