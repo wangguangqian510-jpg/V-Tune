@@ -168,6 +168,11 @@ struct NowPlayingView: View {
         }
     }
 
+    /// 黑胶模式下是否隐藏封面渐变(让皮肤图透出来)。开启皮肤且关闭「黑胶衬底」时为 true。
+    private var hideVinylGradient: Bool {
+        skin.enabled && skin.image != nil && !skin.vinylBackdrop
+    }
+
     var body: some View {
         ZStack {
             backgroundLayer
@@ -215,8 +220,13 @@ struct NowPlayingView: View {
                         .ignoresSafeArea()
                     }
                 } else {
-                    artwork
-                    inlineLyrics
+                    if hideVinylGradient {
+                        // 纯皮肤模式: 不要黑胶圆盘, 封面卡片浮在皮肤图上
+                        skinCoverCard
+                    } else {
+                        artwork
+                        inlineLyrics
+                    }
                 }
                 info
                 progress
@@ -284,6 +294,8 @@ struct NowPlayingView: View {
                         .aspectRatio(16/9, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(radius: 20, y: 10)
+                } else if hideVinylGradient {
+                    skinCoverCard
                 } else {
                     artwork
                     inlineLyrics
@@ -318,6 +330,31 @@ struct NowPlayingView: View {
         .frame(maxWidth: .infinity, maxHeight: 220)
         .aspectRatio(1, contentMode: .fit)
         .shadow(radius: 20, y: 10)
+    }
+
+    /// 纯皮肤模式的封面卡: 真实内嵌封面(或渐变占位)圆角卡片, 下方紧跟滚动歌词
+    private var skinCoverCard: some View {
+        VStack(spacing: 18) {
+            RoundedRectangle(cornerRadius: 20)
+                .fill(LinearGradient(colors: engine.currentCover,
+                                     startPoint: .topLeading, endPoint: .bottomTrailing))
+                .overlay {
+                    if let img = engine.artwork {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFill()
+                            .clipShape(RoundedRectangle(cornerRadius: 20))
+                    } else {
+                        Image(systemName: "music.note")
+                            .font(.system(size: 56, weight: .light))
+                            .foregroundStyle(.white.opacity(0.85))
+                    }
+                }
+                .frame(maxWidth: 300)
+                .aspectRatio(1, contentMode: .fit)
+                .shadow(radius: 24, y: 12)
+            inlineLyrics
+        }
     }
     // MARK: Info
     private var info: some View {
