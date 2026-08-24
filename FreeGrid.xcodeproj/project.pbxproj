@@ -420,8 +420,12 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "念念有账";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音记账时收录你说的话";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于把你的语音转成文字来自动填写账单";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_CFBundleDisplayName = "念念有账";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音记账时收录你说的话";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于把你的语音转成文字来自动填写账单";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -469,8 +473,12 @@
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UILaunchScreen_Generation[sdk=iphonesimulator*]" = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "念念有账";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音记账时收录你说的话";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于把你的语音转成文字来自动填写账单";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphoneos*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_CFBundleDisplayName = "念念有账";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "用于语音记账时收录你说的话";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "用于把你的语音转成文字来自动填写账单";
 				"INFOPLIST_KEY_UIStatusBarStyle[sdk=iphonesimulator*]" = UIStatusBarStyleDefault;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
