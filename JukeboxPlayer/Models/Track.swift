@@ -92,33 +92,7 @@ struct Track: Identifiable, Hashable {
 
     /// 注意：id 必须固定（不能用 UUID() 默认随机），否则「隐藏示例曲」的持久化集合跨启动会失效。
 
-    static let samples: [Track] = [
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111101")!,
-
-              title: "Song One",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3")!, cover: [.blue, .purple], source: .sample),
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111102")!,
-
-              title: "Song Two",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3")!, cover: [.pink, .orange], source: .sample),
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111103")!,
-
-              title: "Song Three", artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3")!, cover: [.teal, .green], source: .sample),
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111104")!,
-
-              title: "Song Four",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3")!, cover: [.indigo, .cyan], source: .sample),
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111105")!,
-
-              title: "Song Five",  artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3")!, cover: [.red, .yellow], source: .sample),
-
-        Track(id: UUID(uuidString: "11111111-1111-1111-1111-111111111106")!,
-
-              title: "Song Six",   artist: "SoundHelix", album: "Demo Album", url: URL(string: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3")!, cover: [.mint, .blue], source: .sample),
-
-    ]
+    static let samples: [Track] = []
 
 }
 
