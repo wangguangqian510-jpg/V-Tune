@@ -1,4 +1,5 @@
 import AVFoundation
+import Combine
 import Speech
 
 // ============================================================================
@@ -168,7 +169,7 @@ final class VoiceRecorder: ObservableObject {
         for i in 0..<n { sum += channel[i] * channel[i] }
         let rms = sqrt(sum / Float(n))
         let db = 20 * log10(max(rms, 1e-6))          // -60..0
-        audioLevel = min(max((db + 60) / 60, 0), 1)   // 归一 0..1
+        audioLevel = Double(min(max((db + 60) / 60, 0), 1))   // 归一 0..1
     }
 
     // MARK: - 清理
