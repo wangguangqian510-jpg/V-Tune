@@ -151,6 +151,64 @@ struct NowPlayingView: View {
             .ignoresSafeArea()
     }
 
+    /// MP4 视频卡片(竖横屏共用): 16:9 播放器 + 全屏按钮
+    private var videoPlayerCard: some View {
+        ZStack(alignment: .topTrailing) {
+            VideoPlayer(player: engine.avPlayer)
+                .aspectRatio(16/9, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+                .shadow(radius: 20, y: 10)
+            Button {
+                videoFullscreen = true
+            } label: {
+                Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    .font(.title3)
+                    .padding(8)
+                    .background(.black.opacity(0.45), in: Circle())
+                    .foregroundStyle(.white)
+            }
+            .padding(10)
+        }
+        .fullScreenCover(isPresented: $videoFullscreen) {
+            ZStack(alignment: .topLeading) {
+                VideoPlayer(player: engine.avPlayer)
+                    .background(.black)
+                Button {
+                    videoFullscreen = false
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.largeTitle)
+                        .foregroundStyle(.white)
+                        .padding()
+                        .background(.black.opacity(0.35), in: Circle())
+                }
+                .padding(.top, 8)
+            }
+            .background(.black)
+            .ignoresSafeArea()
+        }
+    }
+
+    /// MP4 竖屏布局: 内容多于一屏, 包进 ScrollView 防止整页跟着触摸乱滑;
+    /// 音量交给原生播放控制/物理键, 不放自定义音量条(避免点左点右都在拖音量)
+    private var videoPortraitLayout: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 18) {
+                header
+                videoPlayerCard
+                info
+                progress
+                controls
+                moreSection
+                Spacer(minLength: 0)
+                queueToggle
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
+        }
+    }
+
     var body: some View {
         ZStack {
             backgroundLayer
@@ -159,58 +217,24 @@ struct NowPlayingView: View {
                     if geo.size.width > geo.size.height {
                         landscapeLayout
                     } else {
-            VStack(spacing: 24) {
-                header
                 if engine.isVideo {
-                    ZStack(alignment: .topTrailing) {
-                        VideoPlayer(player: engine.avPlayer)
-                            .aspectRatio(16/9, contentMode: .fit)
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            .shadow(radius: 20, y: 10)
-                        Button {
-                            videoFullscreen = true
-                        } label: {
-                            Image(systemName: "arrow.up.left.and.arrow.down.right")
-                                .font(.title3)
-                                .padding(8)
-                                .background(.black.opacity(0.45), in: Circle())
-                                .foregroundStyle(.white)
-                        }
-                        .padding(10)
-                    }
-                    .fullScreenCover(isPresented: $videoFullscreen) {
-                        ZStack(alignment: .topLeading) {
-                            VideoPlayer(player: engine.avPlayer)
-                                .background(.black)
-                            Button {
-                                videoFullscreen = false
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.largeTitle)
-                                    .foregroundStyle(.white)
-                                    .padding()
-                                    .background(.black.opacity(0.35), in: Circle())
-                            }
-                            .padding(.top, 8)
-                        }
-                        .background(.black)
-                        .ignoresSafeArea()
-                    }
+                    videoPortraitLayout
                 } else {
-                    artwork
-                    inlineLyrics
+                    VStack(spacing: 24) {
+                        header
+                        artwork
+                        inlineLyrics
+                        info
+                        progress
+                        controls
+                        volume
+                        moreSection
+                        Spacer(minLength: 0)
+                        queueToggle
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.top, 12)
                 }
-                info
-                progress
-                controls
-                volume
-                moreSection
-                Spacer(minLength: 0)
-                queueToggle
-            }
-            .padding(.horizontal, 24)
-            .padding(.top, 12)
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -279,7 +303,6 @@ struct NowPlayingView: View {
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
-                    if !engine.isVideo { inlineLyrics.frame(maxHeight: 84) }
                     info
                     progress
                     controls
@@ -911,16 +934,17 @@ private struct LRCLine: Identifiable, Equatable {
     let time: Double
     let text: String
 }
-/// 解析缓存: 同一歌词文本只解一次。之前 inlineLyrics/lyricsSheet 在 body 里每次重绘都全量重解 LRC,
-/// 长歌词+皮肤层重合成时是卡屏帮凶之一。
+/// 解析缓存: 同一歌词文本只解一次(key 必须和当前文本比对, 否则切歌后永远返回旧解析)。
 private func parsedLRC(_ lyrics: String?) -> [LRCLine]? {
     guard let lyrics else { return nil }
-    if let cached = _parsedLRCCache.0, cached == _parsedLRCCache.1 { return _parsedLRCCache.2 }
+    if lrcCacheKey == lyrics { return lrcCacheValue }
     let parsed = parseLRC(lyrics)
-    _parsedLRCCache = (lyrics, lyrics, parsed)
+    lrcCacheKey = lyrics
+    lrcCacheValue = parsed
     return parsed
 }
-private var _parsedLRCCache: (String?, String?, [LRCLine]?) = (nil, nil, nil)
+private var lrcCacheKey: String?
+private var lrcCacheValue: [LRCLine]?
 
 /// 解析 LRC 文本（[mm:ss.xx] 或 [mm:ss] 时间标签）。返回 nil 表示不是 LRC 格式（纯文本歌词）。
 private func parseLRC(_ raw: String) -> [LRCLine]? {
