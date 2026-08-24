@@ -21,7 +21,7 @@ final class SkinManager: ObservableObject {
     /// 全局皮肤: 开=皮肤图覆盖所有页面(曲库/设置/歌单…); 播放页始终用自己的背景层
     @Published var globalEnabled: Bool { didSet { UserDefaults.standard.set(globalEnabled, forKey: "SkinGlobal_v1") } }
     /// 全局页参数单独一组: 列表页要保证文字可读, 默认比播放页更模糊更暗
-    @Published var globalBlur: Double { didSet { UserDefaults.standard.set(globalBlur, forKey: "SkinGBloor_v1") } }
+    @Published var globalBlur: Double { didSet { UserDefaults.standard.set(globalBlur, forKey: "SkinGBlur_v1") } }
     @Published var globalDim: Double { didSet { UserDefaults.standard.set(globalDim, forKey: "SkinGDim_v1") } }
     @Published private(set) var image: UIImage?
 
@@ -37,7 +37,7 @@ final class SkinManager: ObservableObject {
         vinylBackdrop = UserDefaults.standard.object(forKey: "SkinVinyl_v1") as? Bool ?? true
         pureMode = UserDefaults.standard.object(forKey: "SkinPure_v1") as? Bool ?? true
         globalEnabled = UserDefaults.standard.bool(forKey: "SkinGlobal_v1")
-        globalBlur = UserDefaults.standard.object(forKey: "SkinGBloor_v1") as? Double ?? 14
+        globalBlur = UserDefaults.standard.object(forKey: "SkinGBlur_v1") as? Double ?? 14
         globalDim = UserDefaults.standard.object(forKey: "SkinGDim_v1") as? Double ?? 0.72
         if let data = try? Data(contentsOf: skinURL) {
             image = UIImage(data: data)
