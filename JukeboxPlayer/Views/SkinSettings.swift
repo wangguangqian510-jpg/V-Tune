@@ -1,3 +1,4 @@
+import CoreGraphics
 import PhotosUI
 import SwiftUI
 
@@ -52,13 +53,15 @@ final class SkinManager: ObservableObject {
     }
 
     /// 位图降采样: ImageIO 按目标尺寸解码, 内存与渲染开销大幅低于先解全图再缩
-    static func downsample(_ image: UIImage, maxSide: CGFloat) -> UIImage {
-        let longest = max(image.size.width * image.scale, image.size.height * image.scale)
+    nonisolated static func downsample(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+        let pxW = CGFloat(image.cgImage?.width ?? 1)
+        let pxH = CGFloat(image.cgImage?.height ?? 1)
+        let longest = max(pxW, pxH)
         guard longest > maxSide else { return image }
         let factor = maxSide / longest
         guard let cg = image.cgImage else { return image }
-        let newW = max(1, Int(cg.width * factor))
-        let newH = max(1, Int(cg.height * factor))
+        let newW = max(1, Int(pxW * factor))
+        let newH = max(1, Int(pxH * factor))
         let cs = CGColorSpaceCreateDeviceRGB()
         guard let ctx = CGContext(data: nil, width: newW, height: newH, bitsPerComponent: 8,
                                   bytesPerRow: 0, space: cs,
