@@ -14,6 +14,8 @@ final class SkinManager: ObservableObject {
     @Published var blur: Double { didSet { UserDefaults.standard.set(blur, forKey: "SkinBlur_v1") } }
     /// 暗色遮罩 0-0.8 (保证白色控件可读)
     @Published var dim: Double { didSet { UserDefaults.standard.set(dim, forKey: "SkinDim_v1") } }
+    /// 黑胶衬底: 开=皮肤图上仍显示黑胶转盘(默认); 关=纯皮肤封面卡片模式, 圆盘隐藏让背景完整露出
+    @Published var vinylBackdrop: Bool { didSet { UserDefaults.standard.set(vinylBackdrop, forKey: "SkinVinyl_v1") } }
     @Published private(set) var image: UIImage?
 
     private var skinURL: URL {
@@ -25,6 +27,7 @@ final class SkinManager: ObservableObject {
         enabled = UserDefaults.standard.bool(forKey: "SkinEnabled_v1")
         blur = UserDefaults.standard.object(forKey: "SkinBlur_v1") as? Double ?? 6
         dim = UserDefaults.standard.object(forKey: "SkinDim_v1") as? Double ?? 0.45
+        vinylBackdrop = UserDefaults.standard.object(forKey: "SkinVinyl_v1") as? Bool ?? true
         if let data = try? Data(contentsOf: skinURL) {
             image = UIImage(data: data)
             if image == nil { enabled = false }
@@ -130,6 +133,8 @@ struct SkinSettingsView: View {
                 }
                 Toggle("使用自定义背景", isOn: $skin.enabled)
                     .disabled(skin.image == nil)
+                Toggle("黑胶衬底", isOn: $skin.vinylBackdrop)
+                    .disabled(!skin.enabled)
                 if skin.image != nil {
                     Button(role: .destructive) {
                         skin.clear()
@@ -154,7 +159,7 @@ struct SkinSettingsView: View {
             } header: {
                 Text("效果调节")
             } footer: {
-                Text("生效范围: 播放页背景。关闭开关即恢复默认渐变背景。")
+                Text("黑胶衬底开: 皮肤图上保留转盘; 关: 纯皮肤模式, 封面卡片浮在背景上。生效范围: 播放页。")
             }
         }
         .navigationTitle("自定义皮肤")
