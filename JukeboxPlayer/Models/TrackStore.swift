@@ -800,21 +800,29 @@ final class TrackStore: ObservableObject {
         }
 
         let dest = uniqueURL(in: docs, for: url)
-
-        do { try fileManager.copyItem(at: url, to: dest) } catch {
-
-            do { try coordinateCopy(from: url, to: dest) } catch {
-
-                throw ImportError.copyFailed(error.localizedDescription)
-
-            }
-
-        }
+        let moved = try importPlacement(from: url, to: dest)
 
         addImportedRecord(filename: dest.lastPathComponent, title: title, artist: artist, album: album, lyrics: lyrics, fingerprint: fingerprint, artwork: artwork)
 
-        reportImportResult("已导入：\(title)")
+        reportImportResult(moved ? "已导入（已移动，原件不占空间）：\(title)"
+                                 : "已导入：\(title)")
 
+    }
+
+    /// 导入落位：优先“移动”——同卷移动瞬时完成且不留原件，直接省一半空间；
+    /// 跨沙盒/iCloud/只读源 move 会失败，自动退回复制（copyItem → NSFileCoordinator 兜底）。
+    /// 返回 true 表示实际发生了移动（原件已不存在）。
+    private func importPlacement(from source: URL, to dest: URL) throws -> Bool {
+        do {
+            try fileManager.moveItem(at: source, to: dest)
+            return true
+        } catch {
+            // 移动失败(跨沙盒/只读/iCloud未下载) → 退回复制链路
+        }
+        do { try fileManager.copyItem(at: source, to: dest) } catch {
+            try coordinateCopy(from: source, to: dest)
+        }
+        return false
     }
 
     /// 用 NSFileCoordinator 在作用域内拷贝文件，兼容 security-scoped 资源
@@ -1638,10 +1646,13 @@ final class TrackStore: ObservableObject {
     private func loadRecords() {
 
         // 优先从 Documents/jukebox_records.json 文件读（原子写保证立即落盘）
-        if let data = try? Data(contentsOf: recordsURL),
-           let list = try? JSONDecoder().decode([TrackRecord].self, from: data) {
-            records = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
-            return
+        // 读取/解码失败重试一次：冷启动时序抖动的偶发失败不应直接跌入兜底
+        for _ in 0..<2 {
+            if let data = try? Data(contentsOf: recordsURL),
+               let list = try? JSONDecoder().decode([TrackRecord].self, from: data) {
+                records = Dictionary(uniqueKeysWithValues: list.map { ($0.id, $0) })
+                return
+            }
         }
 
         // 兜底迁移：首次启动从 UserDefaults 读旧数据，立即写入文件并继续
@@ -1666,6 +1677,10 @@ final class TrackStore: ObservableObject {
             // 之前用 UserDefaults + synchronize() 在 iOS 13+ 是 no-op，无法可靠保证持久化。
             do {
                 try data.write(to: recordsURL, options: [.atomic])
+                // 同步刷兜底副本：修复「偶发重启回退到老曲库」——
+                // 之前 UserDefaults 只在文件写失败时才更新，它长期是陈旧快照（含已删除的歌）；
+                // 一旦文件读取偶发失败就回退到几个月前的状态。现在两份永远同步。
+                UserDefaults.standard.set(data, forKey: recordsKey)
             } catch {
                 // 文件写失败兜底：仍写 UserDefaults（至少下次启动内存里能恢复）
 
