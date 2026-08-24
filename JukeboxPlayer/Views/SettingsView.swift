@@ -139,6 +139,15 @@ struct SettingsView: View {
 
 
 
+            Section("WiFi 传歌") {
+                NavigationLink {
+                    WiFiTransferView()
+                        .environmentObject(store)
+                } label: {
+                    Label("局域网从电脑拖歌进手机", systemImage: "wifi")
+                }
+            }
+
             Section("曲库") {
 
                 HStack { Text("曲目总数"); Spacer(); Text("\(storage.totalTracks)") }
