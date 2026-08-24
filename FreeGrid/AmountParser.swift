@@ -92,20 +92,16 @@ enum AmountParser {
         text.range(of: "多|大概|大约|左右|几十|几块", options: .regularExpression) != nil
     }
 
-    // MARK: - 分类映射(FreeGrid canonical 9 类)
+    // MARK: - 分类映射(念念有账 v2 七类: 餐饮/交通/购物/娱乐/居住/医疗/其他)
 
-    private static let breakfastWords = ["早饭", "早点", "早餐", "豆浆", "油条", "包子"]
-    private static let lunchWords     = ["午饭", "午餐"]
-    private static let dinnerWords    = ["晚饭", "晚餐", "宵夜", "夜宵"]
-    /// 通用吃喝词 → 按当前时段猜早/午/晚
-    private static let mealWords = ["吃", "喝", "饭", "餐", "咖啡", "奶茶", "外卖", "面条",
-                                    "米粉", "菜", "零食", "水果", "烧烤", "火锅", "酒",
-                                    "星巴克", "瑞幸", "麦当劳", "肯德基", "海底捞"]
+    private static let mealWords     = ["早", "午", "晚", "宵夜", "夜宵", "吃", "喝", "饭", "餐", "咖啡", "奶茶", "外卖",
+                                        "面条", "米粉", "菜", "零食", "水果", "烧烤", "火锅", "酒",
+                                        "星巴克", "瑞幸", "麦当劳", "肯德基", "海底捞"]
     private static let transportWords = ["打车", "滴滴", "地铁", "公交", "火车", "高铁", "机票",
                                          "飞机", "加油", "停车", "过路费", "单车", "出行"]
     private static let funWords       = ["电影", "游戏", "ktv", "旅游", "门票", "演出", "健身", "会员"]
+    private static let housingWords   = ["房租", "房贷", "水电", "物业", "燃气", "宽带", "话费", "网费"]
     private static let medicalWords   = ["药", "医院", "挂号", "看病", "体检", "诊所"]
-    private static let growthWords    = ["书", "课程", "培训", "学费", "网课", "考试"]
     private static let shoppingWords  = ["买", "淘宝", "京东", "拼多多", "超市", "衣服", "鞋",
                                          "包", "化妆品", "日用品"]
 
@@ -117,27 +113,14 @@ enum AmountParser {
         words.contains { text.contains($0) }
     }
 
-    /// 没指明哪顿的吃喝 → 按时段猜
-    private static func guessMeal() -> String {
-        let h = Calendar.current.component(.hour, from: Date())
-        switch h {
-        case 5..<11:  return "早餐"
-        case 11..<15: return "午餐"
-        default:      return "晚餐"
-        }
-    }
-
     static func detectCategory(_ text: String) -> String {
         let lower = text.lowercased()
-        if containsAny(breakfastWords, in: text) { return "早餐" }
-        if containsAny(lunchWords, in: text)     { return "午餐" }
-        if containsAny(dinnerWords, in: text)    { return "晚餐" }
-        if containsAny(mealWords, in: lower)     { return guessMeal() }
-        if containsAny(transportWords, in: text) { return "交通" }
-        if containsAny(funWords, in: lower)      { return "娱乐" }
-        if containsAny(medicalWords, in: text)   { return "医疗" }
-        if containsAny(growthWords, in: text)    { return "成长投资" }
-        if containsAny(shoppingWords, in: text)  { return "购物" }
+        if containsAny(mealWords, in: lower)       { return "餐饮" }
+        if containsAny(transportWords, in: text)   { return "交通" }
+        if containsAny(funWords, in: lower)        { return "娱乐" }
+        if containsAny(housingWords, in: text)     { return "居住" }
+        if containsAny(medicalWords, in: text)     { return "医疗" }
+        if containsAny(shoppingWords, in: text)    { return "购物" }
         return "其他"
     }
 
