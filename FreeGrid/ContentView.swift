@@ -485,16 +485,8 @@ struct DashboardView: View {
         df.locale = Locale(identifier: "zh_CN")
         df.dateFormat = "M月d日 EEE"
         return HStack(spacing: Spacing.md) {
-            Circle()
-                .fill(LinearGradient(colors: [Color.sky, Color.skyDeep],
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .frame(width: 46, height: 46)
-                .overlay(Text("漫")
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white))
-                .shadow(color: Color.skyDeep.opacity(0.35), radius: 8, y: 3)
             VStack(alignment: .leading, spacing: 3) {
-                Text(greet + "，小漫")
+                Text(greet)
                     .font(.system(size: 24, weight: .heavy, design: .rounded))
                     .foregroundStyle(Color.ink)
                 Text(df.string(from: Date()))
