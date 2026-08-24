@@ -208,7 +208,7 @@ final class WiFiTransferServer: ObservableObject {
         // 按 boundary 切 part: --boundary ... --boundary-- 
         var files: [IncomingFile] = []
         var cursor = body.startIndex
-        while let partStart = body.range(of: boundary, range: cursor..<body.endIndex) {
+        while let partStart = body.range(of: boundary, in: cursor..<body.endIndex) {
             let segStart = partStart.upperBound
             // 结束标记 "--boundary--"
             if segStart < body.endIndex,
@@ -217,10 +217,10 @@ final class WiFiTransferServer: ObservableObject {
                 break
             }
             // 每个 part 从 \r\n 后开始
-            guard let crlf = body.range(of: Data("\r\n".utf8), range: segStart..<body.endIndex) else { break }
+            guard let crlf = body.range(of: Data("\r\n".utf8), in: segStart..<body.endIndex) else { break }
             let partBodyStart = crlf.upperBound
             // part 结束于下一个 boundary
-            guard let partEnd = body.range(of: boundary, range: partBodyStart..<body.endIndex) else { break }
+            guard let partEnd = body.range(of: boundary, in: partBodyStart..<body.endIndex) else { break }
             let partContent = body.subdata(in: partBodyStart..<body.index(partEnd.lowerBound, offsetBy: -2))   // 去掉尾部 \r\n
             cursor = partEnd.lowerBound
 
@@ -248,43 +248,45 @@ final class WiFiTransferServer: ObservableObject {
             return
         }
 
-        // 落盘临时文件并回调导入(异步, 不阻塞响应)
+        // 落盘临时文件(快) —— 决不在 listener 队列上等待导入(会卡住整个服务),
+        // 响应立即返回, 导入在后台串行跑
         let fm = FileManager.default
         let tmpDir = fm.temporaryDirectory
         var results: [(String, Bool)] = []
-        let dispatchGroup = DispatchGroup()
+        var savedFiles: [(URL, String)] = []
 
         for f in files {
             let safe = UUID().uuidString.suffix(6)
             let tmp = tmpDir.appendingPathComponent("wifi_\(safe)_\(f.name)")
             do {
                 try f.data.write(to: tmp, options: [.atomic])
+                results.append((f.name, true))
+                savedFiles.append((tmp, f.name))
             } catch {
                 results.append((f.name, false))
-                continue
             }
-            let sem = DispatchSemaphore(value: 0)
-            dispatchGroup.enter()
-            DispatchQueue.main.async { [weak self] in
-                guard let self, let cb = self.onFileReceived else {
-                    sem.signal(); dispatchGroup.leave(); return
-                }
-                Task { @MainActor in
-                    await cb(tmp, f.name)
-                    sem.signal()
-                    dispatchGroup.leave()
-                }
-            }
-            _ = sem.wait(wallTimeout: .now() + 120)
-            results.append((f.name, true))
         }
 
-        DispatchQueue.main.async { [weak self] in
-            guard let self else { return }
-            self.receivedCount += files.count
-            self.lastMessage = "收到 \(files.count) 个文件"
+        if !savedFiles.isEmpty {
+            DispatchQueue.main.async { [weak self] in
+                guard let self else { return }
+                guard let cb = self.onFileReceived else {
+                    self.lastMessage = "\(savedFiles.count) 个文件已落盘但导入回调未接"
+                    return
+                }
+                // 后台串行导入: 不抢 listener 队列, 不堵主线程重活动
+                Task { @MainActor in
+                    for (tmp, name) in savedFiles {
+                        await cb(tmp, name)
+                        try? FileManager.default.removeItem(at: tmp)
+                        self.receivedCount += 1
+                        self.lastMessage = "已导入 \(name)"
+                    }
+                }
+            }
         }
-        send(connection, html: Self.resultPage(items: results.map { ($0.0, $0.1) }))
+
+        send(connection, html: Self.resultPage(items: results.map { ($0.0, $0.1) }, importing: !savedFiles.isEmpty))
     }
 
     // MARK: - HTTP 响应
@@ -330,7 +332,7 @@ final class WiFiTransferServer: ObservableObject {
         """
     }
 
-    private static func resultPage(items: [(String, Bool)]) -> String {
+    private static func resultPage(items: [(String, Bool)], importing: Bool = false) -> String {
         let rows = items.map { name, ok in
             "<li>\(ok ? "✅" : "❌") \(name.replacingOccurrences(of: "<", with: "&lt;"))</li>"
         }.joined()
