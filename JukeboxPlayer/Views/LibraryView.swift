@@ -14,6 +14,10 @@ enum LibTab: String, CaseIterable, Identifiable {
 struct LibraryView: View {
     @EnvironmentObject private var engine: PlayerEngine
     @EnvironmentObject private var store: TrackStore
+    @ObservedObject private var skin = SkinManager.shared
+
+    /// 全局皮肤是否生效(控制列表背景透明)
+    private var skinVisible: Bool { skin.globalEnabled && skin.enabled && skin.image != nil }
 
     @State private var tab: LibTab = .songs
     @State private var searchText = ""
@@ -135,6 +139,7 @@ struct LibraryView: View {
             .onDelete(perform: delete)
         }
         .listStyle(.plain)
+        .scrollContentBackground(skinVisible ? .hidden : .automatic)
         .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
     }
 
