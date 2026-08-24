@@ -63,46 +63,43 @@ extension Color {
 
 extension Color {
 
-    // ===== Surface (light: 冷白银 / dark: 冷蓝紫黑 — 天文台气质) =====
+    // ===== Surface (液态玻璃: 淡绿灰底 + 玻璃浮起卡 — 念念有账 UI v2) =====
     /// 主底
-    /// light: 旧版背景近白(0.984)、卡片反而更灰(mist 0.957)→ 卡片像凹陷、层次弱。
-    ///        反转为「柔和冷灰背景 + 纯白浮起卡片」(高级分组列表观感), 不靠阴影提供深度。
-    ///        高强调卡(VaultCard .high)改走 surfaceHi 也保持纯白, 故 paper 现在纯粹是屏幕主底。
     static let paper = Color.dyn(
-        lightRGB: (0.951, 0.953, 0.961),  // 冷银灰主底
-        darkRGB:  (0.040, 0.045, 0.075)   // 深蓝紫黑 (oklch 0.08 0.015 250)
+        lightRGB: (0.875, 0.906, 0.882),   // #dfe7e1 淡绿灰
+        darkRGB:  (0.027, 0.039, 0.031)    // #070a08 近黑绿
     )
-    /// 卡片底
+    /// 卡片底(玻璃卡不可用时兑底)
     static let mist = Color.dyn(
-        lightRGB: (0.998, 0.999, 1.000),  // 纯白浮起卡片(在冷灰底上 pop)
-        darkRGB:  (0.078, 0.085, 0.130)   // 蓝紫卡片 (oklch 0.13 0.018 250)
+        lightRGB: (0.998, 0.999, 1.000),
+        darkRGB:  (0.094, 0.125, 0.106)    // #18201b 绿黑
     )
     /// 嵌套深一档
     static let mist2 = Color.dyn(
-        lightRGB: (0.935, 0.935, 0.943),
-        darkRGB:  (0.110, 0.120, 0.175)   // 高亮蓝紫
+        lightRGB: (0.906, 0.933, 0.914),
+        darkRGB:  (0.130, 0.170, 0.145)
     )
     /// hairline 主分隔
     static let hairline = Color.dyn(
-        lightRGB: (0.870, 0.870, 0.882),
-        darkRGB:  (0.215, 0.222, 0.280)   // 蓝紫灰 hairline
+        lightRGB: (0.800, 0.850, 0.815),
+        darkRGB:  (0.180, 0.230, 0.200)
     )
     /// hairline 次级
     static let hairlineSoft = Color.dyn(
-        lightRGB: (0.920, 0.920, 0.928),
-        darkRGB:  (0.150, 0.158, 0.215)
+        lightRGB: (0.870, 0.900, 0.880),
+        darkRGB:  (0.140, 0.180, 0.158)
     )
 
-    // ===== Ink scale (light: 冷灰墨 / dark: 蓝白系) =====
+    // ===== Ink scale (light: 深绿墨 / dark: 绿白系) =====
     /// 主文字
     static let ink = Color.dyn(
-        lightRGB: (0.145, 0.140, 0.155),
-        darkRGB:  (0.940, 0.945, 0.960)   // 蓝白,带极微蓝调
+        lightRGB: (0.059, 0.082, 0.071),   // #0f1512
+        darkRGB:  (0.941, 0.961, 0.945)    // #f0f5f1
     )
-    /// 次级文字
+    /// 次级文字 (--sub)
     static let inkMuted = Color.dyn(
-        lightRGB: (0.40, 0.395, 0.42),
-        darkRGB:  (0.660, 0.680, 0.730)
+        lightRGB: (0.408, 0.459, 0.427),   // #68756d
+        darkRGB:  (0.561, 0.627, 0.588)    // #8fa096
     )
     /// 灰阶 (kicker/unit/caption)
     static let inkFaint = Color.dyn(
@@ -115,50 +112,53 @@ extension Color {
         darkRGB:  (0.310, 0.325, 0.380)
     )
 
-    // ===== Sky: 主 accent (light/dark 都偏亮以 stand out) =====
-    /// 主天空蓝
+    // ===== Brand green (念念有账主色,原天空蓝 accent 全线转绿) =====
+    /// 主天空蓝 → 品牌绿亮端
     static let sky = Color.dyn(
-        lightRGB: (0.45, 0.72, 0.92),
-        darkRGB:  (0.52, 0.78, 0.97)   // 暗底上稍亮一档
+        lightRGB: (0.098, 0.764, 0.490),   // #19c37d 渐变亮端
+        darkRGB:  (0.192, 0.831, 0.573)    // #31d492
     )
-    /// 深天空蓝 (强调字 / bar marker / italic accent)
+    /// 深天空蓝 → 品牌绿深端 (强调字/保存按钮/进度条全线变绿)
     static let skyDeep = Color.dyn(
-        lightRGB: (0.28, 0.52, 0.78),
-        darkRGB:  (0.65, 0.85, 1.00)   // 暗底上反而要更亮才显眼
+        lightRGB: (0.039, 0.561, 0.345),   // #0a8f58
+        darkRGB:  (0.122, 0.702, 0.455)    // #1fb374
     )
-    /// 浅 sky soft
+    /// 浅 sky soft → 浅绿
     static let skySoft = Color.dyn(
-        lightRGB: (0.78, 0.88, 0.96),
-        darkRGB:  (0.28, 0.40, 0.55)
+        lightRGB: (0.494, 0.902, 0.714),   // #7ee6b6 blob 绿
+        darkRGB:  (0.100, 0.290, 0.200)
     )
-    /// 极淡 sky wash (banner 底)
+    /// 极淡 sky wash → 极淡绿 (banner 底)
     static let skyFaint = Color.dyn(
-        lightRGB: (0.93, 0.96, 0.99),
-        darkRGB:  (0.12, 0.18, 0.26)
+        lightRGB: (0.898, 0.953, 0.922),
+        darkRGB:  (0.075, 0.150, 0.110)
+    )
+    /// 品牌绿主值 (#0fa968)
+    static let brandGreen = Color.dyn(
+        lightRGB: (0.059, 0.663, 0.408),
+        darkRGB:  (0.098, 0.764, 0.490)
     )
 
-    // ===== 业务语义色 =====
-    /// LifeGrid 资产蓝 = 主天空蓝
+    // ===== 业务语义色 (对齐设计稿 tint) =====
+    /// 资产桶蓝 #4f8ef7
     static let assetBlue = Color.dyn(
-        lightRGB: (0.45, 0.72, 0.92),
-        darkRGB:  (0.52, 0.78, 0.97)
+        lightRGB: (0.310, 0.557, 0.969),
+        darkRGB:  (0.400, 0.630, 1.000)
     )
-    /// LifeGrid 现金色:暖金
-    /// light: 旧 (0.85,0.72,0.38) 是欠饱和 mustard, 在冷白底上发脏发弱、跟 sky 蓝不对等。
-    ///        提到更饱和、略偏橙的琥珀金 —— gold 在白底需要饱和度才显贵, 不靠暗度。
+    /// 暖金 #e8a23d
     static let incomeGold = Color.dyn(
-        lightRGB: (0.90, 0.65, 0.22),
-        darkRGB:  (0.92, 0.80, 0.45)
+        lightRGB: (0.910, 0.635, 0.239),
+        darkRGB:  (0.960, 0.720, 0.360)
     )
-    /// 支出朱砂
+    /// 支出红 #f0544f
     static let flame = Color.dyn(
-        lightRGB: (0.82, 0.40, 0.32),
-        darkRGB:  (0.95, 0.55, 0.42)
+        lightRGB: (0.941, 0.329, 0.310),
+        darkRGB:  (1.000, 0.420, 0.400)
     )
-    /// 收入森绿 (被动标签)
+    /// 收入绿 #17b26a
     static let mossGreen = Color.dyn(
-        lightRGB: (0.36, 0.62, 0.42),
-        darkRGB:  (0.55, 0.82, 0.62)
+        lightRGB: (0.090, 0.698, 0.416),
+        darkRGB:  (0.192, 0.831, 0.573)
     )
 
     /// 高强调卡填充(VaultCard .high)。light: 纯白(跟普通卡一致, 避免反转后高强调卡变灰);
@@ -258,13 +258,52 @@ struct VaultCard<Content: View>: View {
             .padding(padding)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(emphasis == .high ? Color.surfaceHi : Color.mist)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(.ultraThinMaterial)          // 液态玻璃: blur(22px)+saturate 等效
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(Color.hairline, lineWidth: 1)
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
             )
+            .shadow(color: Color(red: 0.094, green: 0.227, blue: 0.157).opacity(0.12),
+                    radius: 15, y: 10)
+    }
+}
+
+/// 液态玻璃页面背景: 主底色 + 三枚彩色光斑 (blur 70 / 深色降透明度)
+struct GlassBlobs: View {
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Color.paper
+            GeometryReader { geo in
+                let op: Double = scheme == .dark ? 0.22 : 0.50
+                blob(Color(red: 0.494, green: 0.902, blue: 0.714),   // #7ee6b6 绿
+                     size: geo.size.width * 0.85,
+                     x: -geo.size.width * 0.22, y: -geo.size.height * 0.14,
+                     opacity: op)
+                blob(Color(red: 1.000, green: 0.851, blue: 0.541),   // #ffd98a 暖黄
+                     size: geo.size.width * 0.75,
+                     x: geo.size.width * 0.82, y: geo.size.height * 0.32,
+                     opacity: op)
+                blob(Color(red: 0.620, green: 0.796, blue: 1.000),   // #9ecbff 蓝
+                     size: geo.size.width * 0.82,
+                     x: geo.size.width * 0.16, y: geo.size.height * 0.88,
+                     opacity: op)
+            }
+        }
+        .ignoresSafeArea()
+    }
+
+    private func blob(_ color: Color, size: CGFloat, x: CGFloat, y: CGFloat, opacity: Double) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: size, height: size)
+            .blur(radius: 70)
+            .opacity(opacity)
+            .offset(x: x, y: y)
+            .allowsHitTesting(false)
     }
 }
 
