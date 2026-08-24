@@ -14,8 +14,15 @@ final class SkinManager: ObservableObject {
     @Published var blur: Double { didSet { UserDefaults.standard.set(blur, forKey: "SkinBlur_v1") } }
     /// 暗色遮罩 0-0.8 (保证白色控件可读)
     @Published var dim: Double { didSet { UserDefaults.standard.set(dim, forKey: "SkinDim_v1") } }
-    /// 黑胶衬底: 开=皮肤图上仍显示黑胶转盘(默认); 关=纯皮肤封面卡片模式, 圆盘隐藏让背景完整露出
+    /// 黑胶衬底: 仅在未开启纯皮肤模式时生效。开=皮肤图上仍显示黑胶转盘; 关=封面卡片浮在背景上
     @Published var vinylBackdrop: Bool { didSet { UserDefaults.standard.set(vinylBackdrop, forKey: "SkinVinyl_v1") } }
+    /// 纯皮肤模式: 隐藏黑胶圆盘, 封面卡片直接浮在皮肤图上(竖屏观感更干净)。默认开。
+    @Published var pureMode: Bool { didSet { UserDefaults.standard.set(pureMode, forKey: "SkinPure_v1") } }
+    /// 全局皮肤: 开=皮肤图覆盖所有页面(曲库/设置/歌单…); 播放页始终用自己的背景层
+    @Published var globalEnabled: Bool { didSet { UserDefaults.standard.set(globalEnabled, forKey: "SkinGlobal_v1") } }
+    /// 全局页参数单独一组: 列表页要保证文字可读, 默认比播放页更模糊更暗
+    @Published var globalBlur: Double { didSet { UserDefaults.standard.set(globalBlur, forKey: "SkinGBloor_v1") } }
+    @Published var globalDim: Double { didSet { UserDefaults.standard.set(globalDim, forKey: "SkinGDim_v1") } }
     @Published private(set) var image: UIImage?
 
     private var skinURL: URL {
@@ -28,6 +35,10 @@ final class SkinManager: ObservableObject {
         blur = UserDefaults.standard.object(forKey: "SkinBlur_v1") as? Double ?? 6
         dim = UserDefaults.standard.object(forKey: "SkinDim_v1") as? Double ?? 0.45
         vinylBackdrop = UserDefaults.standard.object(forKey: "SkinVinyl_v1") as? Bool ?? true
+        pureMode = UserDefaults.standard.object(forKey: "SkinPure_v1") as? Bool ?? true
+        globalEnabled = UserDefaults.standard.bool(forKey: "SkinGlobal_v1")
+        globalBlur = UserDefaults.standard.object(forKey: "SkinGBloor_v1") as? Double ?? 14
+        globalDim = UserDefaults.standard.object(forKey: "SkinGDim_v1") as? Double ?? 0.72
         if let data = try? Data(contentsOf: skinURL) {
             image = UIImage(data: data)
             if image == nil { enabled = false }
@@ -133,8 +144,23 @@ struct SkinSettingsView: View {
                 }
                 Toggle("使用自定义背景", isOn: $skin.enabled)
                     .disabled(skin.image == nil)
-                Toggle("黑胶衬底", isOn: $skin.vinylBackdrop)
+                Toggle("纯皮肤模式(隐藏黑胶圆盘)", isOn: $skin.pureMode)
                     .disabled(!skin.enabled)
+                if skin.enabled && !skin.pureMode {
+                    Toggle("黑胶衬底", isOn: $skin.vinylBackdrop)
+                }
+                Toggle("应用到全局(曲库/设置等所有页面)", isOn: $skin.globalEnabled)
+                    .disabled(!skin.enabled)
+                if skin.globalEnabled {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack { Text("全局模糊"); Spacer(); Text("\(Int(skin.globalBlur))").foregroundStyle(.secondary) }
+                        Slider(value: $skin.globalBlur, in: 0...30, step: 1)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack { Text("全局暗度"); Spacer(); Text("\(Int(skin.globalDim * 100))%").foregroundStyle(.secondary) }
+                        Slider(value: $skin.globalDim, in: 0.3...0.92, step: 0.02)
+                    }
+                }
                 if skin.image != nil {
                     Button(role: .destructive) {
                         skin.clear()
