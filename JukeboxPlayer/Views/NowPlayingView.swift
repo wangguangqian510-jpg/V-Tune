@@ -264,6 +264,8 @@ struct NowPlayingView: View {
                         .shadow(radius: 20, y: 10)
                 } else {
                     artwork
+                    inlineLyrics
+                        .frame(maxHeight: 120)
                 }
                 Spacer(minLength: 0)
                 queueToggle
