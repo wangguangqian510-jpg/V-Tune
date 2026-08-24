@@ -149,6 +149,11 @@ struct NowPlayingView: View {
             LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
+            GeometryReader { geo in
+                Group {
+                    if geo.size.width > geo.size.height {
+                        landscapeLayout
+                    } else {
             VStack(spacing: 24) {
                 header
                 if engine.isVideo {
@@ -201,6 +206,12 @@ struct NowPlayingView: View {
             }
             .padding(.horizontal, 24)
             .padding(.top, 12)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .padding(.horizontal, 24)
+            .padding(.top, 12)
         .foregroundStyle(.white)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
             engine.refreshEQDiagnostic()
@@ -238,6 +249,38 @@ struct NowPlayingView: View {
                 guard abs(w) > abs(h), abs(w) > 60 else { return }
                 dismiss()
             }
+    }
+
+    /// 横屏：左右分栏 — 封面/视频占左列，控制区占右列，
+    /// 解决竖屏布局硬挤进横屏时封面被挤压裁切的问题。
+    private var landscapeLayout: some View {
+        HStack(alignment: .center, spacing: 36) {
+            VStack(spacing: 20) {
+                header
+                if engine.isVideo {
+                    VideoPlayer(player: engine.avPlayer)
+                        .aspectRatio(16/9, contentMode: .fit)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(radius: 20, y: 10)
+                } else {
+                    artwork
+                }
+                Spacer(minLength: 0)
+                queueToggle
+            }
+            .frame(maxWidth: .infinity)
+
+            VStack(spacing: 18) {
+                if !engine.isVideo { inlineLyrics }
+                info
+                progress
+                controls
+                volume
+                moreSection
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity)
+        }
     }
     // MARK: Artwork (黑胶旋转)
     private var artwork: some View {
