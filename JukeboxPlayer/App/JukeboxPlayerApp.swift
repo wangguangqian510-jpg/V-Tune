@@ -11,7 +11,10 @@ struct JukeboxPlayerApp: App {
                 .environmentObject(engine)
                 .environmentObject(store)
                 .environmentObject(engine.progress)  // 高频进度独立通道：避免低频页面随 0.25s 进度刷新重算
-        .onAppear {
+                // 全局皮肤层: 挂在根 ZStack 的背景位(内容之下), 不是盖在上方的 overlay ——
+                // 后者会把导航转场/手势/控件整条链路拖进重合成, 导致卡屏且开关失灵。
+                .background(SkinGlobalOverlay())
+                .onAppear {
             engine.load(store.tracks)
             // 预触发 iOS 网络权限弹窗：避免用户第一次点远程示例曲时才被打断。
             // 使用 HEAD 请求，不下载正文；失败不影响本地播放。
