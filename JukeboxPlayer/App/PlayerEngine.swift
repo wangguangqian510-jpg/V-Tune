@@ -136,11 +136,19 @@ final class PlayerEngine: ObservableObject {
 
     private var sleepTimer: Timer?
 
-    /// 播放速度 0.5×–2×，应用到 AVPlayer.rate。
+    /// 播放速度 0.5×–2×，应用到 AVPlayer.rate。持久化：重启不回 1.0。
+
+    private let playbackRateKey = "JukeboxPlaybackRate_v1"
 
     @Published var playbackRate: Float = 1.0 {
 
-        didSet { player?.rate = playbackRate }
+        didSet {
+
+            player?.rate = playbackRate
+
+            UserDefaults.standard.set(playbackRate, forKey: playbackRateKey)
+
+        }
 
     }
 
@@ -283,6 +291,12 @@ final class PlayerEngine: ObservableObject {
         eqEnabled = UserDefaults.standard.bool(forKey: eqEnabledKey)
 
         lyricsOffset = UserDefaults.standard.object(forKey: lyricsOffsetKey) as? Double ?? 0
+
+        // 倍速回填（大于 0 才采信，防脏数据把 rate 锁成 0）
+
+        let savedRate = UserDefaults.standard.object(forKey: "JukeboxPlaybackRate_v1") as? Float ?? 1.0
+
+        if savedRate > 0 { playbackRate = savedRate; player?.rate = savedRate }
 
     }
 
