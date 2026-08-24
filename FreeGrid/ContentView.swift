@@ -2626,6 +2626,22 @@ struct MonthlySummaryView: View {
     @Query(sort: \Income.date, order: .reverse) private var incomes: [Income]
     @State private var expanded: Set<String> = []
 
+    // 念念有账: 月预算 (与 SettingsView 共享同一 AppStorage key)
+    @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
+
+    /// 分类占比配色轮盘 (按占比降序取色)
+    private let donutPalette: [Color] = [
+        Color.assetBlue,
+        Color.mossGreen,
+        Color.incomeGold,
+        Color.flame,
+        Color.skyDeep,
+        Color(red: 0.62, green: 0.44, blue: 0.78),
+        Color(red: 0.30, green: 0.69, blue: 0.65),
+        Color(red: 0.83, green: 0.55, blue: 0.45),
+        Color(red: 0.55, green: 0.60, blue: 0.66),
+    ]
+
     struct MonthlyStat: Identifiable {
         let id: String          // "2026-05"
         let label: String       // "2026年5月"
@@ -2687,12 +2703,16 @@ struct MonthlySummaryView: View {
                             amountStat("支出", stat.totalExpense, Color.ink)
                             amountStat("收入", stat.totalIncome, Color.incomeGold)
                         }
+                        if stat.id == currentMonthKey, monthlyBudget > 0 {
+                            budgetRow(spent: stat.totalExpense)
+                        }
                     }
                 }
                 .buttonStyle(.plain)
 
                 if isExpanded && !stat.categories.isEmpty {
                     Rectangle().fill(Color.hairlineSoft).frame(height: 1)
+                    donutBreakdown(stat.categories)
                     let maxCat = stat.categories.first?.total ?? 1
                     VStack(spacing: Spacing.sm) {
                         ForEach(stat.categories, id: \.category) { c in
@@ -2745,6 +2765,92 @@ struct MonthlySummaryView: View {
         (v >= 0 ? "+¥" : "−¥") + abs(v).formatted(.number.precision(.fractionLength(0...2)))
     }
 
+    // ============================================================================
+    // MARK: - 念念有账新增: 环形占比图 + 月预算进度
+    // ============================================================================
+
+    private var currentMonthKey: String {
+        let c = Calendar.current.dateComponents([.year, .month], from: Date())
+        return String(format: "%04d-%02d", c.year ?? 0, c.month ?? 0)
+    }
+
+    /// 展开区顶部: 环形分类占比 + 图例
+    private func donutBreakdown(_ cats: [(category: String, total: Double)]) -> some View {
+        let total = cats.reduce(0) { $0 + $1.total }
+        return HStack(spacing: Spacing.lg) {
+            ZStack {
+                Circle().stroke(Color.mist2, lineWidth: 16)
+                Canvas { ctx, size in
+                    guard total > 0 else { return }
+                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                    let r = min(size.width, size.height) / 2 - 8
+                    var start = Angle.degrees(-90)
+                    for (i, c) in cats.enumerated() {
+                        let sweep = Angle.degrees((c.total / total) * 360)
+                        var p = Path()
+                        p.addArc(center: center, radius: r,
+                                 startAngle: start, endAngle: start + sweep, clockwise: false)
+                        ctx.stroke(p, with: .color(donutPalette[i % donutPalette.count]),
+                                   style: StrokeStyle(lineWidth: 16, lineCap: .butt))
+                        start += sweep
+                    }
+                }
+            }
+            .frame(width: 108, height: 108)
+
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(cats.prefix(5).enumerated()), id: \.offset) { i, c in
+                    HStack(spacing: 6) {
+                        Circle().fill(donutPalette[i % donutPalette.count])
+                            .frame(width: 8, height: 8)
+                        Text(c.category)
+                            .font(.system(.caption, design: .rounded))
+                            .foregroundStyle(Color.inkMuted)
+                        Spacer(minLength: 0)
+                        Text(total > 0 ? (c.total / total).formatted(.percent.precision(.fractionLength(0...0))) : "—")
+                            .font(.system(.caption, design: .rounded).monospacedDigit())
+                            .foregroundStyle(Color.inkFaint)
+                    }
+                }
+                if cats.count > 5 {
+                    Text("另有 \(cats.count - 5) 个更小的类目")
+                        .font(.system(.caption2, design: .rounded))
+                        .foregroundStyle(Color.inkGhost)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.bottom, Spacing.xs)
+    }
+
+    /// 当月卡上的预算进度条 (只在设了预算时出现)
+    @ViewBuilder
+    private func budgetRow(spent: Double) -> some View {
+        let over = spent > monthlyBudget
+        let ratio = monthlyBudget > 0 ? spent / monthlyBudget : 0
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                Text("月预算 ¥\(Int(monthlyBudget))")
+                    .font(.system(.caption, design: .rounded))
+                    .foregroundStyle(Color.inkFaint)
+                Spacer()
+                Text(over ? "超支 ¥\(Int(spent - monthlyBudget))"
+                          : "剩 ¥\(Int(max(0, monthlyBudget - spent)))")
+                    .font(.system(.caption, design: .rounded).weight(.medium).monospacedDigit())
+                    .foregroundStyle(over ? Color.flame : Color.mossGreen)
+            }
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Color.mist)
+                    Capsule().fill(over ? Color.flame : Color.skyDeep)
+                        .frame(width: max(4, geo.size.width * min(ratio, 1)))
+                }
+            }
+            .frame(height: 6)
+        }
+        .padding(.top, Spacing.xs)
+    }
+
     /// 按 年-月 分组聚合; 月内再按分类聚合支出。最近的月在前。
     private var monthlyStats: [MonthlyStat] {
         let cal = Calendar.current
@@ -2786,6 +2892,11 @@ struct SettingsView: View {
     // 跟 ContentView / Dashboard 共享同一 key, 切换全 app 自动重绘
     @AppStorage("isDarkMode") private var isDarkMode: Bool = false
 
+    // 念念有账: 月支出预算 (0 = 未设置; 与 MonthlySummaryView 共享同一 key)
+    @AppStorage("monthlyBudget") private var monthlyBudget: Double = 0
+    @State private var editingBudget = false
+    @State private var budgetInput = ""
+
     @Query private var expenses: [Expense]
     @Query private var passiveSources: [PassiveSource]
     @Query private var assetsArr: [UserAssets]
@@ -2813,6 +2924,7 @@ struct SettingsView: View {
                 VStack(spacing: Spacing.xl) {
                     checkCard
                     appearanceSection
+                    budgetSection
                     aboutSupportSection
                 }
                 .padding()
@@ -2820,6 +2932,18 @@ struct SettingsView: View {
             .scrollContentBackground(.hidden)
             .background(Color.paper)
             .navigationTitle("Settings")
+            .alert("月支出预算", isPresented: $editingBudget) {
+                TextField("每月想控制在多少", text: $budgetInput)
+                    .keyboardType(.decimalPad)
+                Button("保存") {
+                    let v = Double(budgetInput.trimmingCharacters(in: .whitespaces)) ?? 0
+                    monthlyBudget = max(v, 0)
+                }
+                Button("清除", role: .destructive) { monthlyBudget = 0 }
+                Button("取消", role: .cancel) {}
+            } message: {
+                Text("设 0 或点清除可关闭预算")
+            }
         }
     }
 
@@ -2902,6 +3026,23 @@ struct SettingsView: View {
                 withAnimation(.easeInOut(duration: 0.25)) { isDarkMode = newValue }
             }
         )
+    }
+
+    // MARK: - 月预算 (念念有账)
+    private var budgetSection: some View {
+        settingsSection("预算") {
+            settingsRow(icon: "target",
+                        title: "月支出预算",
+                        iconColor: .skyDeep,
+                        action: {
+                            budgetInput = monthlyBudget > 0 ? String(Int(monthlyBudget)) : ""
+                            editingBudget = true
+                        }) {
+                Text(monthlyBudget > 0 ? "¥\(Int(monthlyBudget))" : "未设置")
+                    .font(.system(.subheadline, design: .rounded).monospacedDigit())
+                    .foregroundStyle(monthlyBudget > 0 ? Color.ink : Color.inkFaint)
+            }
+        }
     }
 
     /// 关于(进子页) + 评价与反馈(跳 App Store)。无标题分组 —— 顶层保持精简,
