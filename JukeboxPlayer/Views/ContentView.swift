@@ -9,8 +9,6 @@ struct ContentView: View {
             LibraryView()
                 .navigationTitle("V-Tune")
                 .navigationBarTitleDisplayMode(.inline)
-                // 全局皮肤胶水层: 壁纸由 SkinWallpaperHost 注入窗口底层, 这里监听参数变化
-                .background(SkinGlobalOverlay())
         }
         .safeAreaInset(edge: .bottom) {
             if engine.hasTrack {
