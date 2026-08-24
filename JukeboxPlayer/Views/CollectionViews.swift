@@ -29,16 +29,27 @@ struct GroupedListView: View {
                     GroupDetailView(title: group.name, tracks: group.tracks)
                 } label: {
                     HStack(spacing: 14) {
-                        RoundedRectangle(cornerRadius: 10)
-                            .fill(LinearGradient(colors: coverColors(for: group.name),
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing))
-                            .frame(width: 56, height: 56)
-                            .overlay(
-                                Text(String(group.name.prefix(1)))
-                                    .foregroundStyle(.white)
-                                    .font(.title3)
-                            )
+                        // 分组封面：取组内第一张可用封面(内嵌优先,其余懒加载提取)；
+                        // 全组都没图才退回渐变+首字母。
+                        Group {
+                            if let img = group.tracks.lazy.compactMap({ store.artwork(for: $0) }).first {
+                                Image(uiImage: img)
+                                    .resizable()
+                                    .scaledToFill()
+                            } else {
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(LinearGradient(colors: coverColors(for: group.name),
+                                                        startPoint: .topLeading,
+                                                        endPoint: .bottomTrailing))
+                                    .overlay(
+                                        Text(String(group.name.prefix(1)))
+                                            .foregroundStyle(.white)
+                                            .font(.title3)
+                                    )
+                            }
+                        }
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
                         VStack(alignment: .leading, spacing: 4) {
                             Text(group.name)
                                 .font(.headline)
