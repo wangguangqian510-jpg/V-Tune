@@ -685,6 +685,9 @@ final class PlayerEngine: ObservableObject {
                     // 暂停时停掉周期进度轮询：不空转 CPU（发热优化）
 
                     self.removeTimeObserverIfNeeded()
+                    // 灵动岛 5s 刷新器同步停掉：暂停状态不变,刷新纯粹浪费
+                    self.liveActivityTimer?.invalidate()
+                    self.liveActivityTimer = nil
 
                     // 保留锁屏/灵动岛卡片 + 控制按钮可点：更新一次让 rate=0（系统用 rate 暂停且仍显示卡片）。
                     // 之前清空 nowPlayingInfo 导致锁屏「上一首/下一首/暂停」灰色不可用。
@@ -696,6 +699,7 @@ final class PlayerEngine: ObservableObject {
                 } else {
 
                     self.addTimeObserver()
+                    if #available(iOS 16.1, *) { self.startLiveActivityTimer() }
 
                     self.updateNowPlaying()
 
@@ -1128,6 +1132,9 @@ final class PlayerEngine: ObservableObject {
               let artUrl = URL(string: artUrlStr.replacingOccurrences(of: "100x100", with: "300x300")) else { return }
         guard let (imgData, _) = try? await URLSession.shared.data(from: artUrl),
               let img = UIImage(data: imgData) else { return }
+        // 竞态防护：快速切歌时旧请求慢响应会把别的歌的封面盖过来。
+        // 只有曲目还是发起时那首才回写。
+        guard self.title == title, self.artist == artist else { return }
         self.artwork = img
         updateNowPlaying()
     }
@@ -1625,6 +1632,12 @@ final class PlayerEngine: ObservableObject {
     /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
 
     func refreshEQDiagnostic() {
+        // 关闭时直接返回：不要碰 asset.tracks —— 那是同步媒体元数据查询,
+        // 播放页每秒调一次白烧 IO/CPU(发热贡献户),而 EQ 关着时根本用不到这些值。
+        guard eqEnabled else {
+            eqDiagnostic = "均衡器已关闭"
+            return
+        }
 
         let s = eqTap.snapshot()
 
@@ -1632,11 +1645,7 @@ final class PlayerEngine: ObservableObject {
 
         let trackCount = playerItem?.asset.tracks(withMediaType: .audio).count ?? 0
 
-        if !eqEnabled {
-
-            eqDiagnostic = "均衡器已关闭"
-
-        } else if s.frames > 0 {
+        if s.frames > 0 {
 
             eqDiagnostic = "✅ EQ 已生效 · 已处理 \(s.frames) 帧 · \(s.format)"
 
