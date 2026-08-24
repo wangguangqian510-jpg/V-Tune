@@ -66,6 +66,10 @@ enum AmountParser {
         if let s = firstCapture("(\\d+(?:\\.\\d{1,2})?)\\s*[块元圆]", text), let v = Double(s) {
             return v
         }
+        // 数字+数量级单位 (苹果 ASR 常把「一万二」转写成「12千」、「三万五千」写成「35千」)
+        if let v = magnitudeNumber(text) {
+            return v
+        }
         // ② 裸阿拉伯数字兜底
         if let s = firstCapture("(\\d+(?:\\.\\d{1,2})?)", text), let v = Double(s) {
             return v
@@ -82,6 +86,21 @@ enum AmountParser {
             }
         }
         if let v = best?.value { return Double(v) }
+        return nil
+    }
+
+    /// 数字+数量级: 「12千」→12000、「3.5万」→35000
+    private static func magnitudeNumber(_ text: String) -> Double? {
+        let rules: [(pattern: String, multiplier: Double)] = [
+            ("(\\d+(?:\\.\\d{1,2})?)\\s*亿", 100_000_000),
+            ("(\\d+(?:\\.\\d{1,2})?)\\s*万", 10_000),
+            ("(\\d+(?:\\.\\d{1,2})?)\\s*[千kK]", 1_000),
+        ]
+        for rule in rules {
+            if let s = firstCapture(rule.pattern, text), let v = Double(s) {
+                return v * rule.multiplier
+            }
+        }
         return nil
     }
 
