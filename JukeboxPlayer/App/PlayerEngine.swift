@@ -124,9 +124,19 @@ final class PlayerEngine: ObservableObject {
 
     }
 
-    /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机
+    /// 播放模式：顺序 / 列表循环 / 单曲循环 / 随机。持久化：重启不回默认(用户习惯随机/循环)
 
-    @Published var playbackMode: PlaybackMode = .order
+    private let playbackModeKey = "JukeboxPlaybackMode_v1"
+
+    @Published var playbackMode: PlaybackMode = .order {
+
+        didSet {
+
+            UserDefaults.standard.set(playbackMode.rawValue, forKey: playbackModeKey)
+
+        }
+
+    }
 
     // MARK: - 播放增强：睡眠定时 / 播放速度 / 歌词偏移
 
@@ -297,6 +307,16 @@ final class PlayerEngine: ObservableObject {
         let savedRate = UserDefaults.standard.object(forKey: "JukeboxPlaybackRate_v1") as? Float ?? 1.0
 
         if savedRate > 0 { playbackRate = savedRate; player?.rate = savedRate }
+
+        // 播放模式回填
+
+        if let raw = UserDefaults.standard.string(forKey: playbackModeKey),
+
+           let mode = PlaybackMode(rawValue: raw) {
+
+            playbackMode = mode
+
+        }
 
     }
 
