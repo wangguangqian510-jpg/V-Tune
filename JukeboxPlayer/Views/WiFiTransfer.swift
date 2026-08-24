@@ -365,7 +365,7 @@ struct WiFiTransferView: View {
                         Text("电脑浏览器打开:")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("http://\(ipAddress):\(server.port)")
+                        Text("http://\(ipAddress):\(String(server.port))")
                             .font(.system(.title3, design: .monospaced).weight(.bold))
                             .textSelection(.enabled)
                         Text("配对码: \(server.pairingCode)")
@@ -409,7 +409,7 @@ struct WiFiTransferView: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("4. 自动走导入链路: 提取标签/封面、按指纹去重")
                     .font(.footnote).foregroundStyle(.secondary)
-                HStack { Text("本次已接收"); Spacer(); Text("\(server.receivedCount) 个") }
+                HStack { Text("本次已接收"); Spacer(); Text("\(String(server.receivedCount)) 个") }
             }
         }
         .navigationTitle("WiFi 传歌")
