@@ -144,11 +144,33 @@ struct NowPlayingView: View {
     @State private var onlineSearched = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
-    var body: some View {
-        ZStack {
+    /// 自定义皮肤(单例): 开启时播放页背景换成用户图片
+    @ObservedObject private var skin = SkinManager.shared
+
+    /// 背景层: 皮肤图(可调模糊/暗度) 或 默认封面渐变
+    @ViewBuilder
+    private var backgroundLayer: some View {
+        if skin.enabled, let img = skin.image {
+            GeometryReader { geo in
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: geo.size.width, height: geo.size.height)
+                    .clipped()
+                    .blur(radius: skin.blur)
+                    .overlay(Color.black.opacity(skin.dim))
+            }
+            .ignoresSafeArea()
+        } else {
             LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
                            startPoint: .top, endPoint: .bottom)
                 .ignoresSafeArea()
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            backgroundLayer
             GeometryReader { geo in
                 Group {
                     if geo.size.width > geo.size.height {
@@ -272,14 +294,15 @@ struct NowPlayingView: View {
             }
             .frame(maxWidth: .infinity)
 
-            VStack(spacing: 18) {
-                if !engine.isVideo { inlineLyrics }
-                info
-                progress
-                controls
-                volume
-                moreSection
-                Spacer(minLength: 0)
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 10) {
+                    if !engine.isVideo { inlineLyrics.frame(maxHeight: 84) }
+                    info
+                    progress
+                    controls
+                    volume
+                    moreSection
+                }
             }
             .frame(maxWidth: .infinity)
         }
