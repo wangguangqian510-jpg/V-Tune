@@ -9,9 +9,9 @@ struct ContentView: View {
             LibraryView()
                 .navigationTitle("V-Tune")
                 .navigationBarTitleDisplayMode(.inline)
+                // 全局皮肤胶水层: 壁纸由 SkinWallpaperHost 注入窗口底层, 这里监听参数变化
+                .background(SkinGlobalOverlay())
         }
-        // 全局皮肤层: 挂在导航栈外侧 → 覆盖曲库/设置/歌单等所有页面, 且触摸全穿透
-        .overlay(SkinGlobalOverlay())
         .safeAreaInset(edge: .bottom) {
             if engine.hasTrack {
                 NowPlayingBar()
