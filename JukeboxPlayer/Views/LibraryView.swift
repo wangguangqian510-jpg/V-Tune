@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 enum LibTab: String, CaseIterable, Identifiable {
     case songs = "歌曲"
+    case recent = "最近"
     case artists = "歌手"
     case albums = "专辑"
     case playlists = "歌单"
@@ -41,6 +42,7 @@ struct LibraryView: View {
 
             switch tab {
             case .songs:     songList
+            case .recent:    recentList
             case .artists:   GroupedListView(title: "歌手", groupKey: { $0.artist }, placeholder: "未知歌手", searchText: searchText)
             case .albums:    GroupedListView(title: "专辑", groupKey: { $0.album }, placeholder: "未知专辑", searchText: searchText)
             case .playlists: PlaylistListView(trackToAdd: $trackToAdd)
@@ -134,6 +136,28 @@ struct LibraryView: View {
         }
         .listStyle(.plain)
         .overlay { if filtered.isEmpty { emptyHint(searchText.isEmpty ? "没有未归档的歌曲\n已加入歌单的曲目请在「歌单」页查看" : "没有匹配的歌曲") } }
+    }
+
+    // MARK: 最近播放列表（数据源 store.recentTracks 一直在记录,补 UI 入口）
+
+    private var recentList: some View {
+        List {
+            ForEach(store.recentTracks) { track in
+                TrackRow(
+                    track: track,
+                    isCurrent: isCurrent(track),
+                    isPlaying: engine.isPlaying,
+                    onTap: { play(track, from: store.recentTracks) },
+                    onAddToPlaylist: { trackToAdd = $0 }
+                )
+            }
+        }
+        .listStyle(.plain)
+        .overlay {
+            if store.recentTracks.isEmpty {
+                emptyHint("还没有播放记录\n去歌曲页点一首试试")
+            }
+        }
     }
 
     // MARK: 我喜欢的列表
