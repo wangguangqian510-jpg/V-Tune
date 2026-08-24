@@ -33,6 +33,12 @@ final class VoiceRecorder: ObservableObject {
         SFSpeechRecognizer(locale: Locale(identifier: "zh-CN"))
     }()
 
+    /// 点停止后的强制收尾定时 (给 isFinal 留 1.2s 回流时间)
+    private var pendingStopWork: DispatchWorkItem?
+
+    /// 音量采样节流 (~30fps): 音频回调 ~47Hz, 全量刷动画白烧 CPU
+    private var lastLevelSample: Date = .distantPast
+
     // MARK: - 公共入口: 点一下开始,再点一下结束
 
     func toggle() {
@@ -104,6 +110,7 @@ final class VoiceRecorder: ObservableObject {
             let input = self.engine.inputNode
             let format = input.outputFormat(forBus: 0)
             guard format.sampleRate > 0 else {
+                self.teardownAudio()
                 self.state = .failed("录音格式异常")
                 return
             }
@@ -117,6 +124,7 @@ final class VoiceRecorder: ObservableObject {
             do {
                 try self.engine.start()
             } catch {
+                self.teardownAudio()
                 self.state = .failed("录音启动失败")
                 return
             }
@@ -131,6 +139,7 @@ final class VoiceRecorder: ObservableObject {
                         if !text.isEmpty { self.transcript = text }
                     }
                     if error != nil || result?.isFinal == true {
+                        self.pendingStopWork?.cancel()
                         if self.state == .recording {
                             let ok = !self.transcript.isEmpty
                             self.finishRecording(success: ok,
@@ -145,9 +154,16 @@ final class VoiceRecorder: ObservableObject {
     // MARK: - 手动停止(点击结束)
 
     func stop() {
-        request?.endAudio()
-        finishRecording(success: !transcript.isEmpty,
-                        reason: transcript.isEmpty ? "没听清,再试一次" : nil)
+        request?.endAudio()   // 只封流不掠呆: 剩余音频继续送识别, 防最后一个字被吞
+        pendingStopWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, self.state == .recording else { return }
+            let ok = !self.transcript.isEmpty
+            self.finishRecording(success: ok,
+                                 reason: ok ? nil : "没听清,再试一次")
+        }
+        pendingStopWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: work)
     }
 
     private func finishRecording(success: Bool, reason: String?) {
@@ -162,6 +178,9 @@ final class VoiceRecorder: ObservableObject {
     // MARK: - 音量采样(按钮脉冲动画用)
 
     private func sampleLevel(_ buffer: AVAudioPCMBuffer) {
+        let now = Date()
+        guard now.timeIntervalSince(lastLevelSample) > 0.033 else { return }
+        lastLevelSample = now
         guard let channel = buffer.floatChannelData?[0] else { return }
         let n = Int(buffer.frameLength)
         guard n > 0 else { return }
@@ -173,6 +192,13 @@ final class VoiceRecorder: ObservableObject {
     }
 
     // MARK: - 清理
+
+    /// 对象销毁兑底: engine/task 均线程安全, 可在 deinit 直接释放
+    nonisolated deinit {
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+        task?.cancel()
+    }
 
     private func teardownAudio() {
         engine.inputNode.removeTap(onBus: 0)
