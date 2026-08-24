@@ -705,7 +705,7 @@ struct DashboardView: View {
                 if recent.isEmpty {
                     VStack(spacing: 6) {
                         Text("还没有记录")
-                            .font(.system(.subheadline, weight: .semibold, design: .rounded))
+                            .font(.system(.subheadline, design: .rounded, weight: .semibold))
                             .foregroundStyle(Color.ink)
                         Text("按住上方麦克风说一笔试试")
                             .font(.system(.caption, design: .rounded))
@@ -739,7 +739,7 @@ struct DashboardView: View {
                     .foregroundStyle(tint))
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.title)
-                    .font(.system(.subheadline, weight: .semibold, design: .rounded))
+                    .font(.system(.subheadline, design: .rounded, weight: .semibold))
                     .foregroundStyle(Color.ink)
                     .lineLimit(1)
                 Text(item.category + " · " + df.string(from: item.date))
@@ -748,7 +748,7 @@ struct DashboardView: View {
             }
             Spacer(minLength: 8)
             Text((item.isExpense ? "−" : "+") + "¥" + item.amount.formatted(.number.precision(.fractionLength(0...2))))
-                .font(.system(.subheadline, weight: .bold, design: .rounded).monospacedDigit())
+                .font(.system(.subheadline, design: .rounded, weight: .bold).monospacedDigit())
                 .foregroundStyle(item.isExpense ? Color.flame : Color.mossGreen)
         }
         .padding(.vertical, 8)
