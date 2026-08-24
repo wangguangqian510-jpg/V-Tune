@@ -1560,6 +1560,9 @@ struct AssetsView: View {
     @State private var transferAmount: String = ""
     @State private var transferDirection: TransferDirection = .cashToAssets
     @FocusState private var transferFocused: Bool   // decimalPad 无 return 键, 靠点空白处 / 下拉滚动收起
+    /// 调拨结果反馈 (✓ 成功绿 / ✗ 失败红, 原版静默让人以为没反应)
+    @State private var transferStatus: String? = nil
+    @State private var transferOk = false
 
     enum TransferDirection: String, CaseIterable {
         case cashToAssets = "现金 → 资产"
@@ -1932,6 +1935,13 @@ struct AssetsView: View {
                 }
                 .disabled(Double(transferAmount) == nil || (Double(transferAmount) ?? 0) <= 0)
                 .opacity((Double(transferAmount) ?? 0) > 0 ? 1.0 : 0.4)
+
+                if let status = transferStatus {
+                    Text(status)
+                        .font(.system(.caption, design: .rounded).weight(.medium))
+                        .foregroundStyle(transferOk ? Color.mossGreen : Color.flame)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
         }
     }
@@ -2146,23 +2156,40 @@ struct AssetsView: View {
 
     // MARK: - 调拨实现
     private func doTransfer() {
-        guard let amt = Double(transferAmount), FinancialFormatting.validAmount(amt),
-              let assets = assetsArr.first,
-              assets.cash.isFinite, assets.lockedAssets.isFinite else { return }
+        guard let amt = Double(transferAmount), FinancialFormatting.validAmount(amt) else {
+            transferStatus = "✗ 请输入有效金额"; transferOk = false
+            return
+        }
+        // 从没录入过资产时现场建一行, 不再静默失败
+        let assets = ensureUserAssets()
+        guard assets.cash.isFinite, assets.lockedAssets.isFinite else {
+            transferStatus = "✗ 数据异常"; transferOk = false
+            return
+        }
 
         switch transferDirection {
         case .cashToAssets:
-            let actual = min(amt, max(0, assets.cash))
-            assets.cash -= actual
-            assets.lockedAssets += actual
+            guard assets.cash >= amt else {
+                transferStatus = "✗ 现金不足 (只有 ¥\(FinancialFormatting.wholeNumber(max(0, assets.cash))))"
+                transferOk = false
+                return
+            }
+            assets.cash -= amt
+            assets.lockedAssets += amt
         case .assetsToCash:
-            let actual = min(amt, max(0, assets.lockedAssets))
-            assets.lockedAssets -= actual
-            assets.cash += actual
+            guard assets.lockedAssets >= amt else {
+                transferStatus = "✗ 资产不足 (只有 ¥\(FinancialFormatting.wholeNumber(max(0, assets.lockedAssets))))"
+                transferOk = false
+                return
+            }
+            assets.lockedAssets -= amt
+            assets.cash += amt
         }
         assets.updatedAt = .now
         transferAmount = ""
         transferFocused = false   // 调拨完成顺手收键盘
+        transferStatus = "✓ 已调拨 ¥\(FinancialFormatting.wholeNumber(amt)) · 净值不变, 顶部两桶数值已更新"
+        transferOk = true
     }
 
     // MARK: - 读写助手
