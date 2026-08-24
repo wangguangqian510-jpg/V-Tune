@@ -649,12 +649,13 @@ struct DashboardView: View {
 
     private func mergedRecent() -> [RecentItem] {
         var items: [RecentItem] = []
-        for e in expenses.prefix(20) {
+        // @Query 无排序,必须显式按日期倒序后再取前缀,否则会漏掉最新记录
+        for e in expenses.sorted(by: { $0.date > $1.date }).prefix(20) {
             items.append(RecentItem(id: e.id, isExpense: true, amount: e.amount,
                                     title: e.note.isEmpty ? e.category : e.note,
                                     category: e.category, date: e.date))
         }
-        for i in incomes.prefix(10) {
+        for i in incomes.sorted(by: { $0.date > $1.date }).prefix(10) {
             items.append(RecentItem(id: i.id, isExpense: false, amount: i.amount,
                                     title: i.source.isEmpty ? "收入" : i.source,
                                     category: "收入", date: i.date))
@@ -707,7 +708,7 @@ struct DashboardView: View {
                         Text("还没有记录")
                             .font(.system(.subheadline, design: .rounded, weight: .semibold))
                             .foregroundStyle(Color.ink)
-                        Text("按住上方麦克风说一笔试试")
+                        Text("点一下上方麦克风说一笔试试")
                             .font(.system(.caption, design: .rounded))
                             .foregroundStyle(Color.inkMuted)
                     }
