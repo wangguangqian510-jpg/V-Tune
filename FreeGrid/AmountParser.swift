@@ -161,7 +161,7 @@ enum AmountParser {
         for w in ["在", "花了", "花费", "支付", "付了", "块钱", "元", "圆", "记一笔", "一下"] {
             t = t.replacingOccurrences(of: w, with: "")
         }
-        t = t.replacingOccurrences(of: "[\u3002\uff0c\uff1b\u3001\uff01\uff1f.,;!?\n\r]", with: " ", options: .regularExpression)
+        t = t.replacingOccurrences(of: "[，。；、！？.,;!?\\n\\r]", with: " ", options: .regularExpression)
         let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
         let head = String(trimmed.prefix(6)).trimmingCharacters(in: .whitespaces)
         return head.isEmpty ? fallback : head
