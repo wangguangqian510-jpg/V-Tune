@@ -66,8 +66,12 @@ final class SkinManager: ObservableObject {
 // MARK: - PHPicker 封装
 
 struct SkinPhotoPicker: UIViewControllerRepresentable {
+    @Binding var isPresented: Bool
     var onPick: (UIImage) -> Void
-    @Environment(\.dismiss) private var dismiss
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
 
     func makeUIViewController(context: Context) -> PHPickerViewController {
         var config = PHPickerConfiguration()
@@ -85,7 +89,7 @@ struct SkinPhotoPicker: UIViewControllerRepresentable {
         init(_ parent: SkinPhotoPicker) { self.parent = parent }
 
         func picker(_ picker: PHPickerViewController, didFinishPicking results: [PHPickerResult]) {
-            defer { parent.dismiss() }
+            parent.isPresented = false
             guard let provider = results.first?.itemProvider,
                   provider.canLoadObject(ofClass: UIImage.self) else { return }
             provider.loadObject(ofClass: UIImage.self) { [weak self] obj, _ in
@@ -94,6 +98,10 @@ struct SkinPhotoPicker: UIViewControllerRepresentable {
                     self?.parent.onPick(img)
                 }
             }
+        }
+
+        func pickerDidCancel(_ picker: PHPickerViewController) {
+            parent.isPresented = false
         }
     }
 }
@@ -152,7 +160,7 @@ struct SkinSettingsView: View {
         .navigationTitle("自定义皮肤")
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingPicker) {
-            SkinPhotoPicker { img in skin.save(img) }
+            SkinPhotoPicker(isPresented: $showingPicker) { img in skin.save(img) }
         }
     }
 }
