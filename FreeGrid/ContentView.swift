@@ -312,6 +312,7 @@ struct DashboardView: View {
     @State private var showingAddExpense = false
     @State private var showingAddIncome = false
     @State private var showingSimulate = false
+    @State private var showingVoice = false
 
     // ===== 撤销 Toast(刚刚记的一笔有 5 秒撤销窗口) =====
     /// 待撤销交易 ID, nil = 不显示 toast
@@ -344,6 +345,7 @@ struct DashboardView: View {
                     gridSection      // 1825 格,占整个 mid 区
                     statsRow         // 3 个 stat 卡片横向
                     actionRow        // 支出 + 收入 (提前,放在 stats 后方便操作)
+                    voiceRow         // 说一笔:语音记账 (念念有账)
                     simulateRow      // 模拟决策
                     todaySection     // 今日 vs 日均 (推到最底,是 review 信息)
                 }
@@ -372,6 +374,9 @@ struct DashboardView: View {
             }
             .sheet(isPresented: $showingSimulate) {
                 SimulateSheet()
+            }
+            .sheet(isPresented: $showingVoice) {
+                VoiceEntrySheet()
             }
             .onAppear { latchOnboardingIfSatisfied() }
             .onChange(of: onboardingSatisfied) { _, _ in latchOnboardingIfSatisfied() }
@@ -1099,6 +1104,17 @@ struct DashboardView: View {
             Spacer()
         }
         .padding(.top, Spacing.xs)
+    }
+
+    /// 说一笔:语音记账入口 — 录音转文字自动解析金额/分类,确认后落库
+    private var voiceRow: some View {
+        HStack(spacing: Spacing.md) {
+            VaultButton(title: "说一笔",
+                        icon: "mic.fill",
+                        style: .secondary) {
+                showingVoice = true
+            }
+        }
     }
 
     // ============================================================================
