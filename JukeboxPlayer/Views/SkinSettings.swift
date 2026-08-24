@@ -24,6 +24,10 @@ final class SkinManager: ObservableObject {
     @Published var globalBlur: Double { didSet { UserDefaults.standard.set(globalBlur, forKey: "SkinGBlur_v1") } }
     @Published var globalDim: Double { didSet { UserDefaults.standard.set(globalDim, forKey: "SkinGDim_v1") } }
     @Published private(set) var image: UIImage?
+    /// 降采样后的背景专用小图(最长边 900): 专供两页背景渲染用。
+    /// 直接拿原尺寸大图铺满+模糊, 每帧都要缩放整张位图 → 全局卡屏、控件失灵(上版 bug 根源)。
+    /// 注意: 必须是独立存储的字段, 不能是计算属性——否则每次 body 求值都重新缩放一次。
+    @Published private(set) var backdropImage: UIImage?
 
     private var skinURL: URL {
         let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -39,12 +43,30 @@ final class SkinManager: ObservableObject {
         globalEnabled = UserDefaults.standard.bool(forKey: "SkinGlobal_v1")
         globalBlur = UserDefaults.standard.object(forKey: "SkinGBlur_v1") as? Double ?? 14
         globalDim = UserDefaults.standard.object(forKey: "SkinGDim_v1") as? Double ?? 0.72
-        if let data = try? Data(contentsOf: skinURL) {
-            image = UIImage(data: data)
-            if image == nil { enabled = false }
+        if let data = try? Data(contentsOf: skinURL), let img = UIImage(data: data) {
+            image = img
+            backdropImage = Self.downsample(img, maxSide: 900)
         } else {
             enabled = false
         }
+    }
+
+    /// 位图降采样: ImageIO 按目标尺寸解码, 内存与渲染开销大幅低于先解全图再缩
+    static func downsample(_ image: UIImage, maxSide: CGFloat) -> UIImage {
+        let longest = max(image.size.width * image.scale, image.size.height * image.scale)
+        guard longest > maxSide else { return image }
+        let factor = maxSide / longest
+        guard let cg = image.cgImage else { return image }
+        let newW = max(1, Int(cg.width * factor))
+        let newH = max(1, Int(cg.height * factor))
+        let cs = CGColorSpaceCreateDeviceRGB()
+        guard let ctx = CGContext(data: nil, width: newW, height: newH, bitsPerComponent: 8,
+                                  bytesPerRow: 0, space: cs,
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return image }
+        ctx.interpolationQuality = .medium
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: newW, height: newH))
+        guard let out = ctx.makeImage() else { return image }
+        return UIImage(cgImage: out, scale: 1, orientation: image.imageOrientation)
     }
 
     func save(_ uiImage: UIImage) {
@@ -64,6 +86,7 @@ final class SkinManager: ObservableObject {
         do {
             try data.write(to: skinURL, options: [.atomic])
             image = target
+            backdropImage = Self.downsample(target, maxSide: 900)
             enabled = true
         } catch {
             // 存盘失败保持旧状态
@@ -73,6 +96,7 @@ final class SkinManager: ObservableObject {
     func clear() {
         try? FileManager.default.removeItem(at: skinURL)
         image = nil
+        backdropImage = nil
         enabled = false
     }
 }
