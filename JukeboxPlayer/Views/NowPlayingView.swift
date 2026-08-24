@@ -144,32 +144,11 @@ struct NowPlayingView: View {
     @State private var onlineSearched = false
     /// 拖动进度条时的临时位置（拖动中不跟播放进度，松手才真正 seek）。
     @State private var scrubTime: Double = 0
-    /// 自定义皮肤(单例): 开启时播放页背景换成用户图片
-    @ObservedObject private var skin = SkinManager.shared
 
-    /// 背景层: 皮肤用预烘焙位图(模糊+压暗已烤进像素, 滚动零着色开销); 否则封面渐变
-    @ViewBuilder
     private var backgroundLayer: some View {
-        Group {
-            if skin.enabled, let src = skin.backdropImage ?? skin.image,
-               let baked = SkinBackdrop.backdrop(for: src, blur: skin.blur * 1.15, dim: skin.dim) {
-                Image(uiImage: baked)
-                    .resizable()
-                    .interpolation(.high)
-                    .scaledToFill()
-            } else {
-                LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
-                               startPoint: .top, endPoint: .bottom)
-            }
-        }
-        .ignoresSafeArea()
-        .allowsHitTesting(false)
-    }
-
-    /// 黑胶模式下是否隐藏封面渐变(让皮肤图透出来)。纯皮肤模式或(非衬底+开启皮肤)时为 true。
-    private var hideVinylGradient: Bool {
-        guard skin.enabled, skin.image != nil else { return false }
-        return skin.pureMode || !skin.vinylBackdrop
+        LinearGradient(colors: engine.currentCover.map { $0.opacity(0.9) } + [.black],
+                       startPoint: .top, endPoint: .bottom)
+            .ignoresSafeArea()
     }
 
     var body: some View {
@@ -219,13 +198,8 @@ struct NowPlayingView: View {
                         .ignoresSafeArea()
                     }
                 } else {
-                    if hideVinylGradient {
-                        // 纯皮肤模式: 不要黑胶圆盘, 封面卡片浮在皮肤图上
-                        skinCoverCard
-                    } else {
-                        artwork
-                        inlineLyrics
-                    }
+                    artwork
+                    inlineLyrics
                 }
                 info
                 progress
@@ -293,8 +267,6 @@ struct NowPlayingView: View {
                         .aspectRatio(16/9, contentMode: .fit)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(radius: 20, y: 10)
-                } else if hideVinylGradient {
-                    skinCoverCard
                 } else {
                     artwork
                     inlineLyrics
@@ -341,30 +313,6 @@ struct NowPlayingView: View {
             .rotationEffect(.degrees(angle))
     }
 
-    /// 纯皮肤模式的封面卡: 真实内嵌封面(或渐变占位)圆角卡片, 下方紧跟滚动歌词
-    private var skinCoverCard: some View {
-        VStack(spacing: 18) {
-            RoundedRectangle(cornerRadius: 20)
-                .fill(LinearGradient(colors: engine.currentCover,
-                                     startPoint: .topLeading, endPoint: .bottomTrailing))
-                .overlay {
-                    if let img = engine.artwork {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFill()
-                            .clipShape(RoundedRectangle(cornerRadius: 20))
-                    } else {
-                        Image(systemName: "music.note")
-                            .font(.system(size: 56, weight: .light))
-                            .foregroundStyle(.white.opacity(0.85))
-                    }
-                }
-                .frame(maxWidth: 300)
-                .aspectRatio(1, contentMode: .fit)
-                .shadow(radius: 24, y: 12)
-            inlineLyrics
-        }
-    }
     // MARK: Info
     private var info: some View {
         VStack(spacing: 6) {
