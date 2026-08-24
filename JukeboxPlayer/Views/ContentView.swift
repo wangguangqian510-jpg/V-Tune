@@ -8,7 +8,7 @@ struct ContentView: View {
         NavigationStack {
             LibraryView()
                 .navigationTitle("V-Tune")
-                .navigationBarTitleDisplayMode(.large)
+                .navigationBarTitleDisplayMode(.inline)
         }
         .safeAreaInset(edge: .bottom) {
             if engine.hasTrack {
