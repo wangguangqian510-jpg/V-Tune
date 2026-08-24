@@ -14,7 +14,8 @@ import Foundation
 
 enum AmountParser {
 
-    struct Bill {
+    struct Bill: Identifiable {
+        let id = UUID()
         var amount: Double?
         var category: String      // ExpenseCategory.canonical 之一
         var isIncome: Bool
@@ -61,7 +62,9 @@ enum AmountParser {
     // MARK: - 金额提取
 
     /// 优先级: ①带"块/元/圆"的阿拉伯数字(避开日期干扰) → ②裸阿拉伯数字 → ③最长中文数字串
-    static func extractAmount(_ text: String) -> Double? {
+    static func extractAmount(_ raw: String) -> Double? {
+        // 千分位逗号预清理: ASR 常把「一万二」直接转写成「12,000」,不清会被截成 12
+        let text = raw.replacingOccurrences(of: ",", with: "")
         // ① 带单位的阿拉伯数字优先
         if let s = firstCapture("(\\d+(?:\\.\\d{1,2})?)\\s*[块元圆]", text), let v = Double(s) {
             return v
@@ -158,8 +161,9 @@ enum AmountParser {
         for w in ["在", "花了", "花费", "支付", "付了", "块钱", "元", "圆", "记一笔", "一下"] {
             t = t.replacingOccurrences(of: w, with: "")
         }
+        t = t.replacingOccurrences(of: "[\u3002\uff0c\uff1b\u3001\uff01\uff1f.,;!?\n\r]", with: " ", options: .regularExpression)
         let trimmed = t.trimmingCharacters(in: .whitespacesAndNewlines)
-        let head = String(trimmed.prefix(6))
+        let head = String(trimmed.prefix(6)).trimmingCharacters(in: .whitespaces)
         return head.isEmpty ? fallback : head
     }
 
@@ -179,6 +183,40 @@ enum AmountParser {
             title: makeTitle(text, fallback: fallback),
             fuzzy: isFuzzy(text) || amount == nil
         )
+    }
+
+    /// 一句话拆多笔: 「花了35，又花了68，再花1280」→ 3 笔
+    /// 切分规则: 中文标点 / 连接词(又|再|然后|接着|另外|还有|花了|付了)
+    /// 每段独立解析, 只保留能提出金额的段
+    static func parseMultiple(_ raw: String) -> [Bill] {
+        // 英文千分位先清(中文逗号保留——它是分段符)
+        let cleaned = raw.replacingOccurrences(of: ",", with: "")
+        let pattern = "[，。；、！？?!\n\r]|又|再|然后|接着|另外|还有|花了|付了"
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return [parse(cleaned)] }
+
+        let ns = cleaned as NSString
+        var segments: [String] = []
+        var last = 0
+        re.enumerateMatches(in: cleaned, range: NSRange(location: 0, length: ns.length)) { m, _, _ in
+            guard let m else { return }
+            if m.range.location > last {
+                segments.append(ns.substring(with: NSRange(location: last, length: m.range.location - last)))
+            }
+            last = m.range.location + m.range.length
+        }
+        if last < ns.length {
+            segments.append(ns.substring(with: NSRange(location: last, length: ns.length - last)))
+        }
+
+        let bills = segments.compactMap { seg -> Bill? in
+            let t = seg.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !t.isEmpty else { return nil }
+            let bill = parse(t)
+            return bill.amount != nil ? bill : nil
+        }
+        // 切不出多笔就整句解析兜底
+        if bills.isEmpty { return [parse(cleaned)] }
+        return bills
     }
 
     // MARK: - Regex helper
