@@ -243,7 +243,9 @@ struct NowPlayingView: View {
             .padding(.top, 12)
         .foregroundStyle(.white)
         .onReceive(Timer.publish(every: 1, on: .main, in: .common).autoconnect()) { _ in
-            engine.refreshEQDiagnostic()
+            // 发热优化：仅 EQ 开启才刷新诊断；关闭时连函数都不进，
+            // 消除 1Hz 的 @Published 重复赋值引发的播放页整页 body 重算。
+            if engine.eqEnabled { engine.refreshEQDiagnostic() }
         }
         if showQueue { queueSheet }
             if showLyrics { lyricsSheet }
@@ -989,8 +991,10 @@ private struct LyricsView: View {
         ScrollViewReader { proxy in
             ScrollView {
                 LazyVStack(spacing: 14) {
+                    // 发热优化：当前行下标每次 body 只算一遍（原先每行各自扫一遍全文，O(n²)/4Hz）
+                    let activeIdx = index(at: playbackProgress.currentTime)
                     ForEach(0..<lines.count, id: \.self) { i in
-                        let active = i == index(at: playbackProgress.currentTime)
+                        let active = i == activeIdx
                         Text(lines[i].text)
                             .font(active ? .title3.bold() : .body)
                             .foregroundStyle(active ? .white : .white.opacity(0.4))
