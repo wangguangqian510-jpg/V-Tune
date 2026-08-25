@@ -592,7 +592,11 @@ final class TrackStore: ObservableObject {
 
             guard audioExts.contains(fileURL.pathExtension.lowercased()) else { continue }
 
-            let relPath = fileURL.path(relativeTo: docs)
+            let basePath = docs.standardizedFileURL.path
+
+            let absPath = fileURL.standardizedFileURL.path
+
+            let relPath = absPath.hasPrefix(basePath + "/") ? String(absPath.dropFirst(basePath.count + 1)) : absPath
 
             guard !registeredPaths.contains(relPath) else { continue }
 
