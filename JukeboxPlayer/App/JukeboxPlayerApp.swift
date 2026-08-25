@@ -4,6 +4,7 @@ import SwiftUI
 struct JukeboxPlayerApp: App {
     @StateObject private var engine = PlayerEngine()
     @StateObject private var store = TrackStore()
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
@@ -24,6 +25,12 @@ struct JukeboxPlayerApp: App {
         }
         .onChange(of: store.catalogVersion) { _ in
             engine.load(store.tracks)
+        }
+        // 回前台时也认领一次「文件共享」新拖入的音频（连着数据线拖歌的场景）
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                Task { await store.adoptSharedFileOrphans() }
+            }
         }
         // 修复：接收从 iOS「文件」App 通过「分享 / 打开」送进来的本地音频。
         // 之前没有 onOpenURL，系统虽能把文件调起 App（Info.plist 已注册音频类型），
