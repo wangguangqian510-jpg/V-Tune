@@ -220,6 +220,10 @@ final class TrackStore: ObservableObject {
     /// 正在异步补提封面的曲目 id（去重，避免列表滚动重复触发）。
     private var pendingArtwork: Set<UUID> = []
 
+    /// 正在认领「文件共享」孤儿音频（防重入：认领完成内部会再走 refresh）。
+
+    private var isAdoptingSharedFiles = false
+
     private let recentKey = "JukeboxRecentIDs_v1"
 
     private var cancellables = Set<AnyCancellable>()
@@ -249,6 +253,10 @@ final class TrackStore: ObservableObject {
         refresh()
 
         setupObservers()
+
+        // 启动时认领 iTunes/爱思助手「文件共享」直接拖进 Documents 的音频。
+
+        Task { await adoptSharedFileOrphans() }
 
     }
 
@@ -541,6 +549,120 @@ final class TrackStore: ObservableObject {
         let existing = Set(tracks.map(\.id))
 
         recentIDs = recentIDs.filter { existing.contains($0) }
+
+    }
+
+    /// 认领「文件共享」孤儿音频：iTunes / 爱思助手等桌面工具直接拖进 Documents 的文件，
+
+    /// 不会自动生成播放记录（曲库按 jukebox_records.json 重建），这里补一次登记。
+
+    /// 让数据线传歌像 App 内导入一样开箱即用；已登记路径/指纹自动跳过，可安全反复调用。
+
+    func adoptSharedFileOrphans() async {
+
+        guard !isAdoptingSharedFiles else { return }
+
+        isAdoptingSharedFiles = true
+
+        defer { isAdoptingSharedFiles = false }
+
+        guard let docs = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+
+        let audioExts = Set(["mp3","m4a","aac","wav","flac","ogg","opus","wma","ape","aiff","caf","mp4","mov","m4v","mka","m4b","wv","tta"])
+
+        guard let enumerator = fileManager.enumerator(
+
+            at: docs,
+
+            includingPropertiesForKeys: [.isRegularFileKey, .fileSizeKey],
+
+            options: [.skipsHiddenFiles, .skipsPackageDescendants]
+
+        ) else { return }
+
+        let registeredPaths = Set(records.values.filter { $0.source == .imported }.map(\.urlString))
+
+        let registeredFingerprints = Set(records.values.compactMap(\.fingerprint))
+
+        var adoptedCount = 0
+
+        for case let fileURL as URL in enumerator {
+
+            guard (try? fileURL.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true else { continue }
+
+            guard audioExts.contains(fileURL.pathExtension.lowercased()) else { continue }
+
+            let relPath = fileURL.path(relativeTo: docs)
+
+            guard !registeredPaths.contains(relPath) else { continue }
+
+            let size: Int64
+
+            if let rv = try? fileURL.resourceValues(forKeys: [.fileSizeKey]), let fs = rv.fileSize {
+
+                size = Int64(fs)
+
+            } else {
+
+                size = ((try? fileManager.attributesOfItem(atPath: fileURL.path)[.size] as? Int64) ?? 0)
+
+            }
+
+            let fingerprint = "\(fileURL.lastPathComponent)|\(size)"
+
+            guard !registeredFingerprints.contains(fingerprint) else { continue }
+
+            let tags = await extractTags(from: fileURL)
+
+            let baseTitle = (fileURL.lastPathComponent as NSString).deletingPathExtension
+
+            let title = (tags.title?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? baseTitle
+
+            let artist = (tags.artist?.trimmingCharacters(in: .whitespacesAndNewlines)).flatMap { $0.isEmpty ? nil : $0 } ?? "未知歌手"
+
+            let album = tags.album?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+
+            let lyrics = tags.lyrics?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+            let id = UUID()
+
+            records[id] = TrackRecord(
+
+                id: id,
+
+                title: title, artist: artist, album: album,
+
+                source: .imported,
+
+                urlString: relPath,
+
+                coverSeed: fileURL.lastPathComponent,
+
+                lyrics: lyrics,
+
+                bookmark: nil,
+
+                fingerprint: fingerprint,
+
+                artwork: compactArtwork(tags.artwork)
+
+            )
+
+            adoptedCount += 1
+
+        }
+
+        if adoptedCount > 0 {
+
+            saveRecords()
+
+            refresh()
+
+            catalogVersion += 1   // 触发播放引擎队列重载，新歌立即可点播
+
+            reportImportResult("文件共享导入：已自动入库 \(adoptedCount) 首新歌")
+
+        }
 
     }
 
