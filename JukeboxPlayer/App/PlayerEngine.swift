@@ -240,6 +240,9 @@ final class PlayerEngine: ObservableObject {
 
     private var processingTap: MTAudioProcessingTap?
 
+    /// 音轨数缓存（applyEQToCurrentItem 时更新）：诊断每秒刷新只读它，不再同步查 asset.tracks。
+    private var cachedEQAudioTrackCount: Int = 0
+
     /// 选中一个预设：填充 eqBands 并立即应用。
 
     func selectPreset(_ name: String) {
@@ -1014,23 +1017,44 @@ final class PlayerEngine: ObservableObject {
 
     // MARK: - 灵动岛 / Live Activity（主 App 侧启动与更新；灵动岛 UI 由 Widget 扩展提供，见 JukeboxWidget.swift）
 
+    /// 歌词时间轴缓存：key 与当前歌词全文比对（切歌/改词自动重解），
+    /// 避免 0.25s 进度 tick 与锁屏/灵动岛刷新反复对全文 split+扫描（发热贡献户）。
+    private var lyricTimelineKey: String?
+    private var lyricTimeline: [(time: Double, text: String)] = []
+
     /// 当前时间对应的歌词行（用于灵动岛展示），无歌词返回空串。
     private func currentLyricLine(at time: Double) -> String {
-        guard let lrc = lyrics, !lrc.isEmpty else { return "" }
+        let timeline: [(time: Double, text: String)]
+        if let lrc = lyrics, !lrc.isEmpty {
+            if lyricTimelineKey != lrc {
+                var out: [(time: Double, text: String)] = []
+                for raw in lrc.split(separator: "\n") {
+                    var s = String(raw)
+                    guard let open = s.firstIndex(of: "["),
+                          let close = s[s.index(after: open)...].firstIndex(of: "]") else { continue }
+                    let tag = s[s.index(after: open)..<close]
+                    let parts = tag.split(separator: ":")
+                    guard parts.count >= 2,
+                          let m = Double(parts[0]),
+                          let sec = Double(parts[1]) else { continue }
+                    let t = m * 60 + sec
+                    let text = s[s.index(after: close)...].trimmingCharacters(in: .whitespaces)
+                    out.append((t, text))
+                }
+                out.sort { $0.time < $1.time }
+                lyricTimeline = out
+                lyricTimelineKey = lrc
+            }
+            timeline = lyricTimeline
+        } else {
+            lyricTimeline = []
+            lyricTimelineKey = nil
+            timeline = []
+        }
+        // 时间轴已按时间升序：最后一个 <= time 的行即当前行（与旧实现语义一致）
         var bestLine = ""
-        var bestTime = -1.0
-        for raw in lrc.split(separator: "\n") {
-            var s = String(raw)
-            guard let open = s.firstIndex(of: "["),
-                  let close = s[s.index(after: open)...].firstIndex(of: "]") else { continue }
-            let tag = s[s.index(after: open)..<close]
-            let parts = tag.split(separator: ":")
-            guard parts.count >= 2,
-                  let m = Double(parts[0]),
-                  let sec = Double(parts[1]) else { continue }
-            let t = m * 60 + sec
-            let text = s[s.index(after: close)...].trimmingCharacters(in: .whitespaces)
-            if t <= time, t > bestTime { bestTime = t; bestLine = text }
+        for entry in timeline where entry.time <= time {
+            bestLine = entry.text
         }
         return bestLine
     }
@@ -1551,6 +1575,8 @@ final class PlayerEngine: ObservableObject {
 
         let audioTracks = item.asset.tracks(withMediaType: .audio)
 
+        cachedEQAudioTrackCount = audioTracks.count   // 供 1Hz 诊断读缓存，不再重复同步查询
+
         if audioTracks.isEmpty {
 
             eqDiagnostic = "⏳ 正在等待音轨加载…"
@@ -1666,10 +1692,10 @@ final class PlayerEngine: ObservableObject {
     /// 读取 EQ 处理状态，生成给人看的诊断文字。不要在音频渲染线程里调用。
 
     func refreshEQDiagnostic() {
-        // 关闭时直接返回：不要碰 asset.tracks —— 那是同步媒体元数据查询,
-        // 播放页每秒调一次白烧 IO/CPU(发热贡献户),而 EQ 关着时根本用不到这些值。
+        // 关闭时不碰 asset.tracks（同步媒体元数据查询），也不重复赋值 @Published ——
+        // 赋相同值同样会触发 objectWillChange，让播放页整页每秒白算一遍 body（发热贡献户）。
         guard eqEnabled else {
-            eqDiagnostic = "均衡器已关闭"
+            if eqDiagnostic != "均衡器已关闭" { eqDiagnostic = "均衡器已关闭" }
             return
         }
 
@@ -1677,7 +1703,8 @@ final class PlayerEngine: ObservableObject {
 
         let mixAttached = playerItem?.audioMix != nil
 
-        let trackCount = playerItem?.asset.tracks(withMediaType: .audio).count ?? 0
+        // 音轨数读缓存：本方法每秒被调一次，不能每次都同步查 asset.tracks
+        let trackCount = cachedEQAudioTrackCount
 
         if s.frames > 0 {
 
