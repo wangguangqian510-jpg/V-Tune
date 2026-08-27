@@ -1,0 +1,94 @@
+name: Build chafei IPA
+
+# 只在 chafei/ 目录变更时触发，避免和仓库根目录的播放器构建互相干扰
+on:
+  push:
+    branches: [ main ]
+    paths: [ 'chafei/**' ]
+  workflow_dispatch:
+
+env:
+  # chafei 的 Bundle ID。若要直接复用现有第三方证书(原 com.aramco.cycomm 的描述文件)，
+  # 把下面这行改成 com.aramco.cycomm 即可（前提是不与播放器同时装在同设备）。
+  BUNDLE_ID: com.chafei.app
+  APP_NAME: Chafei
+
+jobs:
+  build:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: chafei
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install npm dependencies
+        run: npm install
+
+      - name: Install CocoaPods
+        run: brew install cocoapods
+
+      - name: Prebuild iOS native project (Expo -> Xcode)
+        run: npx expo prebuild --platform ios --non-interactive
+
+      - name: Build unsigned .app
+        run: |
+          xcodebuild build \
+            -workspace ios/Chafei.xcworkspace \
+            -scheme Chafei \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_ALLOWED=NO \
+            PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID
+
+      - name: Decode cert & provisioning from secrets
+        run: |
+          echo "${{ secrets.CERT_P12 }}" | base64 --decode > cert.p12
+          echo "${{ secrets.PROVISIONING }}" | base64 --decode > app.mobileprovision
+
+      - name: Build zsign
+        run: |
+          curl -L -o zsign.tar.gz https://github.com/zhlynn/zsign/releases/download/v1.1.1/zsign-macos-arm64.tar.gz
+          tar xzf zsign.tar.gz
+          ZSIGN=$(find "$PWD" -type f -name zsign | head -1)
+          chmod +x "$ZSIGN"
+          echo "$(dirname "$ZSIGN")" >> "$GITHUB_PATH"
+
+      - name: Sign .app in place
+        run: |
+          APP=$(find build -name "Chafei.app" -type d | head -1)
+          echo "Signing app: $APP"
+          python3 ../merge_entitlements.py app.mobileprovision merged.entitlements
+          zsign -f \
+            -k cert.p12 \
+            -p "${{ secrets.CERT_PASSWORD }}" \
+            -m app.mobileprovision \
+            -e merged.entitlements \
+            -b "$BUNDLE_ID" \
+            "$APP"
+
+      - name: Package ipa
+        run: |
+          APP=$(find build -name "Chafei.app" -type d | head -1)
+          rm -rf Payload Chafei.ipa
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r -y Chafei.ipa Payload
+          rm -rf Payload
+          ls -la Chafei.ipa
+          echo "ipa size: $(stat -f%z Chafei.ipa) bytes"
+
+      - name: Upload signed ipa
+        uses: actions/upload-artifact@v4
+        with:
+          name: Chafei-signed-ipa
+          path: chafei/Chafei.ipa
+          if-no-files-found: error
