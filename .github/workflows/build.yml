@@ -3,6 +3,7 @@ name: Build & Sign iOS IPA
 on:
   push:
     branches: [ main ]
+    paths-ignore: [ 'chafei/**' ]
   workflow_dispatch:
 
 env:
