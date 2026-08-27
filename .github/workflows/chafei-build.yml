@@ -8,9 +8,10 @@ on:
   workflow_dispatch:
 
 env:
-  # chafei 的 Bundle ID。若要直接复用现有第三方证书(原 com.aramco.cycomm 的描述文件)，
-  # 把下面这行改成 com.aramco.cycomm 即可（前提是不与播放器同时装在同设备）。
-  BUNDLE_ID: com.chafei.app
+  # 当前复用现有第三方证书的描述文件(application-identifier=4TDEWHFV5T.com.aramco.cycomm)，
+  # 故 Bundle ID 必须与之匹配才能装到手机。若要改成独立的 com.chafei.app，
+  # 需另提供覆盖该 ID 的 mobileprovision，并更新仓库 Secret PROVISIONING。
+  BUNDLE_ID: com.aramco.cycomm
   APP_NAME: Chafei
 
 jobs:
@@ -47,7 +48,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
-            PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID
+            PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID \
+            SYMROOT=$PWD/build \
+            OBJROOT=$PWD/build/obj
 
       - name: Decode cert & provisioning from secrets
         run: |
