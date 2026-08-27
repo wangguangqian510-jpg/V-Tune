@@ -1,4 +1,4 @@
-import { ENEMIES, GAME, type EnemyDef, type EnemyType } from './config';
+import { ENEMIES, GAME, LEVEL, type EnemyDef, type EnemyType } from './config';
 import type { Enemy, Player, Projectile, Vec2 } from './types';
 
 let nextId = 1;
@@ -16,12 +16,14 @@ export function makePlayer(): Player {
     hp: GAME.playerMaxHp,
     maxHp: GAME.playerMaxHp,
     radius: GAME.playerRadius,
+    level: 1,
+    exp: 0,
     attackTimer: 0,
     attackInterval: GAME.attackInterval,
     multiShot: 1,
     fanAngle: 0,
     critChance: 0,
-    pierce: 1, // 0 -> 1: 基础穿透 1, 每发可贯穿 2 只, 清群关键
+    pierce: 1,
     damageMul: 1,
     speedMul: 1,
     inkRadiusMul: 1,
@@ -103,26 +105,33 @@ export function difficultyAt(elapsed: number): number {
   return 1.3 ** (elapsed / 60);
 }
 
-export function spawnEnemies(elapsed: number): Enemy[] {
+export function spawnEnemies(elapsed: number, level: number): Enemy[] {
   // 生成节奏由外层 while(spawnTimer >= interval) 控制，此处每调用固定生成 1 只。
-  // 血量随 difficulty 线性增长，速度随 sqrt(difficulty) 增长（避免后期过快）。
+  // 血量随时间难度线性增长，速度随 sqrt(时间难度) × 等级系数 增长。
   const difficulty = difficultyAt(elapsed);
   const type = pickEnemyType(elapsed);
-  return [spawnOne(type, undefined, difficulty, difficulty ** 0.5)];
+  const levelSpeedMul = LEVEL.speedMulForLevel(level);
+  return [spawnOne(type, undefined, difficulty, difficulty ** 0.5 * levelSpeedMul)];
 }
 
-export function findNearestEnemy(player: Player, enemies: Enemy[]): Enemy | null {
-  let nearest: Enemy | null = null;
-  let best = Infinity;
+// 瞄准逻辑：优先攻击最危险的敌人（最靠近玩家/底部 = y 值最大），
+// 水平距离作为次要权重。避免追着已经偏到屏幕边缘的敌人打。
+export function findTargetEnemy(player: Player, enemies: Enemy[]): Enemy | null {
+  let target: Enemy | null = null;
+  let bestScore = -Infinity;
   for (const e of enemies) {
     if (e.dead) continue;
-    const d = dist(player.pos, e.pos);
-    if (d < best) {
-      best = d;
-      nearest = e;
+    // 垂直接近度（y 越大越靠近底部玩家，越危险）权重高
+    const vertical = e.pos.y;
+    // 水平偏离度（越偏权重越低）
+    const horizontalDist = Math.abs(e.pos.x - player.pos.x);
+    const score = vertical - horizontalDist * 0.25;
+    if (score > bestScore) {
+      bestScore = score;
+      target = e;
     }
   }
-  return nearest;
+  return target;
 }
 
 export function fireProjectiles(player: Player, target: Enemy | null): Projectile[] {
@@ -164,7 +173,7 @@ export function updatePlayer(
   player.attackTimer += dt;
   if (player.attackTimer >= player.attackInterval) {
     player.attackTimer = 0;
-    const target = findNearestEnemy(player, enemies);
+    const target = findTargetEnemy(player, enemies);
     projectiles.push(...fireProjectiles(player, target));
     // 限制同屏
     if (projectiles.length > GAME.maxProjectiles) {
