@@ -6,8 +6,10 @@ interface Props {
   maxHp: number;
   score: number;
   timeLeft: number;
-  ink: number;
-  inkCap: number;
+  level: number;
+  exp: number;
+  expCap: number;
+  maxLevel: number;
 }
 
 function fmtTime(totalSeconds: number) {
@@ -17,13 +19,17 @@ function fmtTime(totalSeconds: number) {
   return `${m}:${sec.toString().padStart(2, '0')}`;
 }
 
-export function HUD({ hp, maxHp, score, timeLeft, ink, inkCap }: Props) {
+export function HUD({ hp, maxHp, score, timeLeft, level, exp, expCap, maxLevel }: Props) {
   const hpPct = Math.max(0, hp / maxHp);
-  const inkPct = Math.max(0, Math.min(1, ink / inkCap));
+  const expPct = level >= maxLevel ? 1 : Math.max(0, Math.min(1, exp / expCap));
+  const isMaxLevel = level >= maxLevel;
   return (
     <View style={styles.container} pointerEvents="none">
       <View style={styles.topRow}>
         <Text style={styles.timer}>{fmtTime(timeLeft)}</Text>
+        <View style={styles.levelBadge}>
+          <Text style={styles.levelText}>Lv.{level}{isMaxLevel ? ' MAX' : ''}</Text>
+        </View>
         <Text style={styles.score}>{score}</Text>
       </View>
 
@@ -35,9 +41,9 @@ export function HUD({ hp, maxHp, score, timeLeft, ink, inkCap }: Props) {
       </View>
 
       <View style={styles.barRow}>
-        <Text style={styles.label}>灵墨</Text>
+        <Text style={styles.label}>{isMaxLevel ? '圆满' : '修为'}</Text>
         <View style={[styles.bar, { width: 120 }]}>
-          <View style={[styles.fill, { width: `${inkPct * 100}%`, backgroundColor: '#c0392b' }]} />
+          <View style={[styles.fill, { width: `${expPct * 100}%`, backgroundColor: '#b07a3c' }]} />
         </View>
       </View>
     </View>
@@ -60,6 +66,19 @@ const styles = StyleSheet.create({
   timer: {
     fontSize: 22,
     color: '#1a1a1a',
+    fontWeight: 'bold',
+  },
+  levelBadge: {
+    backgroundColor: 'rgba(176,122,60,0.15)',
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(176,122,60,0.4)',
+  },
+  levelText: {
+    fontSize: 13,
+    color: '#b07a3c',
     fontWeight: 'bold',
   },
   score: {
