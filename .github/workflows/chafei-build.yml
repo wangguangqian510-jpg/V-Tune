@@ -8,11 +8,10 @@ on:
   workflow_dispatch:
 
 env:
-  # 当前复用现有第三方证书的描述文件(application-identifier=4TDEWHFV5T.com.aramco.cycomm)，
-  # 故 Bundle ID 必须与之匹配才能装到手机。若要改成独立的 com.chafei.app，
-  # 需另提供覆盖该 ID 的 mobileprovision，并更新仓库 Secret PROVISIONING。
-  BUNDLE_ID: com.aramco.cycomm
   APP_NAME: Chafei
+  # 若描述文件是通配符(*)，则使用独立 Bundle ID com.chafei.app；
+  # 若是固定 ID(如 com.aramco.cycomm)，则只能沿用该 ID。具体由下方步骤自动判定。
+  FALLBACK_BUNDLE_ID: com.aramco.cycomm
 
 jobs:
   build:
@@ -38,6 +37,33 @@ jobs:
       - name: Prebuild iOS native project (Expo -> Xcode)
         run: npx expo prebuild --platform ios --non-interactive
 
+      - name: Decode cert & provisioning from secrets
+        run: |
+          echo "${{ secrets.CERT_P12 }}" | base64 --decode > cert.p12
+          echo "${{ secrets.PROVISIONING }}" | base64 --decode > app.mobileprovision
+
+      - name: Determine bundle id from provisioning profile
+        id: bid
+        run: |
+          python3 - <<'PY'
+          import plistlib, os
+          data = open('app.mobileprovision','rb').read()
+          s = data.find(b'<?xml'); e = data.rfind(b'</plist>') + len(b'</plist>')
+          pl = plistlib.loads(data[s:e])
+          aid = pl['Entitlements']['application-identifier']
+          print("Profile application-identifier:", aid)
+          prefix, _, suffix = aid.partition('.')
+          if suffix == '*':
+              bid = 'com.chafei.app'
+              print("Profile is WILDCARD -> using independent bundle id", bid)
+          else:
+              # 固定 ID：只能使用描述文件里那个，否则装不上
+              bid = suffix
+              print("Profile is FIXED -> can only use", bid)
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write("BUNDLE_ID=" + bid + "\n")
+          PY
+
       - name: Build unsigned .app
         run: |
           xcodebuild build \
@@ -48,14 +74,9 @@ jobs:
             -destination 'generic/platform=iOS' \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_ALLOWED=NO \
-            PRODUCT_BUNDLE_IDENTIFIER=$BUNDLE_ID \
+            PRODUCT_BUNDLE_IDENTIFIER=${{ steps.bid.outputs.BUNDLE_ID }} \
             SYMROOT=$PWD/build \
             OBJROOT=$PWD/build/obj
-
-      - name: Decode cert & provisioning from secrets
-        run: |
-          echo "${{ secrets.CERT_P12 }}" | base64 --decode > cert.p12
-          echo "${{ secrets.PROVISIONING }}" | base64 --decode > app.mobileprovision
 
       - name: Build zsign
         run: |
@@ -75,7 +96,7 @@ jobs:
             -p "${{ secrets.CERT_PASSWORD }}" \
             -m app.mobileprovision \
             -e merged.entitlements \
-            -b "$BUNDLE_ID" \
+            -b "${{ steps.bid.outputs.BUNDLE_ID }}" \
             "$APP"
 
       - name: Package ipa
@@ -88,6 +109,8 @@ jobs:
           rm -rf Payload
           ls -la Chafei.ipa
           echo "ipa size: $(stat -f%z Chafei.ipa) bytes"
+          echo "bundle id used: ${{ steps.bid.outputs.BUNDLE_ID }}"
+          echo "${{ steps.bid.outputs.BUNDLE_ID }}" > bundle_id.txt
 
       - name: Upload signed ipa
         uses: actions/upload-artifact@v4
@@ -95,3 +118,11 @@ jobs:
           name: Chafei-signed-ipa
           path: chafei/Chafei.ipa
           if-no-files-found: error
+
+      - name: Upload build meta
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chafei-build-meta
+          path: chafei/bundle_id.txt
+          if-no-files-found: ignore
