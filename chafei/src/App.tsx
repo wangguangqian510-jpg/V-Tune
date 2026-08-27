@@ -11,7 +11,6 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import {
-  clampInk,
   difficultyAt,
   makePlayer,
   resetId,
@@ -19,7 +18,7 @@ import {
   updateEnemies,
   updatePlayer,
 } from './game/engine';
-import { GAME } from './game/config';
+import { GAME, LEVEL } from './game/config';
 import type { Enemy, Player, Projectile, Upgrade } from './game/types';
 import { pickThree } from './game/upgrades';
 import { GameCanvas } from './components/GameCanvas';
@@ -33,14 +32,14 @@ interface GameSnapshot {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
-  ink: number;
   score: number;
   timeLeft: number;
   elapsed: number;
   spawnTimer: number;
   upgradeLevels: Record<string, number>;
   upgradeOptions: Upgrade[];
-  lastCritAt: number; // 最近一次暴击的 elapsed 时间，用于视觉反馈
+  lastCritAt: number;
+  pendingLevelUps: number; // 连续升级待处理数（一次获得大量经验可能连升多级）
 }
 
 export default function App() {
@@ -52,7 +51,6 @@ export default function App() {
     player: makePlayer(),
     enemies: [],
     projectiles: [],
-    ink: 0,
     score: 0,
     timeLeft: GAME.duration,
     elapsed: 0,
@@ -60,6 +58,7 @@ export default function App() {
     upgradeLevels: {},
     upgradeOptions: [],
     lastCritAt: -10,
+    pendingLevelUps: 0,
   });
 
   // 启动时读取本地最高分
@@ -76,7 +75,6 @@ export default function App() {
       player: makePlayer(),
       enemies: [],
       projectiles: [],
-      ink: 0,
       score: 0,
       timeLeft: GAME.duration,
       elapsed: 0,
@@ -84,6 +82,7 @@ export default function App() {
       upgradeLevels: {},
       upgradeOptions: [],
       lastCritAt: -10,
+      pendingLevelUps: 0,
     };
     setFrame(f => f + 1);
   }
@@ -109,8 +108,13 @@ export default function App() {
     const g = game.current;
     u.effect(g.player);
     g.upgradeLevels[u.id] = (g.upgradeLevels[u.id] ?? 0) + 1;
-    g.ink = Math.max(0, g.ink - GAME.inkToLevel);
-    g.status = 'playing';
+    if (g.pendingLevelUps > 0) {
+      // 还有待处理的升级，继续显示下一组三选一
+      g.pendingLevelUps--;
+      g.upgradeOptions = pickThree(g.upgradeLevels);
+    } else {
+      g.status = 'playing';
+    }
   }
 
   useEffect(() => {
@@ -130,13 +134,13 @@ export default function App() {
           saveHighScore(g.score);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else {
-          // spawn —— 节奏由 interval 控制，每 tick 生成 1 只
+          // spawn —— 节奏由 interval 控制，每 tick 生成 1 只，速度随等级提升
           g.spawnTimer += dt;
           const difficulty = difficultyAt(g.elapsed);
           const interval = Math.max(0.35, GAME.spawnRateInitial / difficulty);
           while (g.spawnTimer >= interval) {
             g.spawnTimer -= interval;
-            g.enemies.push(...spawnEnemies(g.elapsed));
+            g.enemies.push(...spawnEnemies(g.elapsed, g.player.level));
           }
 
           // player auto attack
@@ -189,21 +193,40 @@ export default function App() {
           if (result.damage > 0) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }
-          // 分裂出的小怪不计分（只在击杀时通过 ink 计分）
+          // 分裂出的小怪不计分（只在击杀时通过经验计分）
           g.enemies.push(...result.spawned);
 
-          // ink & level up —— 击杀灵墨折算分数
-          g.ink = clampInk(g.ink + result.ink);
-          g.score += Math.floor(result.ink / 2);
+          // 经验 & 等级 —— 击杀获得经验，达到阈值升级（上限 10 级）
+          if (result.ink > 0) {
+            g.player.exp += result.ink;
+            g.score += Math.floor(result.ink / 2);
+            // 检查是否升级（可能连升多级）
+            let leveledUp = false;
+            while (
+              g.player.level < LEVEL.maxLevel &&
+              g.player.exp >= LEVEL.expForLevel(g.player.level)
+            ) {
+              g.player.exp -= LEVEL.expForLevel(g.player.level);
+              g.player.level++;
+              leveledUp = true;
+              g.pendingLevelUps++;
+            }
+            // 满级后多余经验清零
+            if (g.player.level >= LEVEL.maxLevel) {
+              g.player.exp = 0;
+            }
+            if (leveledUp) {
+              g.pendingLevelUps--; // 当前这次升级立即处理
+              g.status = 'upgrade';
+              g.upgradeOptions = pickThree(g.upgradeLevels);
+              Haptics.selectionAsync();
+            }
+          }
 
           if (g.player.hp <= 0) {
             g.status = 'lost';
             saveHighScore(g.score);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-          } else if (g.ink >= GAME.inkToLevel) {
-            g.status = 'upgrade';
-            g.upgradeOptions = pickThree(g.upgradeLevels);
-            Haptics.selectionAsync();
           }
         }
       }
@@ -233,8 +256,10 @@ export default function App() {
           maxHp={g.player.maxHp}
           score={g.score}
           timeLeft={g.timeLeft}
-          ink={g.ink}
-          inkCap={GAME.inkToLevel}
+          level={g.player.level}
+          exp={g.player.exp}
+          expCap={g.player.level < LEVEL.maxLevel ? LEVEL.expForLevel(g.player.level) : 1}
+          maxLevel={LEVEL.maxLevel}
         />
 
         {/* 暴击反馈 */}
