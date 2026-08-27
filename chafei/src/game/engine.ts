@@ -103,23 +103,12 @@ export function difficultyAt(elapsed: number): number {
   return 1.3 ** (elapsed / 60);
 }
 
-export function spawnEnemies(
-  _time: number,
-  elapsed: number,
-  rate: number
-): Enemy[] {
-  const spawned: Enemy[] = [];
-  const difficulty = difficultyAt(elapsed); // 1x -> 1.69x at 120s
-  const interval = rate / difficulty;
-  let count = 0;
-  if (Math.random() < (1 / Math.max(interval, 0.3))) {
-    count = 1;
-  }
-  for (let i = 0; i < count; i++) {
-    const type = pickEnemyType(elapsed);
-    spawned.push(spawnOne(type, undefined, difficulty, difficulty ** 0.5));
-  }
-  return spawned;
+export function spawnEnemies(elapsed: number): Enemy[] {
+  // 生成节奏由外层 while(spawnTimer >= interval) 控制，此处每调用固定生成 1 只。
+  // 血量随 difficulty 线性增长，速度随 sqrt(difficulty) 增长（避免后期过快）。
+  const difficulty = difficultyAt(elapsed);
+  const type = pickEnemyType(elapsed);
+  return [spawnOne(type, undefined, difficulty, difficulty ** 0.5)];
 }
 
 export function findNearestEnemy(player: Player, enemies: Enemy[]): Enemy | null {
