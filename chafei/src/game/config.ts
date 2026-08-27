@@ -19,13 +19,23 @@ export const GAME = {
   playerX: 195,
   playerY: 720,
   playerRadius: 28,
-  attackInterval: 0.55, // base seconds (0.9 -> 0.55: 射速 ~66% 提升)
-  projectileSpeed: 520, // px per second (420 -> 520: 弹速更跟手)
-  projectileDamage: 14, // (10 -> 14: 单发伤害 +40%, 秒伤 ~11 -> ~25)
+  attackInterval: 0.55, // base seconds
+  projectileSpeed: 520, // px per second
+  projectileDamage: 14,
   inkPerKill: 12,
-  inkToLevel: 100,
-  maxProjectiles: 28, // (18 -> 28: 同屏弹量放宽)
-  spawnRateInitial: 1.5, // seconds (1.2 -> 1.5: 初始生成放缓, 更解压)
+  inkToLevel: 100, // 兼容字段，实际用 LEVEL.expForLevel
+  maxProjectiles: 28,
+  spawnRateInitial: 1.5, // seconds
+};
+
+// 等级系统：上限 10 级，经验曲线 20 + level*30
+// L1→2:50  L2→3:80  L3→4:110  L4→5:140  L5→6:170  L6→7:200  L7→8:230  L8→9:260  L9→10:290
+// 总计 1530 经验，2 分钟内约 100-130 击杀 × 平均 15 经验 ≈ 1500-1950，刚好满级
+export const LEVEL = {
+  maxLevel: 10,
+  expForLevel: (level: number) => 20 + level * 30,
+  // 敌人下降速度随等级提升：每级 +6%，10 级时 +54%
+  speedMulForLevel: (level: number) => 1 + (level - 1) * 0.06,
 };
 
 export type EnemyType = 'foam' | 'scorch' | 'thought';
