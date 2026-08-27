@@ -1,9 +1,10 @@
 import type { Player, Upgrade, UpgradeCategory } from './types';
 
 export const UPGRADE_TITLES: Record<UpgradeCategory, string> = {
-  tea: '茶种',
-  method: '手法',
-  mind: '心境',
+  arcane: '奥术飞弹',
+  ice: '冰锥术',
+  log: '滚木',
+  passive: '被动',
 };
 
 function makeUpgrade(
@@ -11,83 +12,88 @@ function makeUpgrade(
   category: UpgradeCategory,
   name: string,
   desc: string,
-  apply: (p: Player) => void
+  apply: (p: Player) => void,
+  requires?: (p: Player) => boolean
 ): Upgrade {
   return {
-    id,
-    category,
-    name,
-    desc,
+    id, category, name, desc,
     level: 1,
     maxLevel: 5,
     effect: apply,
+    requires,
   };
 }
 
-// 全部技能升满后出现的兜底精进卡（无等级上限，纯数值微调）
+// 兜底卡（全部升满后出现）
 const FALLBACK_POOL: Omit<Upgrade, 'level'>[] = [
   {
-    id: 'fb_damage',
-    category: 'mind',
-    name: '炉火纯青',
-    desc: '伤害 +8%',
-    maxLevel: 99,
-    effect: p => { p.damageMul += 0.08; },
+    id: 'fb_damage', category: 'passive', name: '法力涌动', desc: '全伤害 +8%',
+    maxLevel: 99, effect: p => { p.damageMul += 0.08; },
   },
   {
-    id: 'fb_speed',
-    category: 'mind',
-    name: '心手合一',
-    desc: '攻速 +6%',
-    maxLevel: 99,
-    effect: p => { p.attackInterval = Math.max(0.2, p.attackInterval * 0.94); },
+    id: 'fb_cdr', category: 'passive', name: '咒文熟练', desc: '全技能冷却 -6%',
+    maxLevel: 99, effect: p => { p.cooldownMul = Math.max(0.5, p.cooldownMul * 0.94); },
   },
   {
-    id: 'fb_pierce',
-    category: 'tea',
-    name: '一脉贯通',
-    desc: '穿透 +1',
-    maxLevel: 99,
-    effect: p => { p.pierce += 1; },
+    id: 'fb_crit', category: 'passive', name: '致命一击', desc: '暴击率 +5%',
+    maxLevel: 99, effect: p => { p.critChance += 0.05; },
   },
 ];
 
-export function buildUpgradePool(levels: Record<string, number>): Upgrade[] {
+export function buildUpgradePool(levels: Record<string, number>, player: Player): Upgrade[] {
   return [
-    // 茶种：龙井穿透 / 普洱溅射 / 白毫连射
-    makeUpgrade('longjing', 'tea', '龙井', '水线穿透+1，可贯穿更多浮沫', p => {
+    // === 奥术飞弹系 ===
+    makeUpgrade('arcane_cast', 'arcane', '飞弹连发', '额外释放1次，伤害-20%', p => {
+      p.extraCast += 1;
+      p.damageMul *= 0.8;
+    }),
+    makeUpgrade('arcane_multi', 'arcane', '飞弹齐射', '子弹+1，伤害-20%', p => {
+      p.multiShot += 1;
+      p.damageMul *= 0.8;
+    }),
+    makeUpgrade('arcane_damage', 'arcane', '飞弹增伤', '飞弹伤害 +30%', p => {
+      p.damageMul += 0.3;
+    }),
+    makeUpgrade('arcane_pierce', 'arcane', '飞弹穿透', '穿透 +1', p => {
       p.pierce += 1;
+    }),
+    makeUpgrade('arcane_fan', 'arcane', '飞弹散射', '散射角 +15°', p => {
+      p.fanAngle += 15;
+    }),
+
+    // === 冰锥术系（需先学习冰锥） ===
+    makeUpgrade('learn_ice', 'ice', '学习冰锥术', '解锁冰锥术（高伤直线）', p => {
+      p.hasIce = true;
+    }, p => !p.hasIce),
+    makeUpgrade('ice_cast', 'ice', '冰锥连发', '冰锥额外释放1次', p => {
+      // 通过降低冰锥冷却实现（简化处理）
+      p.cooldownMul *= 0.9;
+    }, p => p.hasIce),
+    makeUpgrade('ice_pierce', 'ice', '冰锥贯穿', '冰锥伤害+30%，穿透+2', p => {
       p.damageMul += 0.15;
-    }),
-    makeUpgrade('puer', 'tea', '普洱', '茶汤溅射，命中半径+20%', p => {
-      p.inkRadiusMul += 0.2;
-      p.damageMul += 0.1;
-    }),
-    makeUpgrade('baihao', 'tea', '白毫', '茶筅连射，攻速+15%，水线更急', p => {
-      p.attackInterval = Math.max(0.25, p.attackInterval * 0.85);
-      p.speedMul += 0.1;
-    }),
+      p.pierce += 2;
+    }, p => p.hasIce),
 
-    // 手法：点茶三连 / 煎茶扇形 / 煮茶蓄力
-    makeUpgrade('diancha', 'method', '点茶', '一瞬三发，弹幕+2', p => {
-      p.multiShot += 2;
+    // === 滚木系（需第5波后） ===
+    makeUpgrade('learn_log', 'log', '学习滚木', '解锁滚木（宽横扫，穿透∞）', p => {
+      p.hasLog = true;
     }),
-    makeUpgrade('jiancha', 'method', '煎茶', '扇形展开，散射角+20°', p => {
-      p.fanAngle += 20;
-    }),
-    makeUpgrade('zhucha', 'method', '煮茶', '蓄力重注，伤害+25%', p => {
-      p.damageMul += 0.25;
-    }),
+    makeUpgrade('log_damage', 'log', '滚木增伤', '滚木伤害 +40%', p => {
+      p.damageMul += 0.2;
+    }, p => p.hasLog),
 
-    // 心境：静 / 空灵墨 / 明
-    makeUpgrade('jing', 'mind', '静', '心境澄明，攻速+10%', p => {
-      p.attackInterval = Math.max(0.25, p.attackInterval * 0.9);
+    // === 被动 ===
+    makeUpgrade('cdr', 'passive', '冷却缩减', '全技能冷却 -10%', p => {
+      p.cooldownMul = Math.max(0.4, p.cooldownMul * 0.9);
     }),
-    makeUpgrade('kongling', 'mind', '空灵墨', '灵墨充盈，暴击+8%', p => {
+    makeUpgrade('repair', 'passive', '修复城墙', '城墙 HP +500', p => {
+      // 实际修复在 App 层处理，这里标记
+    }),
+    makeUpgrade('crit', 'passive', '暴击强化', '暴击率 +8%', p => {
       p.critChance += 0.08;
     }),
-    makeUpgrade('ming', 'mind', '明', '目明心亮，伤害+15%', p => {
-      p.damageMul += 0.15;
+    makeUpgrade('speed', 'passive', '咒文急速', '弹道速度 +15%', p => {
+      p.speedMul += 0.15;
     }),
   ].map(u => {
     const lv = levels[u.id] ?? 0;
@@ -99,18 +105,21 @@ export function buildUpgradePool(levels: Record<string, number>): Upgrade[] {
   });
 }
 
-export function pickThree(levels: Record<string, number>): Upgrade[] {
-  const pool = buildUpgradePool(levels);
-  // 优先出没满级的，打乱
+export function pickThree(levels: Record<string, number>, player: Player): Upgrade[] {
+  const pool = buildUpgradePool(levels, player);
   const available = pool
-    .filter(u => (levels[u.id] ?? 0) < u.maxLevel)
+    .filter(u => {
+      if ((levels[u.id] ?? 0) >= u.maxLevel) return false;
+      if (u.requires && !u.requires(player)) return false;
+      return true;
+    })
     .sort(() => Math.random() - 0.5);
 
   if (available.length >= 3) {
     return available.slice(0, 3);
   }
 
-  // 不足 3 张（部分或全部升满）：用兜底卡补齐
+  // 不足3张用兜底卡补齐
   const result = [...available];
   const fbShuffled = [...FALLBACK_POOL].sort(() => Math.random() - 0.5);
   for (const fb of fbShuffled) {
