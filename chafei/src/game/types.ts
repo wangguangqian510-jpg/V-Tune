@@ -37,6 +37,8 @@ export interface Player {
   hp: number;
   maxHp: number;
   radius: number;
+  level: number; // 1-10
+  exp: number; // 当前等级已积累经验
   attackTimer: number;
   attackInterval: number;
   multiShot: number;
