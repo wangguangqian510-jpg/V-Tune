@@ -1,0 +1,41 @@
+{
+  "expo": {
+    "name": "茶沸",
+    "slug": "chafei",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "scheme": "chafei",
+    "backgroundColor": "#f3efe4",
+    "splash": {
+      "backgroundColor": "#f3efe4"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.chafei.app",
+      "buildNumber": "0.1.0.1",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.chafei.app"
+    },
+    "web": {
+      "backgroundColor": "#f3efe4"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "newArchEnabled": false
+          }
+        }
+      ]
+    ]
+  }
+}
