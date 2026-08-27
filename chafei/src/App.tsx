@@ -11,14 +11,14 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import {
-  difficultyAt,
+  currentWave,
   makePlayer,
   resetId,
   spawnEnemies,
   updateEnemies,
   updatePlayer,
 } from './game/engine';
-import { GAME, LEVEL } from './game/config';
+import { GAME, LEVEL, WAVES, COLORS } from './game/config';
 import type { Enemy, Player, Projectile, Upgrade } from './game/types';
 import { pickThree } from './game/upgrades';
 import { GameCanvas } from './components/GameCanvas';
@@ -32,14 +32,16 @@ interface GameSnapshot {
   player: Player;
   enemies: Enemy[];
   projectiles: Projectile[];
+  wallHp: number;
   score: number;
+  kills: number;
   timeLeft: number;
   elapsed: number;
   spawnTimer: number;
   upgradeLevels: Record<string, number>;
   upgradeOptions: Upgrade[];
   lastCritAt: number;
-  pendingLevelUps: number; // 连续升级待处理数（一次获得大量经验可能连升多级）
+  pendingLevelUps: number;
 }
 
 export default function App() {
@@ -51,7 +53,9 @@ export default function App() {
     player: makePlayer(),
     enemies: [],
     projectiles: [],
+    wallHp: GAME.wallMaxHp,
     score: 0,
+    kills: 0,
     timeLeft: GAME.duration,
     elapsed: 0,
     spawnTimer: 0,
@@ -61,9 +65,8 @@ export default function App() {
     pendingLevelUps: 0,
   });
 
-  // 启动时读取本地最高分
   useEffect(() => {
-    AsyncStorage.getItem('chafei_high_score').then(v => {
+    AsyncStorage.getItem('papermage_high_score').then(v => {
       if (v) setHighScore(parseInt(v, 10) || 0);
     }).catch(() => {});
   }, []);
@@ -75,7 +78,9 @@ export default function App() {
       player: makePlayer(),
       enemies: [],
       projectiles: [],
+      wallHp: GAME.wallMaxHp,
       score: 0,
+      kills: 0,
       timeLeft: GAME.duration,
       elapsed: 0,
       spawnTimer: 0,
@@ -89,29 +94,30 @@ export default function App() {
 
   function togglePause() {
     const g = game.current;
-    if (g.status === 'playing') {
-      g.status = 'paused';
-    } else if (g.status === 'paused') {
-      g.status = 'playing';
-    }
+    if (g.status === 'playing') g.status = 'paused';
+    else if (g.status === 'paused') g.status = 'playing';
     setFrame(f => f + 1);
   }
 
   function saveHighScore(score: number) {
     if (score > highScore) {
       setHighScore(score);
-      AsyncStorage.setItem('chafei_high_score', String(score)).catch(() => {});
+      AsyncStorage.setItem('papermage_high_score', String(score)).catch(() => {});
     }
   }
 
   function pickUpgrade(u: Upgrade) {
     const g = game.current;
-    u.effect(g.player);
+    // 修复城墙：在 App 层处理（不修改 player）
+    if (u.id === 'repair') {
+      g.wallHp = Math.min(GAME.wallMaxHp, g.wallHp + 500);
+    } else {
+      u.effect(g.player);
+    }
     g.upgradeLevels[u.id] = (g.upgradeLevels[u.id] ?? 0) + 1;
     if (g.pendingLevelUps > 0) {
-      // 还有待处理的升级，继续显示下一组三选一
       g.pendingLevelUps--;
-      g.upgradeOptions = pickThree(g.upgradeLevels);
+      g.upgradeOptions = pickThree(g.upgradeLevels, g.player);
     } else {
       g.status = 'playing';
     }
@@ -128,25 +134,26 @@ export default function App() {
       if (g.status === 'playing') {
         g.elapsed += dt;
         g.timeLeft = Math.max(0, GAME.duration - g.elapsed);
+        const wave = currentWave(g.elapsed);
 
         if (g.timeLeft <= 0) {
           g.status = 'won';
           saveHighScore(g.score);
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         } else {
-          // spawn —— 节奏由 interval 控制，每 tick 生成 1 只，速度随等级提升
+          // 出怪：波次越高间隔越短
           g.spawnTimer += dt;
-          const difficulty = difficultyAt(g.elapsed);
-          const interval = Math.max(0.35, GAME.spawnRateInitial / difficulty);
+          const waveProgress = (wave - 1) / WAVES.total;
+          const interval = Math.max(0.4, GAME.spawnRateInitial - waveProgress * 1.4);
           while (g.spawnTimer >= interval) {
             g.spawnTimer -= interval;
-            g.enemies.push(...spawnEnemies(g.elapsed, g.player.level));
+            g.enemies.push(...spawnEnemies(g.elapsed, wave));
           }
 
-          // player auto attack
+          // 玩家自动攻击（奥术飞弹+冰锥+滚木）
           updatePlayer(g.player, dt, g.enemies, g.projectiles);
 
-          // projectiles hit enemies
+          // 弹道命中
           for (let i = g.projectiles.length - 1; i >= 0; i--) {
             const p = g.projectiles[i];
             p.pos.x += p.vel.x * dt;
@@ -154,15 +161,15 @@ export default function App() {
             p.life += dt;
             if (
               p.life > p.maxLife ||
-              p.pos.y < -20 ||
-              p.pos.x < -20 ||
-              p.pos.x > GAME.width + 20
+              p.pos.y < -40 ||
+              p.pos.x < -60 ||
+              p.pos.x > GAME.width + 60
             ) {
               g.projectiles.splice(i, 1);
               continue;
             }
-            // 普洱溅射：命中半径随 inkRadiusMul 放大
-            const hitRadius = 6 * g.player.inkRadiusMul;
+            // 滚木宽度命中
+            const hitRadius = p.kind === 'log' ? 45 : 8;
             for (const e of g.enemies) {
               if (e.dead) continue;
               const dx = p.pos.x - e.pos.x;
@@ -187,20 +194,19 @@ export default function App() {
             }
           }
 
-          // enemies move & collide
+          // 敌人移动 & 撞城墙
           const result = updateEnemies(g.enemies, dt, g.player);
-          g.player.hp -= result.damage;
           if (result.damage > 0) {
+            g.wallHp -= result.damage;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
           }
-          // 分裂出的小怪不计分（只在击杀时通过经验计分）
           g.enemies.push(...result.spawned);
 
-          // 经验 & 等级 —— 击杀获得经验，达到阈值升级（上限 10 级）
-          if (result.ink > 0) {
-            g.player.exp += result.ink;
-            g.score += Math.floor(result.ink / 2);
-            // 检查是否升级（可能连升多级）
+          // 经验 & 等级
+          if (result.exp > 0) {
+            g.player.exp += result.exp;
+            g.score += result.exp * 10;
+            g.kills += 1;
             let leveledUp = false;
             while (
               g.player.level < LEVEL.maxLevel &&
@@ -211,19 +217,19 @@ export default function App() {
               leveledUp = true;
               g.pendingLevelUps++;
             }
-            // 满级后多余经验清零
             if (g.player.level >= LEVEL.maxLevel) {
               g.player.exp = 0;
             }
             if (leveledUp) {
-              g.pendingLevelUps--; // 当前这次升级立即处理
+              g.pendingLevelUps--;
               g.status = 'upgrade';
-              g.upgradeOptions = pickThree(g.upgradeLevels);
+              g.upgradeOptions = pickThree(g.upgradeLevels, g.player);
               Haptics.selectionAsync();
             }
           }
 
-          if (g.player.hp <= 0) {
+          if (g.wallHp <= 0) {
+            g.wallHp = 0;
             g.status = 'lost';
             saveHighScore(g.score);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -243,33 +249,39 @@ export default function App() {
     (width || GAME.width) / GAME.width,
     (height || GAME.height) / GAME.height
   );
-
+  const wave = currentWave(g.elapsed);
   const showCrit = g.elapsed - g.lastCritAt < 0.6;
 
   return (
     <SafeAreaView style={styles.root}>
       <StatusBar style="dark" />
       <View style={[styles.stage, { transform: [{ scale }] }]}>
-        <GameCanvas player={g.player} enemies={g.enemies} projectiles={g.projectiles} />
+        <GameCanvas
+          player={g.player}
+          enemies={g.enemies}
+          projectiles={g.projectiles}
+          elapsed={g.elapsed}
+        />
         <HUD
-          hp={g.player.hp}
-          maxHp={g.player.maxHp}
+          wallHp={g.wallHp}
+          wallMaxHp={GAME.wallMaxHp}
           score={g.score}
           timeLeft={g.timeLeft}
           level={g.player.level}
           exp={g.player.exp}
           expCap={g.player.level < LEVEL.maxLevel ? LEVEL.expForLevel(g.player.level) : 1}
           maxLevel={LEVEL.maxLevel}
+          wave={wave}
+          totalWaves={WAVES.total}
+          kills={g.kills}
         />
 
-        {/* 暴击反馈 */}
         {showCrit && (
           <View style={styles.critBadge} pointerEvents="none">
             <Text style={styles.critText}>暴击!</Text>
           </View>
         )}
 
-        {/* 暂停按钮（游戏中） */}
         {(g.status === 'playing' || g.status === 'paused') && (
           <TouchableOpacity style={styles.pauseBtn} onPress={togglePause}>
             <Text style={styles.pauseText}>{g.status === 'paused' ? '▶' : '❚❚'}</Text>
@@ -278,26 +290,26 @@ export default function App() {
 
         {g.status === 'menu' && (
           <View style={styles.overlay}>
-            <Text style={styles.title}>茶沸</Text>
-            <Text style={styles.subtitle}>茶人静心 · 彩墨解压</Text>
+            <Text style={styles.title}>纸上法师</Text>
+            <Text style={styles.subtitle}>见习守塔法师「小白」· 铅笔涂鸦风</Text>
             {highScore > 0 && (
               <Text style={styles.highScore}>最高分：{highScore}</Text>
             )}
             <TouchableOpacity style={styles.btn} onPress={startGame}>
-              <Text style={styles.btnText}>起一炉清水</Text>
+              <Text style={styles.btnText}>开始守塔</Text>
             </TouchableOpacity>
           </View>
         )}
 
         {g.status === 'paused' && (
           <View style={styles.overlay}>
-            <Text style={styles.title}>暂歇</Text>
-            <Text style={styles.subtitle}>当前分数：{g.score}</Text>
+            <Text style={styles.title}>暂停</Text>
+            <Text style={styles.subtitle}>第 {wave} 波 · 分数：{g.score}</Text>
             <TouchableOpacity style={styles.btn} onPress={togglePause}>
-              <Text style={styles.btnText}>继续煮茶</Text>
+              <Text style={styles.btnText}>继续</Text>
             </TouchableOpacity>
             <TouchableOpacity style={[styles.btn, styles.btnSecondary]} onPress={startGame}>
-              <Text style={styles.btnText}>重沏一壶</Text>
+              <Text style={styles.btnText}>重新开始</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -308,14 +320,14 @@ export default function App() {
 
         {(g.status === 'won' || g.status === 'lost') && (
           <View style={styles.overlay}>
-            <Text style={styles.title}>{g.status === 'won' ? '茶成' : '壶沸心乱'}</Text>
-            <Text style={styles.subtitle}>分数：{g.score}</Text>
+            <Text style={styles.title}>{g.status === 'won' ? '守塔成功' : '城墙告破'}</Text>
+            <Text style={styles.subtitle}>分数：{g.score} · 击杀：{g.kills}</Text>
             {g.score >= highScore && g.score > 0 && (
               <Text style={styles.newRecord}>新纪录!</Text>
             )}
             <Text style={styles.highScore}>最高分：{highScore}</Text>
             <TouchableOpacity style={styles.btn} onPress={startGame}>
-              <Text style={styles.btnText}>再沏一壶</Text>
+              <Text style={styles.btnText}>再来一局</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -327,58 +339,55 @@ export default function App() {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: '#f3efe4',
+    backgroundColor: COLORS.paper,
   },
   stage: {
     width: GAME.width,
     height: GAME.height,
     alignSelf: 'center',
-    backgroundColor: '#f3efe4',
+    backgroundColor: COLORS.paper,
   },
   overlay: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(243,239,228,0.96)',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: 'rgba(242,239,233,0.96)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 48,
+    fontSize: 44,
     fontWeight: 'bold',
-    color: '#1a1a1a',
+    color: COLORS.pencil,
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#5f5e5a',
+    fontSize: 15,
+    color: COLORS.pencilLight,
     marginBottom: 16,
   },
   highScore: {
     fontSize: 14,
-    color: '#5f5e5a',
+    color: COLORS.pencilLight,
     marginBottom: 24,
   },
   newRecord: {
     fontSize: 20,
-    color: '#c0392b',
+    color: COLORS.orange,
     fontWeight: 'bold',
     marginBottom: 8,
   },
   btn: {
-    backgroundColor: '#c0392b',
-    paddingHorizontal: 32,
+    backgroundColor: COLORS.pencil,
+    paddingHorizontal: 36,
     paddingVertical: 14,
     borderRadius: 8,
     marginBottom: 12,
   },
   btnSecondary: {
-    backgroundColor: '#5f5e5a',
+    backgroundColor: COLORS.pencilLight,
   },
   btnText: {
-    color: '#f7f3ea',
+    color: COLORS.paper,
     fontSize: 18,
     fontWeight: 'bold',
   },
@@ -389,26 +398,26 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(26,26,26,0.08)',
+    backgroundColor: 'rgba(44,44,44,0.08)',
     justifyContent: 'center',
     alignItems: 'center',
   },
   pauseText: {
     fontSize: 14,
-    color: '#1a1a1a',
+    color: COLORS.pencil,
     fontWeight: 'bold',
   },
   critBadge: {
     position: 'absolute',
     top: 90,
     alignSelf: 'center',
-    backgroundColor: 'rgba(192,57,43,0.9)',
+    backgroundColor: COLORS.orange,
     paddingHorizontal: 16,
     paddingVertical: 4,
     borderRadius: 12,
   },
   critText: {
-    color: '#f7f3ea',
+    color: COLORS.paper,
     fontSize: 16,
     fontWeight: 'bold',
   },
