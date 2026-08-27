@@ -1,4 +1,4 @@
-import { ENEMIES, GAME, LEVEL, type EnemyDef, type EnemyType } from './config';
+import { ENEMIES, GAME, LEVEL, WAVES, type EnemyDef, type EnemyType } from './config';
 import type { Enemy, Player, Projectile, Vec2 } from './types';
 
 let nextId = 1;
@@ -13,20 +13,23 @@ export function resetId() {
 export function makePlayer(): Player {
   return {
     pos: { x: GAME.playerX, y: GAME.playerY },
-    hp: GAME.playerMaxHp,
-    maxHp: GAME.playerMaxHp,
     radius: GAME.playerRadius,
     level: 1,
     exp: 0,
     attackTimer: 0,
     attackInterval: GAME.attackInterval,
     multiShot: 1,
+    extraCast: 0,
     fanAngle: 0,
     critChance: 0,
-    pierce: 1,
+    pierce: 0,
     damageMul: 1,
     speedMul: 1,
-    inkRadiusMul: 1,
+    cooldownMul: 1,
+    hasIce: false,
+    hasLog: false,
+    iceTimer: 0,
+    logTimer: 0,
   };
 }
 
@@ -52,80 +55,110 @@ function rand(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
-function pickEnemyType(time: number): EnemyType {
-  const roll = Math.random();
-  if (time < 20) {
-    return roll < 0.7 ? 'foam' : 'scorch';
-  }
-  if (time < 60) {
-    if (roll < 0.45) return 'foam';
-    if (roll < 0.8) return 'scorch';
-    return 'thought';
-  }
-  if (roll < 0.35) return 'foam';
-  if (roll < 0.65) return 'scorch';
-  return 'thought';
+// 当前波次
+export function currentWave(elapsed: number): number {
+  return Math.min(WAVES.total, Math.floor(elapsed / WAVES.durationPerWave) + 1);
 }
 
-function spawnOne(type: EnemyType, x?: number, hpMul = 1, speedMul = 1): Enemy {
-  const def = ENEMIES[type];
-  const startX = x ?? rand(40, GAME.width - 40);
-  const baseY = -def.radius;
-  let vel: Vec2 = { x: 0, y: def.speed * speedMul };
-
-  if (type === 'scorch') {
-    // 斜冲
-    const targetX = rand(GAME.width * 0.25, GAME.width * 0.75);
-    vel = normalize({ x: targetX - startX, y: GAME.height * 0.75 - baseY });
-    vel = { x: vel.x * def.speed * speedMul, y: vel.y * def.speed * speedMul };
-  } else if (type === 'thought') {
-    vel = { x: rand(-10, 10), y: def.speed * speedMul };
+// 选怪：根据波次决定出现哪些类型
+function pickEnemyType(wave: number): EnemyType {
+  const roll = Math.random();
+  if (wave <= 2) {
+    return 'imp'; // 前2波只有小鬼面
   }
+  if (wave <= 4) {
+    return roll < 0.75 ? 'imp' : 'cloud';
+  }
+  if (wave <= 5) {
+    return roll < 0.5 ? 'imp' : roll < 0.8 ? 'cloud' : 'twin';
+  }
+  // 第6波后全类型
+  if (roll < 0.4) return 'imp';
+  if (roll < 0.65) return 'cloud';
+  return 'twin';
+}
+
+function spawnOne(
+  type: EnemyType,
+  wave: number,
+  x?: number,
+  partnerId: number = -1
+): Enemy {
+  const def = ENEMIES[type];
+  const hpScale = WAVES.hpScale(wave);
+  const dmgScale = WAVES.damageScale(wave);
+  const startX = x ?? rand(40, GAME.width - 40);
+  const baseY = -def.radius - 10;
+
+  let vel: Vec2 = { x: 0, y: def.speed };
+  if (type === 'twin') {
+    vel = { x: rand(-15, 15), y: def.speed };
+  }
+
+  const isSleeping = type === 'cloud';
 
   return {
     id: uid(),
     type,
     pos: { x: startX, y: baseY },
     vel,
-    hp: def.hp * hpMul,
-    maxHp: def.hp * hpMul,
+    hp: def.hp * hpScale,
+    maxHp: def.hp * hpScale,
     radius: def.radius,
-    damage: def.damage,
-    ink: def.ink,
+    damage: def.damage * dmgScale,
+    exp: def.exp,
     color: def.color,
     age: 0,
-    split: false,
+    state: isSleeping ? 'sleeping' : 'moving',
+    sleepTimer: isSleeping ? (def.sleepDuration ?? 3) : 0,
+    partnerId,
     dead: false,
   };
 }
 
-export function difficultyAt(elapsed: number): number {
-  // 参考 canvas-vampire-survivors: 每 60s 敌人强度 ×1.3
-  // 2 分钟局: 1.0x -> 1.69x (原线性公式到 2.33x 太陡)
-  return 1.3 ** (elapsed / 60);
+// 生成敌人（含双子配对、精英）
+export function spawnEnemies(elapsed: number, wave: number): Enemy[] {
+  const spawned: Enemy[] = [];
+  const type = pickEnemyType(wave);
+
+  if (type === 'twin') {
+    // 双子面：成对生成，互相关联
+    const baseX = rand(60, GAME.width - 60);
+    const id1 = uid();
+    const id2 = uid();
+    const e1 = spawnOne('twin', wave, baseX - 18, id2);
+    e1.id = id1;
+    const e2 = spawnOne('twin', wave, baseX + 18, id1);
+    e2.id = id2;
+    spawned.push(e1, e2);
+  } else {
+    spawned.push(spawnOne(type, wave));
+  }
+
+  // 精英波：额外生成墨团精英
+  if (WAVES.eliteWaves.includes(wave)) {
+    // 只在波次开始时生成一次（elapsed 刚好是波次起始）
+    const waveStart = (wave - 1) * WAVES.durationPerWave;
+    if (elapsed - waveStart < 0.5) {
+      const eliteCount = wave === 20 ? 2 : 1;
+      for (let i = 0; i < eliteCount; i++) {
+        spawned.push(spawnOne('ink_elite', wave, GAME.width / 2 + (i - 0.5) * 80));
+      }
+    }
+  }
+
+  return spawned;
 }
 
-export function spawnEnemies(elapsed: number, level: number): Enemy[] {
-  // 生成节奏由外层 while(spawnTimer >= interval) 控制，此处每调用固定生成 1 只。
-  // 血量随时间难度线性增长，速度随 sqrt(时间难度) × 等级系数 增长。
-  const difficulty = difficultyAt(elapsed);
-  const type = pickEnemyType(elapsed);
-  const levelSpeedMul = LEVEL.speedMulForLevel(level);
-  return [spawnOne(type, undefined, difficulty, difficulty ** 0.5 * levelSpeedMul)];
-}
-
-// 瞄准逻辑：优先攻击最危险的敌人（最靠近玩家/底部 = y 值最大），
-// 水平距离作为次要权重。避免追着已经偏到屏幕边缘的敌人打。
+// 瞄准：优先最危险（最靠近城墙/底部）的敌人
 export function findTargetEnemy(player: Player, enemies: Enemy[]): Enemy | null {
   let target: Enemy | null = null;
   let bestScore = -Infinity;
   for (const e of enemies) {
-    if (e.dead) continue;
-    // 垂直接近度（y 越大越靠近底部玩家，越危险）权重高
+    if (e.dead || e.state === 'sleeping') continue;
     const vertical = e.pos.y;
-    // 水平偏离度（越偏权重越低）
     const horizontalDist = Math.abs(e.pos.x - player.pos.x);
-    const score = vertical - horizontalDist * 0.25;
+    const score = vertical - horizontalDist * 0.2;
     if (score > bestScore) {
       bestScore = score;
       target = e;
@@ -134,34 +167,78 @@ export function findTargetEnemy(player: Player, enemies: Enemy[]): Enemy | null 
   return target;
 }
 
-export function fireProjectiles(player: Player, target: Enemy | null): Projectile[] {
+// 发射奥术飞弹
+export function fireArcane(player: Player, target: Enemy | null): Projectile[] {
   const projectiles: Projectile[] = [];
   const origin = player.pos;
   const dir: Vec2 = target
     ? normalize({ x: target.pos.x - origin.x, y: target.pos.y - origin.y })
     : { x: 0, y: -1 };
 
+  const casts = 1 + player.extraCast;
   const count = Math.max(1, Math.floor(player.multiShot));
   const fan = player.fanAngle;
   const step = fan > 0 && count > 1 ? fan / (count - 1) : 0;
   const startAngle = -fan / 2;
 
-  for (let i = 0; i < count; i++) {
-    const angle = startAngle + i * step;
-    const v = rotate(dir, angle);
-    const speed = GAME.projectileSpeed * player.speedMul;
-    projectiles.push({
-      id: uid(),
-      pos: { x: origin.x, y: origin.y - player.radius },
-      vel: { x: v.x * speed, y: v.y * speed },
-      damage: Math.round(GAME.projectileDamage * player.damageMul),
-      life: 0,
-      maxLife: 2.5,
-      pierce: player.pierce,
-      color: '#3b7a5c',
-    });
+  for (let c = 0; c < casts; c++) {
+    for (let i = 0; i < count; i++) {
+      const angle = startAngle + i * step;
+      const v = rotate(dir, angle);
+      const speed = GAME.projectileSpeed * player.speedMul;
+      // 连发有微小偏移，避免完全重叠
+      const offsetX = c * 6;
+      projectiles.push({
+        id: uid(),
+        pos: { x: origin.x + offsetX, y: origin.y - player.radius },
+        vel: { x: v.x * speed, y: v.y * speed },
+        damage: Math.round(GAME.projectileDamage * player.damageMul),
+        life: 0,
+        maxLife: 2.5,
+        pierce: player.pierce,
+        color: '#6B5B95',
+        kind: 'arcane',
+      });
+    }
   }
   return projectiles;
+}
+
+// 发射冰锥（直线，高伤）
+export function fireIce(player: Player, target: Enemy | null): Projectile[] {
+  const origin = player.pos;
+  const dir: Vec2 = target
+    ? normalize({ x: target.pos.x - origin.x, y: target.pos.y - origin.y })
+    : { x: 0, y: -1 };
+  const speed = 380 * player.speedMul;
+  return [{
+    id: uid(),
+    pos: { x: origin.x, y: origin.y - player.radius },
+    vel: { x: dir.x * speed, y: dir.y * speed },
+    damage: Math.round(25 * player.damageMul),
+    life: 0,
+    maxLife: 2.5,
+    pierce: player.pierce,
+    color: '#4A90D9',
+    kind: 'ice',
+  }];
+}
+
+// 发射滚木（宽横扫，穿透∞）
+export function fireLog(player: Player): Projectile[] {
+  const origin = player.pos;
+  const speed = 300;
+  return [{
+    id: uid(),
+    pos: { x: origin.x, y: origin.y - player.radius - 20 },
+    vel: { x: 0, y: -speed },
+    damage: Math.round(35 * player.damageMul),
+    life: 0,
+    maxLife: 3.0,
+    pierce: 999, // 滚木穿透∞
+    color: '#8B6914',
+    kind: 'log',
+  }];
 }
 
 export function updatePlayer(
@@ -170,15 +247,38 @@ export function updatePlayer(
   enemies: Enemy[],
   projectiles: Projectile[]
 ) {
+  const cd = player.cooldownMul;
+
+  // 奥术飞弹（主技能）
   player.attackTimer += dt;
-  if (player.attackTimer >= player.attackInterval) {
+  if (player.attackTimer >= player.attackInterval * cd) {
     player.attackTimer = 0;
     const target = findTargetEnemy(player, enemies);
-    projectiles.push(...fireProjectiles(player, target));
-    // 限制同屏
-    if (projectiles.length > GAME.maxProjectiles) {
-      projectiles.splice(0, projectiles.length - GAME.maxProjectiles);
+    projectiles.push(...fireArcane(player, target));
+  }
+
+  // 冰锥术
+  if (player.hasIce) {
+    player.iceTimer += dt;
+    if (player.iceTimer >= 1.6 * cd) {
+      player.iceTimer = 0;
+      const target = findTargetEnemy(player, enemies);
+      projectiles.push(...fireIce(player, target));
     }
+  }
+
+  // 滚木
+  if (player.hasLog) {
+    player.logTimer += dt;
+    if (player.logTimer >= 3.0 * cd) {
+      player.logTimer = 0;
+      projectiles.push(...fireLog(player));
+    }
+  }
+
+  // 同屏弹量限制
+  if (projectiles.length > GAME.maxProjectiles) {
+    projectiles.splice(0, projectiles.length - GAME.maxProjectiles);
   }
 }
 
@@ -186,57 +286,62 @@ export function updateEnemies(
   enemies: Enemy[],
   dt: number,
   player: Player
-): { damage: number; ink: number; spawned: Enemy[] } {
+): { damage: number; exp: number; spawned: Enemy[] } {
   let damage = 0;
-  let ink = 0;
+  let exp = 0;
   const spawned: Enemy[] = [];
 
   for (let i = enemies.length - 1; i >= 0; i--) {
     const e = enemies[i];
     e.age += dt;
 
-    // scorch 抖动
-    if (e.type === 'scorch') {
-      e.pos.x += Math.sin(e.age * 15) * 0.8;
+    // 飘云怪：睡眠时间递减，到点醒来
+    if (e.state === 'sleeping') {
+      e.sleepTimer -= dt;
+      if (e.sleepTimer <= 0) {
+        e.state = 'moving';
+      }
+      // 睡觉时缓慢飘动
+      e.pos.x += Math.sin(e.age * 2) * 8 * dt;
+    } else {
+      // 移动
+      e.pos.x += e.vel.x * dt;
+      e.pos.y += e.vel.y * dt;
     }
-    e.pos.x += e.vel.x * dt;
-    e.pos.y += e.vel.y * dt;
 
+    // 超出屏幕底部（飞过城墙）
     if (e.pos.y - e.radius > GAME.height) {
       enemies.splice(i, 1);
       continue;
     }
 
-    if (dist(e.pos, player.pos) <= e.radius + player.radius) {
+    // 撞城墙判定线
+    if (e.pos.y + e.radius >= GAME.wallLineY) {
       damage += e.damage;
       enemies.splice(i, 1);
       continue;
     }
 
+    // 死亡处理
     if (e.hp <= 0) {
       e.dead = true;
-      ink += e.ink;
-      if (e.type === 'thought' && !e.split) {
-        e.split = true;
-        for (let s = 0; s < 2; s++) {
-          spawned.push(
-            spawnOne(
-              'thought',
-              e.pos.x + rand(-12, 12),
-              0.35,
-              1.3
-            )
-          );
+      e.state = 'dead';
+      exp += e.exp;
+
+      // 双子面：一个死了，另一个狂暴（+50%速）
+      if (e.type === 'twin' && e.partnerId >= 0) {
+        for (const other of enemies) {
+          if (other.id === e.partnerId && !other.dead) {
+            other.state = 'raging';
+            other.vel.y *= 1.5;
+            other.vel.x *= 1.5;
+          }
         }
       }
+
       enemies.splice(i, 1);
     }
   }
 
-  return { damage, ink, spawned };
-}
-
-export function clampInk(ink: number): number {
-  const cap = GAME.inkToLevel;
-  return Math.min(ink, cap);
+  return { damage, exp, spawned };
 }
