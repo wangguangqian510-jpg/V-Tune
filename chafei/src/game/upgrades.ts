@@ -24,6 +24,34 @@ function makeUpgrade(
   };
 }
 
+// 全部技能升满后出现的兜底精进卡（无等级上限，纯数值微调）
+const FALLBACK_POOL: Omit<Upgrade, 'level'>[] = [
+  {
+    id: 'fb_damage',
+    category: 'mind',
+    name: '炉火纯青',
+    desc: '伤害 +8%',
+    maxLevel: 99,
+    effect: p => { p.damageMul += 0.08; },
+  },
+  {
+    id: 'fb_speed',
+    category: 'mind',
+    name: '心手合一',
+    desc: '攻速 +6%',
+    maxLevel: 99,
+    effect: p => { p.attackInterval = Math.max(0.2, p.attackInterval * 0.94); },
+  },
+  {
+    id: 'fb_pierce',
+    category: 'tea',
+    name: '一脉贯通',
+    desc: '穿透 +1',
+    maxLevel: 99,
+    effect: p => { p.pierce += 1; },
+  },
+];
+
 export function buildUpgradePool(levels: Record<string, number>): Upgrade[] {
   return [
     // 茶种：龙井穿透 / 普洱溅射 / 白毫连射
@@ -35,8 +63,9 @@ export function buildUpgradePool(levels: Record<string, number>): Upgrade[] {
       p.inkRadiusMul += 0.2;
       p.damageMul += 0.1;
     }),
-    makeUpgrade('baihao', 'tea', '白毫', '茶筅连射，攻速+15%', p => {
+    makeUpgrade('baihao', 'tea', '白毫', '茶筅连射，攻速+15%，水线更急', p => {
       p.attackInterval = Math.max(0.25, p.attackInterval * 0.85);
+      p.speedMul += 0.1;
     }),
 
     // 手法：点茶三连 / 煎茶扇形 / 煮茶蓄力
@@ -75,7 +104,18 @@ export function pickThree(levels: Record<string, number>): Upgrade[] {
   // 优先出没满级的，打乱
   const available = pool
     .filter(u => (levels[u.id] ?? 0) < u.maxLevel)
-    .sort(() => Math.random() - 0.5)
-    .slice(0, 3);
-  return available;
+    .sort(() => Math.random() - 0.5);
+
+  if (available.length >= 3) {
+    return available.slice(0, 3);
+  }
+
+  // 不足 3 张（部分或全部升满）：用兜底卡补齐
+  const result = [...available];
+  const fbShuffled = [...FALLBACK_POOL].sort(() => Math.random() - 0.5);
+  for (const fb of fbShuffled) {
+    if (result.length >= 3) break;
+    result.push({ ...fb, level: 1 });
+  }
+  return result;
 }
